@@ -20,6 +20,9 @@ class VAE(nn.Module):
     def __init__(self):
         super(VAE, self).__init__()
 
+    def forward(self):
+        pass
+
     def encode(self):
         pass
 
