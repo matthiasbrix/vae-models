@@ -1,2 +1,4 @@
 examples/data
-examples/vae-example/results
+examples/vae-example/testing
+examples/vae-example/.ipynb_checkpoints
+examples/vae-example/__pycache__
