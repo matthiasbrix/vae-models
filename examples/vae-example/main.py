@@ -10,11 +10,18 @@ import time
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
+BATCH_SIZE = 128
+
 kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
 mnist_train = datasets.MNIST(root="../data/MNIST", train=True, transform=transforms.ToTensor(), download=True)
 mnist_test = datasets.MNIST(root="../data/MNIST", train=False, transform=transforms.ToTensor(), download=False)
-train_loader = torch.utils.data.DataLoader(dataset=mnist_train, batch_size=128, shuffle=True, **kwargs)
-test_loader = torch.utils.data.DataLoader(dataset=mnist_test, batch_size=1, shuffle=True, **kwargs)
+train_loader = torch.utils.data.DataLoader(dataset=mnist_train, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
+test_loader = torch.utils.data.DataLoader(dataset=mnist_test, batch_size=BATCH_SIZE, shuffle=True, **kwargs)
+
+#########################################################################
+# Alot of code is copied from
+# https://github.com/pytorch/examples/blob/master/vae/main.py
+#########################################################################
 
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
@@ -48,23 +55,24 @@ class VAE(nn.Module):
 
     # sampling from N(\mu(X), \sum(X))
     def reparameterization_trick(self, mu, logsigma):
-        sigma = torch.exp(1/2*logsigma) # TODO why 1/2?
+        sigma = torch.exp(1/2*logsigma)
         eps = torch.randn_like(sigma) # sampling eps ~ N(0, I)
         return mu + sigma*eps # compute z = \mu(X) + \sum^{1/2}(X) * eps
 
     # loss function + KL divergence, use for this \mu(X), \sum(X)
     # compute here D_{KL}[N(\mu(X), \sum(X))||N(0,1)] = 1/2 \sum_k (\sum(X)+\mu^2(X) - 1 - log \sum(X))
     def loss_function(self, fx, X, logsigma, mu):
+        # E[log P(X|z)]
         bce = F.binary_cross_entropy(fx, X, reduction="sum") # TODO: why sum reduction?
         kl_divergence = 1/2 * torch.sum(1 + logsigma - mu.pow(2) - logsigma.exp()) # by appendix B in the Auto Encoding Variational Bayes
         #kl_divergence2 = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma) # will give same value but negative would need to + below
         return bce - kl_divergence
 
     def forward(self, data):
-        mu, logsigma = self.encoder(data)
+        mu, logsigma = self.encoder(data.view(-1, 784))
         z = self.reparameterization_trick(mu, logsigma)
         decoded = self.decoder(z)
-        return decoded, mu, logsigma
+        return decoded, mu, logsigma, z
 
 class Solver(object):
     def __init__(self, optimizer, input_dim, hidden_dim, z_dim, epochs, learning_rate=1e-3):
@@ -75,24 +83,23 @@ class Solver(object):
         self.z_dim = z_dim
         self.epochs = epochs
         self.learning_rate = learning_rate
-
-        self.model.to(device)
-
-    def _reset_histories(self):
+        self.latent_space = None
         self.train_loss_history = []
         self.test_loss_history = []
+        self.model.to(device)
 
     def train(self, epoch):
         self.model.train()
         train_loss = 0
-        for _, (data, _) in enumerate(train_loader):
-            X = data.view(-1, 28 * 28).to(device)
+        for batch_idx, (data, _) in enumerate(train_loader):
+            X = data.to(device)
             self.optimizer.zero_grad()
-            decoded, mu, logsigma = self.model(X) # shapes are torch.Size([100, 784]) torch.Size([100, 20]) torch.Size([100, 20]) because batch_size = 100
+            decoded, mu, logsigma, latent_space = self.model(X) # shapes are torch.Size([100, 784]) torch.Size([100, 20]) torch.Size([100, 20]) because batch_size = 100
             loss = self.model.loss_function(decoded, X, logsigma, mu)
             loss.backward() # compute gradients
             train_loss += loss.item()
             self.optimizer.step()
+            self.latent_space = latent_space if batch_idx == 0 else self.latent_space
             '''
             if batch_idx % 10 == 0:
                 print('Train Epoch: {} [{}/{} ({:.0f}%)]\tLoss: {:.6f}'.format(
@@ -104,40 +111,38 @@ class Solver(object):
             epoch, train_loss))
         self.train_loss_history.append(train_loss)
 
-    # copied from https://github.com/pytorch/examples/blob/master/vae/main.py
     def test(self, epoch):
         self.model.eval()
         test_loss = 0
         with torch.no_grad():
-            for _, (data, _) in enumerate(test_loader):
-                data = data.view(-1, 28 * 28).to(device)
-                recon_batch, mu, logvar = self.model(data)
-                test_loss += self.model.loss_function(recon_batch, data, mu, logvar).item()
-                #if i == 0:
-                #    n = min(data.size(0), 8)
-                #    comparison = torch.cat([data[:n], recon_batch.view(64, 1, 28, 28)[:n]]) TODO: Make view(64, -1, 784)?
-                #    torchvision.utils.save_image(comparison.cpu(), "testing/test_reconstruction_" + str(epoch) + ".png", nrow=n)
+            for i, (data, _) in enumerate(test_loader):
+                data = data.to(device)
+                decoded, mu, logvar, _ = self.model(data)
+                test_loss += self.model.loss_function(decoded, data, mu, logvar).item()
+                if i == 0: # check w/ test set on first batch in test set.
+                    n = min(data.size(0), 16)
+                    comparison = torch.cat([data[:n], decoded.view(BATCH_SIZE, 1, 28, 28)[:n]])
+                    torchvision.utils.save_image(comparison.cpu(), "testing/test_reconstruction_" + str(epoch) + ".png", nrow=n)
         test_loss /= len(test_loader.dataset)
         print("====> Test set loss avg: {:.4f}".format(test_loss))
         self.test_loss_history.append(test_loss)
     
     def run(self):
-        self._reset_histories(self):
         os.makedirs("testing", exist_ok=True)
         #scheduler = optim.lr_scheduler.StepLR(optimalg, step_size=1000, gamma=0.1)
         for epoch in range(1, self.epochs+1):
             t0 = time.time()
             #scheduler.step()
-            self.train_loss_history.append(self.train(epoch))
-            self.test_loss_history.append(self.test(epoch))
+            self.train(epoch)
+            self.test(epoch)
             with torch.no_grad():
                 # In test time we disregard the encoder and only generate z from N(0,I) which we use as arg to decoder
                 sample = torch.randn(64, self.z_dim).to(device)
                 sample = self.model.decoder(sample)
                 torchvision.utils.save_image(sample.view(64, 1, 28, 28), "testing/test_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png") # inserting a mini batch tensor to compute a grid
             print('{} seconds for epoch {}'.format(time.time() - t0, epoch))
+        print("+++++ TRAINING FINISHED +++++")
 
-'''
 if __name__ == "__main__":
     input_dim = 784
     hidden_dim = 500 # Kingma, Welling use 500 neurons, otherwise use 400
@@ -148,8 +153,6 @@ if __name__ == "__main__":
     epochs = 10000
     solver = Solver(optimizer, input_dim, hidden_dim, z_dim, epochs, learning_rate)
     solver.run()
-'''
-# digits 3,5 and 8,0 look similar
-# TODO visualize the latent space like here: https://wiseodd.github.io/techblog/2016/12/10/variational-autoencoder/
+
 # TODO: remember also requirements.txt file for the repo.
 # TODO: pylint - turn it off!!!
