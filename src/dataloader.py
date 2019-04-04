@@ -9,12 +9,12 @@ from sklearn.model_selection import train_test_split
 
 class DataLoader():
     
-    def __init__(self, batch_size, dataset, z_dim):
+    def __init__(self, path, batch_size, dataset, z_dim):
         
         kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
         train_set = None
         test_set = None
-	data_folder_prefix = "../../data"
+        data_folder_prefix = "data/"
 
         if dataset == "MNIST":
             train_set = datasets.MNIST(root=data_folder_prefix, train=True, transform=transforms.ToTensor(), download=True)
@@ -40,15 +40,15 @@ class DataLoader():
             print("n_classes: %d" % n_classes)
             print("img dims x: {} y: {} c: {}".format(h, w, c)) # 50 x 37 x 3
             print(train_set.shape)
-
             data_transform = transforms.Compose([transforms.ToTensor()])
-            train_set = data_transform(train_set)
+            train_set = data_transform(train_set) # LFW has tensor 1, 1030, 5550
         else:
             print("DATASET N/A!")
             sys.exit()
         
-        # MNIST has tensor 1, 28, 28, LFW 1, 1030, 5550
-        print((train_set.size()))
+        #asd = 50*37*3
+        #bs = 1
+        #print(train_set[0][0].view(bs, 1, 50, 37, 3).shape)
         self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=True, **kwargs)
-        self.folder_name = dataset + "_z=" + str(z_dim)
+        self.folder_name = path + "/" + dataset + "_z=" + str(z_dim)

@@ -1,6 +1,3 @@
-from vae import Encoder, Decoder, Vae
-from dataloader import DataLoader
-
 import os
 import time
 
@@ -13,13 +10,13 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Solver(object):
-    def __init__(self, data_loader, encoder, decoder, optimizer, z_dim, img_dims, epochs, num_normal_plots, batch_size=128, learning_rate=1e-3):
+    def __init__(self, model, data_loader, optimizer, z_dim, img_dims, epochs, num_normal_plots, batch_size=128, learning_rate=1e-3):
         self.loader = data_loader
-        self.model = Vae(encoder, decoder)
+        self.model = model
         self.optimizer = optimizer(self.model.parameters(), lr=learning_rate) # params is iterable of parameters to optimize or dicts defining parameter groups
         self.model.to(device)
         
-        self.img_dim_x, self.img_dim_y = img_dims
+        self.img_dims = img_dims
         self.z_dim = z_dim
         self.epochs = epochs
         self.learning_rate = learning_rate
@@ -45,7 +42,7 @@ class Solver(object):
         for batch_idx, (data, target) in enumerate(self.train_loader):
             X = data.to(device)
             self.optimizer.zero_grad()
-            decoded, mu, logsigma, latent_space = self.model(X) # shapes are torch.Size([128, 784]) torch.Size([128, 20]) torch.Size([128, 20]) because batch_size = 128
+            decoded, mu, logsigma, latent_space = self.model(X)
             loss, reconstruction_loss, kl_divergence = self.model.loss_function(decoded, X, logsigma, mu)
             loss.backward() # compute gradients
             train_loss += loss.item()
@@ -83,18 +80,16 @@ class Solver(object):
     def test(self, epoch):
         self.model.eval()
         test_loss = 0.0
-        data = None
         with torch.no_grad():
-            for _, (data, _) in enumerate(self.test_loader):
+            for i, (data, _) in enumerate(self.test_loader):
                 data = data.to(device)
                 decoded, mu, logvar, _ = self.model(data)
                 loss, _, _ = self.model.loss_function(decoded, data, mu, logvar)
-                test_loss += loss.item()                    
-        
-        n = min(data.size(0), 16) # TODO: 16 should be a hyperparam
-        comparison = torch.cat([data[:n], decoded.view(self.batch_size, 1, self.img_dim_x, self.img_dim_y)[:n]])
-        torchvision.utils.save_image(comparison.cpu(), "testing/" + self.loader.folder_name + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=n)
-        
+                test_loss += loss.item()
+                if i == 0: # check w/ test set on first batch in test set.
+                    n = min(data.size(0), 16) # TODO: 16 should be a hyperparam
+                    comparison = torch.cat([data[:n], decoded.view(self.batch_size, 1, *self.img_dims)[:n]])
+                    torchvision.utils.save_image(comparison.cpu(), "testing/" + self.loader.folder_name + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=n)        
         test_loss /= len(self.test_loader.dataset)
         print("====> Test set loss avg: {:.4f}".format(test_loss))
         self.test_loss_history.append(test_loss)
@@ -109,25 +104,8 @@ class Solver(object):
             self.test(epoch)
             with torch.no_grad():
                 # In test time we disregard the encoder and only generate z from N(0,I) which we use as arg to decoder
-                sample = torch.randn(64, self.z_dim).to(device) # TODO 64 should be a hyperparam
-                sample = self.model.decoder(sample)
-                torchvision.utils.save_image(sample.view(64, 1, self.img_dim_x, self.img_dim_y), "testing/" + self.loader.folder_name + "/test_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png") # inserting a mini batch tensor to compute a grid
+                sample = torch.randn(64, self.z_dim).to(device) # TODO 64 should be a hyperparam 
+                sample = self.model.decoder(sample) # 64, *input_dims
+                torchvision.utils.save_image(sample.view(64, 1, *self.img_dims), "testing/" + self.loader.folder_name + "/test_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png") # inserting a mini batch tensor to compute a grid
             print('{} seconds for epoch {}'.format(time.time() - t0, epoch))
         print("+++++ RUN IS FINISHED +++++")
-
-if __name__ == "__main__":
-    input_dim = 784
-    hidden_dim = 500 # Kingma, Welling use 500 neurons, otherwise use 400
-    z_dim = 20 # 1000 is suggested in the paper "Tutorial on VAE" but Kingma, Welling show 20 is sufficient for MNIST
-    optimizer = torch.optim.Adam
-    epochs = 10000
-    num_normal_plots = 2
-    dataset = "MNIST"
-    batch_size = 128
-    pic_dim = 28
-
-    data_loader = DataLoader(batch_size, dataset, z_dim)
-    encoder = Encoder(input_dim, hidden_dim, z_dim)
-    decoder = Decoder(z_dim, hidden_dim, input_dim)
-    solver = Solver(encoder, decoder, data_loader, optimizer, z_dim, pic_dim, epochs, num_normal_plots)
-    solver.run()

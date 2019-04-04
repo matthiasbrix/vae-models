@@ -1,4 +1,7 @@
-examples/data
-examples/vae-example/testing
-examples/vae-example/.ipynb_checkpoints
-examples/vae-example/__pycache__
+data
+testing
+src/.ipynb_checkpoints
+src/__pycache__
+src/examples/__pycache__
+src/examples/vae/.ipynb_checkpoints
+src/examples/vae/__pycache__

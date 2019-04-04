@@ -3,12 +3,16 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
+from pathlib import Path
+
 #########################################################################
 #
-# A lot of code is copied from
+# Some code is copied from
 # https://github.com/pytorch/examples/blob/master/vae/main.py
 #
 #########################################################################
+
+PATH = str(Path(__file__).parent.absolute()).split('/')[-1]
 
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
@@ -55,7 +59,7 @@ class Vae(nn.Module):
         return loss_reconstruction - kl_divergence, loss_reconstruction, -kl_divergence
 
     def forward(self, data):
-        mu, logsigma = self.encoder(data.view(-1, 784))
+        mu, logsigma = self.encoder(data.view(-1, 784)) # TODO: 784 needs to be a hyper param
         z = self.reparameterization_trick(mu, logsigma)
         decoded = self.decoder(z)
         return decoded, mu, logsigma, z
