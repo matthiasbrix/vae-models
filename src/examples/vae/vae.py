@@ -21,6 +21,8 @@ class Encoder(nn.Module):
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
         self.linear22 = nn.Linear(H, Dout) # \sum(x)
 
+        self.input_dim = Din
+
     # compute q(z|x) which is encoding X into z
     def forward(self, x):
         x = F.relu(self.linear1(x))
@@ -53,13 +55,13 @@ class Vae(nn.Module):
     # loss function + KL divergence, use for this \mu(X), \sum(X)
     # compute here D_{KL}[N(\mu(X), \sum(X))||N(0,1)] = 1/2 \sum_k (\sum(X)+\mu^2(X) - 1 - log \sum(X))
     def loss_function(self, fx, X, logsigma, mu):
-        loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum") # E[log p(x|z)] TODO: why sum reduction?
+        loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum") # compute E[log p(x|z)] TODO: why sum reduction?
         kl_divergence = 1/2 * torch.sum(1 + logsigma - mu.pow(2) - logsigma.exp()) # by appendix B in the Auto Encoding Variational Bayes
         #kl_divergence2 = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma) # will give same value but negative would need to + below
         return loss_reconstruction - kl_divergence, loss_reconstruction, -kl_divergence
 
     def forward(self, data):
-        mu, logsigma = self.encoder(data.view(-1, 784)) # TODO: 784 needs to be a hyper param
+        mu, logsigma = self.encoder(data.view(-1, self.encoder.input_dim))
         z = self.reparameterization_trick(mu, logsigma)
         decoded = self.decoder(z)
         return decoded, mu, logsigma, z

@@ -32,6 +32,7 @@ class Solver(object):
         self.latent_space = np.zeros(((len(self.train_loader)-1)*self.batch_size, z_dim))
         self.num_train_batches = len(self.train_loader)
         self.num_train_samples = len(self.train_loader.dataset)
+        self.folder_prefix = "../testing/"
 
     def train(self, epoch):
         self.model.train()
@@ -89,14 +90,14 @@ class Solver(object):
                 if i == 0: # check w/ test set on first batch in test set.
                     n = min(data.size(0), 16) # TODO: 16 should be a hyperparam
                     comparison = torch.cat([data[:n], decoded.view(self.batch_size, 1, *self.img_dims)[:n]])
-                    torchvision.utils.save_image(comparison.cpu(), "testing/" + self.loader.folder_name + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=n)        
+                    torchvision.utils.save_image(comparison.cpu(), self.folder_prefix + self.loader.folder_name + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=n)        
         test_loss /= len(self.test_loader.dataset)
         print("====> Test set loss avg: {:.4f}".format(test_loss))
         self.test_loss_history.append(test_loss)
     
     def run(self):
-        os.makedirs("testing", exist_ok=True)
-        os.makedirs("testing/"+self.loader.folder_name, exist_ok=True)
+        os.makedirs(self.folder_prefix, exist_ok=True)
+        os.makedirs(self.folder_prefix+self.loader.folder_name, exist_ok=True)
         print("+++++ START RUN +++++")
         for epoch in range(1, self.epochs+1):
             t0 = time.time()
@@ -106,6 +107,6 @@ class Solver(object):
                 # In test time we disregard the encoder and only generate z from N(0,I) which we use as arg to decoder
                 sample = torch.randn(64, self.z_dim).to(device) # TODO 64 should be a hyperparam 
                 sample = self.model.decoder(sample) # 64, *input_dims
-                torchvision.utils.save_image(sample.view(64, 1, *self.img_dims), "testing/" + self.loader.folder_name + "/test_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png") # inserting a mini batch tensor to compute a grid
+                torchvision.utils.save_image(sample.view(64, 1, *self.img_dims), self.folder_prefix + self.loader.folder_name + "/test_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png") # inserting a mini batch tensor to compute a grid
             print('{} seconds for epoch {}'.format(time.time() - t0, epoch))
         print("+++++ RUN IS FINISHED +++++")
