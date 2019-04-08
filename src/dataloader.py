@@ -29,7 +29,7 @@ class DataLoader():
             n_features = X.shape[1]
             y = lfw['target']
             target_names = lfw['target_names']
-            n_classes = target_names.shape[0]     
+            n_classes = target_names.shape[0]
             # split into a training and testing set, labels are ignored
             train_set, test_set, y_train, y_test = train_test_split(
                 X, y, test_size=0.20, random_state=42) # TODO remove later random state
@@ -40,28 +40,30 @@ class DataLoader():
             print("n_classes: %d" % n_classes)
             print("img dims x: {} y: {}".format(h, w)) # 50 x 37 x 3
             
-            train_set = train_set/255.0
+            #train_set = train_set/255.0
             data_transform = transforms.Compose([transforms.ToTensor()])
             train_set = data_transform(train_set) # tensor 1, 1030, 5550
             y_tensor = torch.tensor(y_train, dtype=torch.long)
             #y_tensor = y_tensor.view(y_tensor.size(0), 1)
             train_set = train_set.view(train_set.size(1), 1, h, w) # 1030 x 1 x 50 x 37 x 3
             # TODO: need list of [(data, target)] - try with tensor cat([])
-            print(train_set.shape, y_tensor.shape)
+            #print(train_set.shape, y_tensor.shape)
             ls = []
             for i in range(train_set.shape[0]):
-                c = (train_set[i], y_tensor[i])
+                c = (train_set[i]/255.0, y_tensor[i])
+                #print(c)
                 ls.append(c)
             #print(ls)
             train_set = ls
+            #print(len(train_set), train_set[0][0].shape, train_set[0][0])
 
             ls = []
-            test_set = test_set/255.0
+            #test_set = test_set/255.0
             test_set = data_transform(test_set) # tensor 1, 1030, 5550
             y_tensor = torch.tensor(y_test, dtype=torch.long)
             test_set = test_set.view(test_set.size(1), 1, h, w) # 1030 x 1 x 50 x 37 x 3
             for i in range(test_set.shape[0]):
-                c = (test_set[i], y_tensor[i])
+                c = (test_set[i]/255.0, y_tensor[i])
                 ls.append(c)
             test_set = ls
             #print("kaeft", torch.tensor(y_train).shape)
@@ -75,7 +77,7 @@ class DataLoader():
         # TODO
         # MNIST has 60k x 1 x 28 x 28 in data
         # LFW has 1 x 1030 x 5550 but want 1030 x 1 x 50 x 37 x 3
-        #print(len(train_set), train_set.shape) # 
+        #print(len(train_set), train_set.shape)
         self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=True, **kwargs)
         self.folder_name = path + "/" + dataset + "_z=" + str(z_dim)
