@@ -1,5 +1,6 @@
 data
-testing
+results
+models
 src/.ipynb_checkpoints
 src/__pycache__
 src/examples/__pycache__
