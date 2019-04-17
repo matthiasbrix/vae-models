@@ -10,35 +10,33 @@ import numpy as np
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, z_dim, img_dims, epochs, num_normal_plots, weight_decay=0, batch_size=128, learning_rate=1e-3):
+    def __init__(self, model, data_loader, optimizer, z_dim, img_dims, epochs, step_config, optim_config, batch_size=128):
         self.loader = data_loader
         self.model = model
-        self.optimizer = optimizer(self.model.parameters(), lr=learning_rate, weight_decay=weight_decay) # params is iterable of parameters to optimize or dicts defining parameter groups
+        self.optimizer = optimizer(self.model.parameters(), **optim_config) # params is iterable of parameters to optimize or dicts defining parameter groups
         self.model.to(device)
         
         self.img_dims = img_dims
         self.z_dim = z_dim
         self.epochs = epochs
-        self.learning_rate = learning_rate
         self.train_loss_history = []
         self.test_loss_history = []
         self.batch_size = batch_size
-        self.normal_plot_iter = epochs//num_normal_plots
         self.train_loader = self.loader.train_loader
         self.test_loader = self.loader.test_loader
-        self.store_z_stats = np.arange(self.normal_plot_iter, epochs+1, self.normal_plot_iter)
         self.z_stats = []
         self.labels = np.zeros((len(self.train_loader)-1)*self.batch_size)
         self.latent_space = np.zeros(((len(self.train_loader)-1)*self.batch_size, z_dim))
         self.num_train_batches = len(self.train_loader)
         self.num_train_samples = len(self.train_loader.dataset)
         self.folder_prefix = "../results/"
+        self.step_config = step_config
 
     def train(self, epoch):
         self.model.train()
         train_loss = 0.0
-        store_z_stats = epoch in self.store_z_stats
-        mu_z, std_z, rl, kl = 0.0, 0.0, 0.0, 0.0
+        #store_z_stats = epoch in self.store_z_stats
+        mu_z, std_z, rl, kl, varmu_z, expected_var_cond_distr = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         for batch_idx, (data, target) in enumerate(self.train_loader):
             X = data.to(device)
             self.optimizer.zero_grad()
@@ -50,18 +48,16 @@ class Solver(object):
             # accum. reconstruction loss and kl divergence
             rl += reconstruction_loss
             kl += kl_divergence
-            if store_z_stats:
-                # compute mu(z), std(z)
-                mu_z += torch.mean(latent_space).item() # need the metric just for one batch, actually don't need for all
-                std_z += torch.std(latent_space).item()
-                # for Var(mu(x)), just first batch
-                if batch_idx == 0:
-                    muzdim = torch.mean(mu_x, 0, True)#/self.batch_size
-                    muzdim = torch.mean(muzdim.pow(2))#/self.z_dim # is E[\mu(x)^2]
-                    varmu = torch.mean(mu_x.pow(2)) # is \bar{\mu}^T\bar{\mu}
-                    # res measures how much overlap, because if too much, we just get an average output image, but if too low, we might just get perfect output and very little variation 
-                    res = torch.abs(varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2] - should increase in start but then go down? if res 0, we have no variance which means no guarantee to sample a digit within the space close to it
-                    # print(torch.mean(torch.exp(logsigma)))
+            # compute mu(z), std(z)
+            mu_z += torch.mean(latent_space).item() # need the metric just for one batch, actually don't need for all
+            std_z += torch.std(latent_space).item()
+            # for Var(mu(x)), just first batch
+            #if batch_idx == 0:
+            muzdim = torch.mean(mu_x, 0, True)
+            muzdim = torch.mean(muzdim.pow(2)) # is E[\mu(x)^2]
+            varmu = torch.mean(mu_x.pow(2)) # is \bar{\mu}^T\bar{\mu}
+            varmu_z += torch.abs(varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
+            expected_var_cond_distr += torch.mean(torch.exp(logsigma).pow(2))
             if epoch == self.epochs and batch_idx != (len(self.train_loader)-1):
                 # store the latent space of all digits in last epoch
                 start = batch_idx*data.shape[0]
@@ -77,10 +73,9 @@ class Solver(object):
         rl /= self.num_train_samples
         kl /= self.num_train_samples
         self.train_loss_history.append((epoch, train_loss, rl, kl))
-        if store_z_stats:
-            self.z_stats.append((epoch, mu_z/self.num_train_batches, std_z/self.num_train_batches, res))
-        print("====> Epoch: {} train set loss avg: {:.4f}".format(
-            epoch, train_loss))
+        self.z_stats.append((epoch, mu_z/self.num_train_batches, std_z/self.num_train_batches, \
+            varmu_z/self.num_train_batches, expected_var_cond_distr/self.num_train_batches))
+        print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss))
 
     def test(self, epoch):
         self.model.eval()
@@ -103,19 +98,21 @@ class Solver(object):
         os.makedirs(self.folder_prefix, exist_ok=True)
         os.makedirs("../models/", exist_ok=True)
         os.makedirs(self.folder_prefix+self.loader.folder_name, exist_ok=True)
-        scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, step_size=50, gamma=0.1)
+        scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
         #scheduler2 = torch.optim.lr_scheduler.ReduceLROnPlateau(self.optimizer, 'min', verbose=True)
         print("+++++ START RUN +++++")
         for epoch in range(1, self.epochs+1):
-            scheduler.step()
+            if self.loader.dataset == "LFW":
+                scheduler.step()
             t0 = time.time()
             self.train(epoch)
             self.test(epoch)
             #scheduler2.step(tl)
             with torch.no_grad():
                 # In test time we disregard the encoder and only generate z from N(0,I) which we use as arg to decoder
-                sample = torch.randn(100, self.z_dim).to(device) # 10 x 10 grid
+                sample = torch.randn(100, self.z_dim).to(device) # 100 = 10 x 10 grid
                 sample = self.model.decoder(sample)
-                torchvision.utils.save_image(sample.view(100, 1, *self.img_dims), self.folder_prefix + self.loader.folder_name + "/generated_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png") # inserting a mini batch tensor to compute a grid
+                torchvision.utils.save_image(sample.view(100, 1, *self.img_dims), self.folder_prefix + self.loader.folder_name \
+                    + "/generated_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
             print("{} seconds for epoch {}".format(time.time() - t0, epoch))
         print("+++++ RUN IS FINISHED +++++")
