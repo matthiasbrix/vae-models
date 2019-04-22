@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.transforms as transforms
 from scipy.stats import norm
 
 # Saves figure without white space borders
@@ -21,14 +22,15 @@ def save_plot_fig(solver, data, cm, name):
 
 # Plotting train and test losses
 def plot_losses(solver):
-    train_loss_history = list(list(zip(*solver.train_loss_history))[1])
+    train_loss_history = solver.train_loss_history["train_loss_acc"]
     plt.figure(figsize=(6, 5))
     # Plotting the train loss
     if solver.test_loss_history:
         plt.subplot(2, 1, 1)
     plt.yscale("log")
     plt.loglog(np.arange(1, len(train_loss_history)+1), train_loss_history, basey=10, basex=10)
-    plt.yticks(np.arange(int(min(train_loss_history)), int(max(train_loss_history))+1, 5))
+    ticks = np.arange(min(train_loss_history), max(train_loss_history), ((max(train_loss_history)-min(train_loss_history))/len(train_loss_history)))[::2]
+    plt.yticks(ticks)
     plt.title("Train loss on data set {}, dim(z)={}".format(solver.loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
     plt.xlabel("epoch")
     plt.ylabel("log loss")
@@ -37,7 +39,7 @@ def plot_losses(solver):
     if solver.test_loss_history:
         plt.subplot(2, 1, 2)
         plt.loglog(np.arange(1, len(solver.test_loss_history)+1), solver.test_loss_history, basey=10, basex=10)
-        plt.yticks(np.arange(int(min(solver.test_loss_history)), int(max(solver.test_loss_history))+1, 5))
+        plt.yticks(np.arange(int(min(solver.test_loss_history)), int(max(solver.test_loss_history))+1, 0.5))
         plt.title("Test loss on data set {}, dim(z)={}".format(solver.loader.dataset, solver.z_dim)) # marginal likelihood log p(x)"
         plt.xlabel("epoch")
         plt.ylabel("log loss")
@@ -47,20 +49,23 @@ def plot_losses(solver):
     plt.show()
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
-# TODO: needs some ammendment/fixing to make it more generic (the algorithm below, doesn't really work)
-# also fix the numbers?
-# jsut like in https://matplotlib.org/examples/pylab_examples/log_demo.html ?
-def plot_gauss_distributions(solver, num_plots):
-    f, axarr = plt.subplots(num_plots//2, num_plots//2, figsize=(8, 6))
-    f.subplots_adjust(hspace=0.5, wspace=0.3)
+# TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
+def plot_gaussian_distributions(solver):
+    f, axarr = plt.subplots(2, 2, figsize=(8, 6))
+    x = np.linspace(-5, 5, 5000)
     idx_x = 0
     idx_y = 0
-    x = np.linspace(-5, 5, 5000)
-    for i in range(0, len(solver.z_stats), solver.epochs//num_plots):
-        epoch, mu_z, std_z, varmu_z, expected_var_cond_distr = solver.z_stats[i]
+    plots = np.arange(1, solver.epochs+1, np.ceil(solver.epochs/4)+1).astype(int) #len(solver.train_loss_history["epochs"])//num_plots - 1
+    plots[2:] += 1
+    plots[-1] = solver.epochs
+    f.subplots_adjust(hspace=0.5, wspace=0.3)
+    for idx in plots:
+        i = idx-1
+        epoch, mu_z, std_z, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i], solver.z_stats_history["mu_z"][i],\
+            solver.z_stats_history["std_z"][i], solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
         var_z = np.power(std_z, 2)
         print("epoch: %d, mu(z): %.4f, stddev(z): %.4f, var(z): %.4f, var(mu(z)): %.4f E[var(q(z|x)]: %.4f" % (\
-                epoch, mu_z, std_z, var_z, varmu_z, expected_var_cond_distr))
+                epoch, mu_z, std_z, var_z, varmu_z, expected_var_z))
         y = (1 / (np.sqrt(2 * np.pi * var_z))) * \
                 (np.power(np.e, -(np.power((x - mu_z), 2) / (2 * var_z))))
         axarr[idx_x, idx_y].plot(x, y)
@@ -79,23 +84,25 @@ def plot_gauss_distributions(solver, num_plots):
 
 # Plot the reconstruction loss and KL divergence in two separate plots
 def plot_rl_kl(solver):
-    rls = list(list(zip(*solver.train_loss_history))[2])
-    kls = list(list(zip(*solver.train_loss_history))[3])
+    rls = solver.train_loss_history["recon_loss_acc"]
+    kls = solver.train_loss_history["kl_diverg_acc"]
     plt.figure(figsize=(6, 5))
 
     plt.subplot(2, 1, 1)
     plt.loglog(np.arange(1, len(rls)+1), rls, basey=10, basex=10)
-    plt.yticks(np.arange(int(min(rls)), int(max(rls))+1, 5))
+    ticks = np.arange(min(rls), max(rls), ((max(rls)-min(rls))/len(rls)))[::5]
+    plt.yticks(ticks)
     plt.xlabel("epoch")
     plt.ylabel("log loss")
-    plt.title("Reconstruction loss") # marginal log likelihood
+    plt.title("Reconstruction loss during training") # marginal log likelihood
 
     plt.subplot(2, 1, 2)
     plt.loglog(np.arange(1, len(kls)+1), kls, basey=10, basex=10)
-    plt.yticks(np.arange(int(min(kls)), int(max(kls))+1, float(max(kls)-min(kls))))
+    ticks = np.arange(min(kls), max(kls), ((max(kls)-min(kls))/len(kls)))[::10]
+    plt.yticks(ticks)
     plt.xlabel("epoch")
     plt.ylabel("log divergence")
-    plt.title("KL divergence of q(z|x)||p(z)")
+    plt.title("KL divergence of q(z|x)||p(z) during training")
 
     plt.tight_layout()
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_rl_kl" + "_z=" + str(solver.z_dim) + ".png")
@@ -106,9 +113,18 @@ def plot_latent_space(solver):
     labels = solver.labels.tolist()
     plt.figure(figsize=(9, 7))
     plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap('cubehelix', solver.loader.n_classes))
-    plt.xlabel("x")
-    plt.ylabel("y")
+    plt.xlabel("z_1")
+    plt.ylabel("z_2")
     plt.colorbar()
+    plt.title("Latent space of the VAE on data set {} after {} epochs".format(solver.loader.dataset, solver.epochs))
+    plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_latent_space" + "_z=" + str(solver.z_dim) + ".png")
+
+# Plot the latent space as scatter plot (no labels)
+def plot_latent_space_no_labels(solver):
+    plt.figure(figsize=(9, 7))
+    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10)
+    plt.xlabel("z_1")
+    plt.ylabel("z_2")
     plt.title("Latent space of the VAE on data set {} after {} epochs".format(solver.loader.dataset, solver.epochs))
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_latent_space" + "_z=" + str(solver.z_dim) + ".png")
 

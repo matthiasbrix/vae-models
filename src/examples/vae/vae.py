@@ -65,4 +65,3 @@ class Vae(nn.Module):
         z = self.reparameterization_trick(mu, logsigma)
         decoded = self.decoder(z)
         return decoded, mu, logsigma, z
-

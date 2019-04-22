@@ -44,7 +44,7 @@ class DataLoader():
             self.n_classes = target_names.shape[0]
             # split into a training and testing set
             train_set, test_set, y_train, y_test = train_test_split(
-                X, y, test_size=0.20, random_state=42) # TODO random_state=42
+                X, y, test_size=0.20, random_state=42) # TODO random_state=42 remove
             self.data = train_set # train_set in numpy
             self.h = 50
             self.w = 37
@@ -57,20 +57,15 @@ class DataLoader():
             train_set = self.prepare_data_set(train_set, y_train, h, w)
             test_set = self.prepare_data_set(test_set, y_test, h, w)
         elif dataset == "FF":
-            #print("HAHA")
             self.h = 28
             self.w = 20
             ff = scipy.io.loadmat(data_folder_prefix+"/FF/frey_rawface.mat")
-            #print("test")
             ff = ff["ff"].T.reshape((-1, 1, self.h, self.w))
-            #print(ff.shape)
-            ff = ff.astype('float32')/255.
-            self.data = ff
-            #print(ff)
-            #print(ff)
-            train_set = torch.from_numpy(ff)
-            test_set = torch.from_numpy(ff)
-            #print(ff_torch.shape)
+            ff = ff.astype('float32')/255.0
+            ff_train, ff_test = train_test_split(ff, test_size=0.20)
+            self.data = ff_train
+            train_set = torch.from_numpy(ff_train)
+            test_set = torch.from_numpy(ff_test)
         else:
             print("DATASET N/A!")
             sys.exit()
