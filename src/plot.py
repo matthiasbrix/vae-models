@@ -2,7 +2,6 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-import matplotlib.transforms as transforms
 from scipy.stats import norm
 
 # Saves figure without white space borders

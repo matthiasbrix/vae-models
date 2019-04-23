@@ -55,7 +55,7 @@ class Vae(nn.Module):
     # loss function + KL divergence, use for this \mu(X), \sum(X)
     # compute here D_{KL}[N(\mu(X), \sum(X))||N(0,1)] = 1/2 \sum_k (\sum(X)+\mu^2(X) - 1 - log \sum(X))
     def loss_function(self, fx, X, logsigma, mu):
-        loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum") # compute E[log p(x|z)] TODO: why sum reduction?
+        loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
         kl_divergence = 1/2 * torch.sum(1 + logsigma - mu.pow(2) - logsigma.exp()) # by appendix B in the Auto Encoding Variational Bayes
         #kl_divergence2 = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma) # will give same value but negative would need to + below
         return loss_reconstruction - kl_divergence, loss_reconstruction, -kl_divergence
