@@ -2,7 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from scipy.stats import norm
+import scipy.stats as stats
 
 # Saves figure without white space borders
 # from https://fengl.org/2014/07/09/matplotlib-savefig-without-borderframe/
@@ -58,6 +58,7 @@ def plot_gaussian_distributions(solver):
     plots[2:] += 1
     plots[-1] = solver.epochs
     f.subplots_adjust(hspace=0.5, wspace=0.3)
+    ys = []
     for idx in plots:
         i = idx-1
         epoch, mu_z, std_z, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i], solver.z_stats_history["mu_z"][i],\
@@ -67,7 +68,9 @@ def plot_gaussian_distributions(solver):
                 epoch, mu_z, std_z, var_z, varmu_z, expected_var_z))
         y = (1 / (np.sqrt(2 * np.pi * var_z))) * \
                 (np.power(np.e, -(np.power((x - mu_z), 2) / (2 * var_z))))
+        ys.append(np.max(y))
         axarr[idx_x, idx_y].plot(x, y)
+        axarr[idx_x, idx_y].plot(x, stats.norm.pdf(x, 0, 1))
         axarr[idx_x, idx_y].set_title("epoch %d\nμ(z)=%.4f, σ^2(z)=%.4f" % (epoch, mu_z, var_z))
         if idx_x == idx_y or idx_x > idx_y:
             idx_y += 1
@@ -77,8 +80,9 @@ def plot_gaussian_distributions(solver):
             idx_x = tmp
 
     for ax in axarr.flat:
+        ax.set_ylim([0, max(ys)+0.05])
         ax.set(xlabel='x', ylabel='y')
-    
+
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_gaussian" + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
@@ -137,8 +141,8 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     figure = np.zeros((x*n, y*n))
     # Construct grid of latent variable values.
     # ppf is percent point function (inverse of CDF)
-    grid_x = norm.ppf(np.linspace(0.05, 0.95, n))
-    grid_y = norm.ppf(np.linspace(0.05, 0.95, n))
+    grid_x = stats.norm.ppf(np.linspace(0.05, 0.95, n))
+    grid_y = stats.norm.ppf(np.linspace(0.05, 0.95, n))
 
     #Decode for each square in the grid.
     for i, xi in enumerate(grid_x):
