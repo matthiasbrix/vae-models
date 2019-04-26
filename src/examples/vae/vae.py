@@ -18,6 +18,8 @@ class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
         super(Encoder, self).__init__()
         self.linear1 = nn.Linear(Din, H)
+        self.bn = nn.BatchNorm1d(H)
+        self.dropout = nn.Dropout(p=0.5)
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
         self.linear22 = nn.Linear(H, Dout) # \sum(x)
 
@@ -25,20 +27,23 @@ class Encoder(nn.Module):
 
     # compute q(z|x) which is encoding X into z
     def forward(self, x):
-        x = F.relu(self.linear1(x))
-        return self.linear21(x), self.linear22(x) # \mu(x), \sum(x) so mean(x) and covariance(x)
+        x = self.linear1(x)
+        x = F.relu(self.bn(x))
+        return self.dropout(self.linear21(x)), self.dropout(self.linear22(x)) # \mu(x), \sum(x) so mean(x) and covariance(x)
 
 class Decoder(nn.Module):
     def __init__(self, Dout, H, Din):
         super(Decoder, self).__init__()
         self.linear1 = nn.Linear(Dout, H)
+        self.bn1 = nn.BatchNorm1d(H)
+        self.dropout = nn.Dropout(p=0.5)
         self.linear2 = nn.Linear(H, Din)
         self.sigmoid = nn.Sigmoid()
 
     # compute p(x|z) (posterior) which is decoding to reconstruct X
     def forward(self, x):
-        x = F.relu(self.linear1(x))
-        return self.sigmoid(self.linear2(x))
+        x = F.relu(self.bn1(self.linear1(x)))
+        return self.sigmoid(self.dropout(self.linear2(x)))
 
 class Vae(nn.Module):
     def __init__(self, encoder, decoder):
