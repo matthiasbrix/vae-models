@@ -27,16 +27,16 @@ class DataLoader():
         self.folder_name = path + "/" + dataset + "_z=" + str(z_dim)
         
         if dataset == "MNIST":
-            train_set = datasets.MNIST(root=data_folder_prefix, train=True, transform=transforms.ToTensor(), download=True)
-            test_set = datasets.MNIST(root=data_folder_prefix, train=False, transform=transforms.ToTensor(), download=False)
+            train_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=True, transform=transforms.ToTensor(), download=True)
+            test_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=False, transform=transforms.ToTensor(), download=False)
             self.n_classes = 10
             self.h = 28
             self.w = 28
         elif dataset == "EMNIST": # https://www.westernsydney.edu.au/__data/assets/text_file/0019/1204408/EMNIST_Readme.txt
-            train_set = datasets.EMNIST(root=data_folder_prefix, split="balanced", train=True, transform=transforms.ToTensor(), download=True)
-            test_set = datasets.EMNIST(root=data_folder_prefix, split="balanced", train=False, transform=transforms.ToTensor(), download=False)
+            train_set = datasets.EMNIST(root=data_folder_prefix+"EMNIST", split="balanced", train=True, transform=transforms.ToTensor(), download=True)
+            test_set = datasets.EMNIST(root=data_folder_prefix+"EMNIST", split="balanced", train=False, transform=transforms.ToTensor(), download=False)
         elif dataset == "LFW":
-            lfw = fetch_lfw_people(data_home=data_folder_prefix+"/LFW", resize=0.4)
+            lfw = fetch_lfw_people(data_home=data_folder_prefix+"LFW", resize=0.4)
             _, h, w = lfw['images'].shape
             X = lfw['data']
             y = lfw['target']
@@ -59,7 +59,7 @@ class DataLoader():
         elif dataset == "FF":
             self.h = 28
             self.w = 20
-            ff = scipy.io.loadmat(data_folder_prefix+"/FF/frey_rawface.mat")
+            ff = scipy.io.loadmat(data_folder_prefix+"FF/frey_rawface.mat")
             ff = ff["ff"].T.reshape((-1, 1, self.h, self.w))
             ff = ff.astype('float32')/255.0
             ff_train, ff_test = train_test_split(ff, test_size=0.20)

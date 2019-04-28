@@ -100,7 +100,7 @@ class Solver(object):
             muzdim = torch.mean(mu_x, 0, True)
             muzdim = torch.mean(muzdim.pow(2)) # is E[\mu(x)^2]
             varmu = torch.mean(mu_x.pow(2)) # is \bar{\mu}^T\bar{\mu}
-            varmu_z += torch.abs(varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
+            varmu_z += varmu - muzdim.item() # E[||\mu(x) - \bar{\mu}||^2]
             expected_var_z += torch.mean(torch.exp(logvar_x).pow(2)) # E[var(q(z|x))]
             if epoch == self.epochs and batch_idx != (len(self.train_loader)-1):
                 # store the latent space of all digits in last epoch
@@ -136,7 +136,7 @@ class Solver(object):
                     n = min(X.size(0), 16) # 2 x 8 grid
                     comparison = torch.cat([X[:n], decoded.view(self.batch_size, 1, *self.loader.img_dims)[:n]])
                     torchvision.utils.save_image(comparison.cpu(), self.folder_prefix + self.loader.folder_name \
-                    + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=n)    
+                    + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=n)
         test_loss_acc /= len(self.test_loader.dataset)
         self.test_loss_history.append(test_loss_acc)
         print("====> Test set loss avg: {:.4f}".format(test_loss_acc))
