@@ -45,7 +45,7 @@ def plot_gaussian_distributions(solver):
     idx_x = 0
     idx_y = 0
     if solver.epochs % 2 != 0:
-        plots = np.arange(1, solver.epochs+1, np.ceil(solver.epochs/4)+1).astype(int) #len(solver.train_loss_history["epochs"])//num_plots - 1
+        plots = np.arange(1, solver.epochs+1, np.ceil(solver.epochs/4)+1).astype(int)
         plots[2:] += 1
         plots[-1] = solver.epochs
     else:
