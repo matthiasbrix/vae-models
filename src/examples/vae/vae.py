@@ -19,7 +19,7 @@ class Encoder(nn.Module):
         super(Encoder, self).__init__()
         self.linear1 = nn.Linear(Din, H)
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
-        self.linear22 = nn.Linear(H, Dout) # \sum(x)
+        self.linear22 = nn.Linear(H, Dout) # \Sigma(x)
         self.bn = nn.BatchNorm1d(H)
         self.input_dim = Din
 
@@ -28,7 +28,7 @@ class Encoder(nn.Module):
         x = self.linear1(x)
         # x = self.bn(x)
         x = F.relu(x)
-        return self.linear21(x), self.linear22(x) # \mu(x), \sum(x) so mean(x) and covariance(x)
+        return self.linear21(x), self.linear22(x) # \mu(x), \Sigma(x) so mean(x) and covariance(x)
 
 class Decoder(nn.Module):
     def __init__(self, Dout, H, Din):
@@ -58,10 +58,10 @@ class Vae(nn.Module):
     def reparameterization_trick(self, mu, logsigma):
         sigma = torch.exp(1/2*logsigma)
         eps = torch.randn_like(sigma) # sampling eps ~ N(0, I)
-        return mu + sigma*eps # compute z = \mu(X) + \sum^{1/2}(X) * eps
+        return mu + sigma*eps # compute z = \mu(X) + \Sigma^{1/2}(X) * eps
 
-    # loss function + KL divergence, use for this \mu(X), \sum(X)
-    # compute here D_{KL}[N(\mu(X), \sum(X))||N(0,1)] = 1/2 \sum_k (\sum(X)+\mu^2(X) - 1 - log \sum(X))
+    # loss function + KL divergence, use for this \mu(X), \Sigma(X)
+    # compute here D_{KL}[N(\mu(X), \Sigma(X))||N(0,1)] = 1/2 \sum_k (\Sigma(X)+\mu^2(X) - 1 - log \Sigma(X))
     def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
         kl_divergence = 1/2 * torch.sum(1 + logsigma - mu.pow(2) - logsigma.exp()) # by appendix B in the Auto Encoding Variational Bayes
