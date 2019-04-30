@@ -56,7 +56,7 @@ class Solver(object):
             muzdim = torch.mean(mu_x, 0, True)
             muzdim = torch.mean(muzdim.pow(2)) # is E[\mu(x)^2]
             varmu = torch.mean(mu_x.pow(2)) # is \bar{\mu}^T\bar{\mu}
-            varmu_z += torch.abs(varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
+            varmu_z += (varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
             expected_var_z += torch.mean(torch.exp(logvar_x).pow(2)) # E[var(q(z|x))]
             if epoch == self.epochs and batch_idx != (len(self.train_loader)-1):
                 # store the latent space of all digits in last epoch
