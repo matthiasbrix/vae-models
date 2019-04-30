@@ -25,8 +25,8 @@ def plot_losses(solver, ticks):
     train_loss_history = solver.train_loss_history["train_loss_acc"]
     test_loss_history = solver.test_loss_history
     plt.figure(figsize=(5, 3))
-    plt.loglog(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train", basey=10, basex=10)
-    plt.loglog(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test", basey=10, basex=10)
+    plt.loglog(np.arange(1, len(train_loss_history)+1), list(np.around(np.array(train_loss_history),2)), label="Train", basey=10, basex=2)
+    plt.loglog(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test", basey=10, basex=2)
     ticks = np.arange(*ticks)
     plt.yticks(ticks)
     plt.title("Loss on data set {}, dim(z)={}".format(solver.loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
@@ -75,8 +75,20 @@ def plot_gaussian_distributions(solver):
             idx_x = tmp
 
     for ax in axarr.flat:
-        ax.set_ylim([0, max(ys)+0.05])
+        maxys = max(ys)
+        maxnorm = max(stats.norm.pdf(x, 0, 1))
+        ax.set_ylim([0, max(maxys, maxnorm)+0.05])
         ax.set(xlabel='x', ylabel='y')
+
+    with open(solver.folder_prefix + solver.loader.folder_name + "/result_stats_" +\
+        solver.loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
+        file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
+        for idx in plots:
+            i = idx-1
+            epoch, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i],\
+            solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
+            file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z.item()), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
+            file_res.write("\n")
 
     f.subplots_adjust(top=0.9, left=0.1, right=0.8, bottom=0.1)
     axarr.flatten()[1].legend(bbox_to_anchor=(1.65, 1.0), borderaxespad=0)
@@ -89,7 +101,8 @@ def plot_rl_kl(solver, ticks_rl, ticks_kl):
     plt.figure(figsize=(5, 5))
 
     plt.subplot(2, 1, 1)
-    plt.loglog(np.arange(1, len(rls)+1), rls, basey=10, basex=10)
+    plt.loglog(np.arange(1, len(rls)+1), rls, basey=10, basex=2)
+    rls = list(np.around(np.array(rls),2))
     ticks = np.arange(min(rls), max(rls), ((max(rls)-min(rls))/len(rls)))[::ticks_rl]
     plt.yticks(ticks)
     plt.xlabel("epoch")
@@ -97,7 +110,8 @@ def plot_rl_kl(solver, ticks_rl, ticks_kl):
     plt.title("Reconstruction loss in (training)") # marginal log likelihood
 
     plt.subplot(2, 1, 2)
-    plt.loglog(np.arange(1, len(kls)+1), kls, basey=10, basex=10) # KL div
+    kls = list(np.around(np.array(kls),2))
+    plt.loglog(np.arange(1, len(kls)+1), kls, basey=10, basex=2) # KL div
     ticks = np.arange(min(kls), max(kls), ((max(kls)-min(kls))/len(kls)))[::ticks_kl]
     plt.yticks(ticks)
     plt.xlabel("epoch")
