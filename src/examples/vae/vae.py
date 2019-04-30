@@ -54,7 +54,7 @@ class Vae(nn.Module):
         self.encoder = encoder
         self.decoder = decoder
 
-    # sampling from N(\mu(X), \sum(X))
+    # sampling from N(\mu(X), \Sigma(X))
     def reparameterization_trick(self, mu, logsigma):
         sigma = torch.exp(1/2*logsigma)
         eps = torch.randn_like(sigma) # sampling eps ~ N(0, I)
