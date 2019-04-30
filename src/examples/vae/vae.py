@@ -26,7 +26,7 @@ class Encoder(nn.Module):
     # compute q(z|x) which is encoding X into z
     def forward(self, x):
         x = self.linear1(x)
-        x = self.bn(x)
+        # x = self.bn(x)
         x = F.relu(x)
         return self.linear21(x), self.linear22(x) # \mu(x), \sum(x) so mean(x) and covariance(x)
 
@@ -42,9 +42,11 @@ class Decoder(nn.Module):
     # compute p(x|z) (posterior) which is decoding to reconstruct X
     def forward(self, x):
         x = self.linear1(x)
-        x = self.bn(x)
+        # x = self.bn(x)
         x = F.relu(x)
-        return self.sigmoid(self.bn2(self.linear2(x)))
+        x = self.linear2(x)
+        # x = self.bn2(x)
+        return self.sigmoid(x)
 
 class Vae(nn.Module):
     def __init__(self, encoder, decoder):
