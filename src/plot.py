@@ -109,7 +109,6 @@ def plot_rl_kl(solver, ticks_rl, ticks_kl):
     plt.title("Reconstruction loss in (training)") # marginal log likelihood
 
     plt.subplot(2, 1, 2)
-    kls = list(np.around(np.array(kls),2))
     plt.loglog(np.arange(1, len(kls)+1), kls, basey=10, basex=2) # KL div
     ticks = np.arange(min(kls), max(kls), ((max(kls)-min(kls))/len(kls)))[::ticks_kl]
     plt.yticks(ticks)
