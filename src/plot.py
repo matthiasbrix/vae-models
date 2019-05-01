@@ -25,7 +25,7 @@ def plot_losses(solver, ticks):
     train_loss_history = solver.train_loss_history["train_loss_acc"]
     test_loss_history = solver.test_loss_history
     plt.figure(figsize=(5, 3))
-    plt.loglog(np.arange(1, len(train_loss_history)+1), list(np.around(np.array(train_loss_history),2)), label="Training", basey=10, basex=2)
+    plt.loglog(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train", basey=10, basex=2)
     plt.loglog(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test", basey=10, basex=2)
     ticks = np.arange(*ticks)
     plt.yticks(ticks)
@@ -102,7 +102,6 @@ def plot_rl_kl(solver, ticks_rl, ticks_kl):
 
     plt.subplot(2, 1, 1)
     plt.loglog(np.arange(1, len(rls)+1), rls, basey=10, basex=2)
-    rls = list(np.around(np.array(rls),2))
     ticks = np.arange(min(rls), max(rls), ((max(rls)-min(rls))/len(rls)))[::ticks_rl]
     plt.yticks(ticks)
     plt.xlabel("epoch")
