@@ -25,7 +25,7 @@ def plot_losses(solver, ticks):
     train_loss_history = solver.train_loss_history["train_loss_acc"]
     test_loss_history = solver.test_loss_history
     plt.figure(figsize=(5, 3))
-    plt.loglog(np.arange(1, len(train_loss_history)+1), list(np.around(np.array(train_loss_history),2)), label="Train", basey=10, basex=2)
+    plt.loglog(np.arange(1, len(train_loss_history)+1), list(np.around(np.array(train_loss_history),2)), label="Training", basey=10, basex=2)
     plt.loglog(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test", basey=10, basex=2)
     ticks = np.arange(*ticks)
     plt.yticks(ticks)
@@ -126,7 +126,7 @@ def plot_rl_kl(solver, ticks_rl, ticks_kl):
 def plot_latent_space(solver):
     labels = solver.labels.tolist()
     plt.figure(figsize=(9, 7))
-    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap('cubehelix', solver.loader.n_classes))
+    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.loader.n_classes))
     plt.xlabel("z_1")
     plt.ylabel("z_2")
     plt.colorbar()
@@ -136,7 +136,7 @@ def plot_latent_space(solver):
 # Plot the latent space as scatter plot (no labels)
 def plot_latent_space_no_labels(solver):
     plt.figure(figsize=(9, 7))
-    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10)
+    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, cmap="Paired")
     plt.xlabel("z_1")
     plt.ylabel("z_2")
     plt.title("Latent space of the VAE on data set {} after {} epochs".format(solver.loader.dataset, solver.epochs))
