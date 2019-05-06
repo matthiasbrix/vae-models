@@ -7,7 +7,7 @@ import scipy.stats as stats
 # Auxiliary function for saving nice plots
 # Saves figure without white space borders
 # from https://fengl.org/2014/07/09/matplotlib-savefig-without-borderframe/
-def save_plot_fig(solver, data, cm, name):
+def _save_plot_fig(solver, data, cm, name):
     sizes = np.shape(data)
     height = float(sizes[0])
     width = float(sizes[1])
@@ -20,18 +20,22 @@ def save_plot_fig(solver, data, cm, name):
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_" + name + "_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
     plt.close()
 
+def _xticks(ls, solver, ticks_rate):
+    labels = np.arange(1, len(ls)+2, (solver.epochs//ticks_rate))
+    labels[1:] -= 1
+    return labels.astype(int) #(np.arange(1, len(ls)+1, (solver.epochs//ticks_rate)), labels.astype(int))
+
 # Plotting train and test losses
-def plot_losses(solver, ticks):
+def plot_losses(solver, ticks_rate):
     train_loss_history = solver.train_loss_history["train_loss_acc"]
     test_loss_history = solver.test_loss_history
     plt.figure(figsize=(5, 3))
-    plt.loglog(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train", basey=10, basex=2)
-    plt.loglog(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test", basey=10, basex=2)
-    ticks = np.arange(*ticks)
-    plt.yticks(ticks)
+    plt.plot(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train")
+    plt.plot(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test")
+    plt.xticks(_xticks(train_loss_history, solver, ticks_rate))
     plt.title("Loss on data set {}, dim(z)={}".format(solver.loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
     plt.xlabel("epoch")
-    plt.ylabel("log loss")
+    plt.ylabel("loss")
     plt.legend(bbox_to_anchor=(1.3, 1), borderaxespad=0)
     plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.2)
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_losses_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
@@ -87,7 +91,7 @@ def plot_gaussian_distributions(solver):
             i = idx-1
             epoch, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i],\
             solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
-            file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z.item()), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
+            file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
             file_res.write("\n")
 
     f.subplots_adjust(top=0.9, left=0.1, right=0.8, bottom=0.1)
@@ -95,25 +99,24 @@ def plot_gaussian_distributions(solver):
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_gaussian_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
-def plot_rl_kl(solver, ticks_rl, ticks_kl):
+def plot_rl_kl(solver, ticks_rate):
     rls = solver.train_loss_history["recon_loss_acc"]
     kls = solver.train_loss_history["kl_diverg_acc"]
+    x = np.arange(1, len(kls)+1)
     plt.figure(figsize=(5, 5))
 
     plt.subplot(2, 1, 1)
-    plt.loglog(np.arange(1, len(rls)+1), rls, basey=10, basex=2)
-    ticks = np.arange(min(rls), max(rls), ((max(rls)-min(rls))/len(rls)))[::ticks_rl]
-    plt.yticks(ticks)
+    plt.plot(x, rls)
+    plt.xticks(_xticks(rls, solver, ticks_rate))
     plt.xlabel("epoch")
-    plt.ylabel("log loss")
+    plt.ylabel("loss")
     plt.title("Reconstruction loss in (training)") # marginal log likelihood
 
     plt.subplot(2, 1, 2)
-    plt.loglog(np.arange(1, len(kls)+1), kls, basey=10, basex=2) # KL div
-    ticks = np.arange(min(kls), max(kls), ((max(kls)-min(kls))/len(kls)))[::ticks_kl]
-    plt.yticks(ticks)
+    plt.plot(x, kls) # KL div
+    plt.xticks(_xticks(kls, solver, ticks_rate))
     plt.xlabel("epoch")
-    plt.ylabel("log divergence")
+    plt.ylabel("KL divergence")
     plt.title("KL divergence of q(z|x)||p(z) (training)")
 
     plt.tight_layout()
@@ -128,7 +131,7 @@ def plot_latent_space(solver):
     plt.xlabel("z_1")
     plt.ylabel("z_2")
     plt.colorbar()
-    plt.title("Latent space of the VAE on data set {} after {} epochs".format(solver.loader.dataset, solver.epochs))
+    plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.loader.dataset, solver.epochs))
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_latent_space_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the latent space as scatter plot (no labels)
@@ -150,16 +153,16 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     figure = np.zeros((x*n, y*n))
     # Construct grid of latent variable values.
     # ppf is percent point function (inverse of CDF)
-    grid_x = stats.norm.ppf(np.linspace(0.05, 0.95, n))
-    grid_y = stats.norm.ppf(np.linspace(0.05, 0.95, n))
+    grid_x = np.linspace(-4, 4, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n))
+    grid_y = np.linspace(-4, 4, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n))
 
     #Decode for each square in the grid.
     for i, xi in enumerate(grid_x):
         for j, yj in enumerate(grid_y):
             z_sample = np.array([xi, yj])
-            z_sample = np.tile(z_sample, solver.batch_size).reshape(solver.batch_size, solver.z_dim)
-            z_sample = torch.from_numpy(z_sample).float().to(solver.device)
-            x_decoded = solver.model.decoder(z_sample).cpu().detach().numpy()
+            z_sample = np.tile(z_sample, solver.batch_size).reshape(solver.batch_size, solver.z_dim) # repeating the sample to batch_size x dim(z)
+            z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
+            x_decoded = solver.model.decoder(z_sample).cpu().detach().numpy() # decode it
             img = np.reshape(x_decoded[0], list(solver.loader.img_dims))
             figure[i * x: (i+1) * x,
             j * y: (j+1) * y] = img
@@ -168,7 +171,7 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     plt.axis("off")
     plt.imshow(figure, cmap=cm)
     plt.show()
-    save_plot_fig(solver, figure, cm=cm, name="learned_data_manifold")
+    _save_plot_fig(solver, figure, cm=cm, name="learned_data_manifold")
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
@@ -184,7 +187,7 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
     plt.tight_layout()
-    save_plot_fig(solver, figure, cm="gray", name="faces_grid")
+    _save_plot_fig(solver, figure, cm="gray", name="faces_grid")
 
 # plot sample faces in a grid
 def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
@@ -202,7 +205,7 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
     plt.tight_layout()
-    save_plot_fig(solver, figure, cm="gray", name="faces_samples_grid")
+    _save_plot_fig(solver, figure, cm="gray", name="faces_samples_grid")
 
 # Old - can be removed?
 # Useful if form is (10586, 1850) so no tensor

@@ -27,35 +27,35 @@ class DataLoader():
         self.folder_name = path + "/" + dataset + "_z=" + str(z_dim)
         
         if dataset == "MNIST":
-            train_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=True, transform=transforms.ToTensor(), download=True)
-            test_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=False, transform=transforms.ToTensor(), download=False)
             self.n_classes = 10
             self.h = 28
             self.w = 28
+            train_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=True, transform=transforms.ToTensor(), download=True)
+            test_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=False, transform=transforms.ToTensor(), download=False)
         elif dataset == "EMNIST": # https://www.westernsydney.edu.au/__data/assets/text_file/0019/1204408/EMNIST_Readme.txt
             train_set = datasets.EMNIST(root=data_folder_prefix+"EMNIST", split="balanced", train=True, transform=transforms.ToTensor(), download=True)
             test_set = datasets.EMNIST(root=data_folder_prefix+"EMNIST", split="balanced", train=False, transform=transforms.ToTensor(), download=False)
         elif dataset == "LFW":
+            self.h = 50
+            self.w = 37
             lfw = fetch_lfw_people(data_home=data_folder_prefix+"LFW", resize=0.4)
             _, h, w = lfw['images'].shape
             X = lfw['data']
             y = lfw['target']
             target_names = lfw['target_names']
-            self.n_classes = target_names.shape[0]
             # split into a training and testing set
             train_set, test_set, y_train, y_test = train_test_split(
-                X, y, test_size=0.20, random_state=42) # TODO random_state=42 remove
+                X, y, test_size=0.20)
             self.data = train_set # train_set in numpy
-            self.h = 50
-            self.w = 37
+            self.n_classes = target_names.shape[0]
             #print("Total dataset size:")
             #print("n_samples: %d" % n_samples)
             #print("n_features: %d" % X.shape[1])
             #print("n_classes: %d" % n_classes)
             #print("img dims x: {} y: {}".format(h, w)) # 50 x 37
             # transform data
-            train_set = self.prepare_data_set(train_set, y_train, h, w)
-            test_set = self.prepare_data_set(test_set, y_test, h, w)
+            train_set = self._prepare_data_set(train_set, y_train, h, w)
+            test_set = self._prepare_data_set(test_set, y_test, h, w)
         elif dataset == "FF":
             self.h = 28
             self.w = 20
@@ -75,7 +75,8 @@ class DataLoader():
         self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=True, **kwargs)
 
-    def prepare_data_set(self, X, y, h, w):
+    # transform data with labels to pytorch tensors
+    def _prepare_data_set(self, X, y, h, w):
         y_tensor = torch.FloatTensor(y)
         X = X/255.0
         X = torch.stack([torch.FloatTensor(i) for i in X])

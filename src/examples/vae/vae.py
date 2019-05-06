@@ -26,7 +26,7 @@ class Encoder(nn.Module):
     # compute q(z|x) which is encoding X into z
     def forward(self, x):
         x = self.linear1(x)
-        x = self.bn(x)
+        #x = self.bn(x)
         x = F.relu(x)
         return self.linear21(x), self.linear22(x) # \mu(x), \Sigma(x) so mean(x) and covariance(x)
 
@@ -42,10 +42,10 @@ class Decoder(nn.Module):
     # compute p(x|z) (posterior) which is decoding to reconstruct X
     def forward(self, x):
         x = self.linear1(x)
-        x = self.bn(x)
+        #x = self.bn(x)
         x = F.relu(x)
         x = self.linear2(x)
-        x = self.bn2(x)
+        #x = self.bn2(x)
         return self.sigmoid(x)
 
 class Vae(nn.Module):
@@ -55,7 +55,7 @@ class Vae(nn.Module):
         self.decoder = decoder
 
     # sampling from N(\mu(X), \Sigma(X))
-    def reparameterization_trick(self, mu, logsigma):
+    def _reparameterization_trick(self, mu, logsigma):
         sigma = torch.exp(1/2*logsigma)
         eps = torch.randn_like(sigma) # sampling eps ~ N(0, I)
         return mu + sigma*eps # compute z = \mu(X) + \Sigma^{1/2}(X) * eps
@@ -64,12 +64,11 @@ class Vae(nn.Module):
     # compute here D_{KL}[N(\mu(X), \Sigma(X))||N(0,1)] = 1/2 \sum_k (\Sigma(X)+\mu^2(X) - 1 - log \Sigma(X))
     def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
-        kl_divergence = 1/2 * torch.sum(1 + logsigma - mu.pow(2) - logsigma.exp()) # by appendix B in the Auto Encoding Variational Bayes
-        #kl_divergence2 = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma) # will give same value but negative would need to + below
-        return loss_reconstruction - kl_divergence, loss_reconstruction, -kl_divergence
+        kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma) # will give same value but negative would need to + below, https://github.com/FluxML/model-zoo/issues/73
+        return loss_reconstruction + kl_divergence, loss_reconstruction, kl_divergence
 
     def forward(self, data):
-        mu, logsigma = self.encoder(data.view(-1, self.encoder.input_dim))
-        z = self.reparameterization_trick(mu, logsigma)
+        mu_x, logvar_x = self.encoder(data.view(-1, self.encoder.input_dim))
+        z = self._reparameterization_trick(mu_x, logvar_x)
         decoded = self.decoder(z)
-        return decoded, mu, logsigma, z
+        return decoded, mu_x, logvar_x, z

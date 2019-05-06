@@ -34,7 +34,7 @@ class Solver(object):
         self.labels = np.zeros((len(self.train_loader)-1)*self.batch_size)
         self.latent_space = np.zeros(((len(self.train_loader)-1)*self.batch_size, z_dim))
 
-    def train_non_labels(self, epoch):
+    def _train_non_labels(self, epoch):
         train_loss_acc, recon_loss_acc, kl_diverg_acc, \
             mu_z, std_z, varmu_z, expected_var_z = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         self.model.train()
@@ -59,7 +59,7 @@ class Solver(object):
             varmu_z += (varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
             expected_var_z += torch.mean(torch.exp(logvar_x).pow(2)) # E[var(q(z|x))]
             if epoch == self.epochs and batch_idx != (len(self.train_loader)-1):
-                # store the latent space of all digits in last epoch
+                # store the latent space in last epoch
                 start = batch_idx*X.shape[0]
                 end = (batch_idx+1)*X.shape[0]
                 self.latent_space[start:end, :] = latent_space.cpu().detach().numpy()
@@ -78,7 +78,7 @@ class Solver(object):
         self.z_stats_history["expected_var_z"].append(expected_var_z/self.num_train_batches)
         print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss_acc/self.num_train_samples))
 
-    def train(self, epoch):
+    def _train(self, epoch):
         train_loss_acc, recon_loss_acc, kl_diverg_acc, \
             mu_z, std_z, varmu_z, expected_var_z = 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0
         self.model.train()
@@ -103,7 +103,7 @@ class Solver(object):
             varmu_z += (varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
             expected_var_z += torch.mean(torch.exp(logvar_x).pow(2)) # E[var(q(z|x))]
             if epoch == self.epochs and batch_idx != (len(self.train_loader)-1):
-                # store the latent space of all digits in last epoch
+                # store the latent space in last epoch
                 start = batch_idx*X.shape[0]
                 end = (batch_idx+1)*X.shape[0]
                 self.labels[start:end] = target.numpy()
@@ -123,7 +123,7 @@ class Solver(object):
         self.z_stats_history["expected_var_z"].append(expected_var_z/self.num_train_batches)
         print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss_acc/self.num_train_samples))
 
-    def test_non_labels(self, epoch):
+    def _test_non_labels(self, epoch):
         test_loss_acc = 0.0
         self.model.eval()
         with torch.no_grad():
@@ -141,7 +141,7 @@ class Solver(object):
         self.test_loss_history.append(test_loss_acc)
         print("====> Test set loss avg: {:.4f}".format(test_loss_acc))
 
-    def test(self, epoch):
+    def _test(self, epoch):
         test_loss_acc = 0.0
         self.model.eval()
         with torch.no_grad():
@@ -167,14 +167,13 @@ class Solver(object):
         print("+++++ START RUN +++++")
         for epoch in range(1, self.epochs+1):
             t0 = time.time()
-            if self.loader.dataset == "LFW":
-                scheduler.step()
+            scheduler.step()
             if self.loader.dataset == "FF":
-                self.train_non_labels(epoch)
-                self.test_non_labels(epoch)
+                self._train_non_labels(epoch)
+                self._test_non_labels(epoch)
             else:
-                self.train(epoch)
-                self.test(epoch)
+                self._train(epoch)
+                self._test(epoch)
             with torch.no_grad():
                 # In test time we disregard the encoder and only generate z from N(0,I) which we use as arg to decoder
                 sample = torch.randn(100, self.z_dim).to(device) # 100 = 10 x 10 grid
