@@ -32,9 +32,6 @@ class DataLoader():
             self.w = 28
             train_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=True, transform=transforms.ToTensor(), download=True)
             test_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=False, transform=transforms.ToTensor(), download=False)
-        elif dataset == "EMNIST": # https://www.westernsydney.edu.au/__data/assets/text_file/0019/1204408/EMNIST_Readme.txt
-            train_set = datasets.EMNIST(root=data_folder_prefix+"EMNIST", split="balanced", train=True, transform=transforms.ToTensor(), download=True)
-            test_set = datasets.EMNIST(root=data_folder_prefix+"EMNIST", split="balanced", train=False, transform=transforms.ToTensor(), download=False)
         elif dataset == "LFW":
             self.h = 50
             self.w = 37
@@ -48,11 +45,6 @@ class DataLoader():
                 X, y, test_size=0.20)
             self.data = train_set # train_set in numpy
             self.n_classes = target_names.shape[0]
-            #print("Total dataset size:")
-            #print("n_samples: %d" % n_samples)
-            #print("n_features: %d" % X.shape[1])
-            #print("n_classes: %d" % n_classes)
-            #print("img dims x: {} y: {}".format(h, w)) # 50 x 37
             # transform data
             train_set = self._prepare_data_set(train_set, y_train, h, w)
             test_set = self._prepare_data_set(test_set, y_test, h, w)

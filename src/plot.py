@@ -20,10 +20,11 @@ def _save_plot_fig(solver, data, cm, name):
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_" + name + "_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
     plt.close()
 
-def _xticks(ls, solver, ticks_rate):
-    labels = np.arange(1, len(ls)+2, (solver.epochs//ticks_rate))
+def _xticks(ls, ticks_rate):
+    labels = np.arange(1, len(ls)+2, (len(ls)//ticks_rate))
     labels[1:] -= 1
-    return labels.astype(int) #(np.arange(1, len(ls)+1, (solver.epochs//ticks_rate)), labels.astype(int))
+    labels[-1] = len(ls)
+    return labels.astype(int)
 
 # Plotting train and test losses
 def plot_losses(solver, ticks_rate):
@@ -32,7 +33,7 @@ def plot_losses(solver, ticks_rate):
     plt.figure(figsize=(5, 3))
     plt.plot(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train")
     plt.plot(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test")
-    plt.xticks(_xticks(train_loss_history, solver, ticks_rate))
+    plt.xticks(_xticks(train_loss_history, ticks_rate))
     plt.title("Loss on data set {}, dim(z)={}".format(solver.loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
     plt.xlabel("epoch")
     plt.ylabel("loss")
@@ -48,14 +49,15 @@ def plot_gaussian_distributions(solver):
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
     idx_y = 0
-    if solver.epochs % 2 != 0:
-        plots = np.arange(1, solver.epochs+1, np.ceil(solver.epochs/4)+1).astype(int)
+    epochs = len(solver.train_loss_history["train_loss_acc"]) # in case run was canceled
+    if epochs % 2 != 0:
+        plots = np.arange(1, epochs+1, np.ceil(epochs/4)+1).astype(int)
         plots[2:] += 1
-        plots[-1] = solver.epochs
+        plots[-1] = epochs
     else:
-        plots = np.arange(1, solver.epochs+1, np.ceil(solver.epochs/4)).astype(int)
+        plots = np.arange(1, epochs+1, np.ceil(epochs/4)).astype(int)
         plots[1:] -= 1
-        plots[-1] = solver.epochs
+        plots[-1] = epochs
     f.subplots_adjust(hspace=0.5, wspace=0.3)
     ys = []
     for idx in plots:
@@ -107,14 +109,14 @@ def plot_rl_kl(solver, ticks_rate):
 
     plt.subplot(2, 1, 1)
     plt.plot(x, rls)
-    plt.xticks(_xticks(rls, solver, ticks_rate))
+    plt.xticks(_xticks(rls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.title("Reconstruction loss in (training)") # marginal log likelihood
 
     plt.subplot(2, 1, 2)
     plt.plot(x, kls) # KL div
-    plt.xticks(_xticks(kls, solver, ticks_rate))
+    plt.xticks(_xticks(kls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("KL divergence")
     plt.title("KL divergence of q(z|x)||p(z) (training)")
