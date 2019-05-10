@@ -1,1 +1,8 @@
-examples/data
+data
+results
+models
+src/.ipynb_checkpoints
+src/__pycache__
+src/examples/__pycache__
+src/examples/vae/.ipynb_checkpoints
+src/examples/vae/__pycache__
