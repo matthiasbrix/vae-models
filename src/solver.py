@@ -12,13 +12,14 @@ losses = ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]
 z_stats = ["mu_z", "std_z", "varmu_z", "expected_var_z"]
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_config, optim_config, warmup_epochs, beta, batch_size):
+    def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config, optim_config, warmup_epochs, beta, batch_size):
         self.loader = data_loader
         self.model = model
         self.model.to(device)
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = device
 
+        self.step_lr = step_lr
         self.z_dim = z_dim
         self.epochs = epochs
         self.batch_size = batch_size
@@ -36,7 +37,7 @@ class Solver(object):
         
         self.warmup_epochs = warmup_epochs
         self.beta_param = beta
-        self.beta = 0
+        self.beta = self.beta_param if not(self.warmup_epochs) else 0
 
     def _train_non_labels(self, epoch):
         train_loss_acc, recon_loss_acc, kl_diverg_acc, \
@@ -153,20 +154,19 @@ class Solver(object):
         os.makedirs(self.folder_prefix, exist_ok=True)
         os.makedirs("../models/", exist_ok=True)
         os.makedirs(self.folder_prefix+self.loader.folder_name, exist_ok=True)
-        #scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
+        scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
         print("+++++ START RUN +++++")
         for epoch in range(1, self.epochs+1):
             t0 = time.time()
-            #scheduler.step() TODO: SUCKS - how to disable it?!?!?!
-            if not(self.warmup_epochs):
-                self.beta = self.beta_param
             if self.loader.dataset == "FF":
                 self._train_non_labels(epoch)
                 self._test_non_labels(epoch)
             else:
                 self._train(epoch)
                 self._test(epoch)
-            if self.warmup_epochs and self.beta < (1*self.beta_param):
+            if self.step_lr:
+                scheduler.step()
+            if self.warmup_epochs and self.beta < self.beta_param:
                 self.beta += self.warmup_epochs/self.epochs * self.beta_param
             with torch.no_grad():
                 # generating samples

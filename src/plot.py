@@ -155,8 +155,8 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     figure = np.zeros((x*n, y*n))
     # Construct grid of latent variable values.
     # ppf is percent point function (inverse of CDF)
-    grid_x = np.linspace(-4, 4, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n))
-    grid_y = np.linspace(-4, 4, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n))
+    grid_x = stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
+    grid_y = stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
 
     #Decode for each square in the grid.
     for i, xi in enumerate(grid_x):
