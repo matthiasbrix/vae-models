@@ -23,6 +23,7 @@ class DataLoader():
         self.h = None
         self.w = None
 
+        self.path = path
         self.dataset = dataset
         self.folder_name = path + "/" + dataset + "_z=" + str(z_dim)
         

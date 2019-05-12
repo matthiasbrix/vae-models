@@ -158,12 +158,17 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     grid_x = stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
     grid_y = stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
 
-    #Decode for each square in the grid.
+    # Decode for each square in the grid.
     for i, xi in enumerate(grid_x):
         for j, yj in enumerate(grid_y):
             z_sample = np.array([xi, yj])
             z_sample = np.tile(z_sample, solver.batch_size).reshape(solver.batch_size, solver.z_dim) # repeating the sample to batch_size x dim(z)
             z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
+            # need also y_sample, so fixed label, but varying z
+            idx = torch.randint(0, solver.loader.n_classes, (1,)).item()
+            y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.loader.n_classes)) # 100 x num_classes
+            y_sample[:, idx] = 1.
+            z_sample = torch.cat((z_sample, y_sample), dim=-1)
             x_decoded = solver.model.decoder(z_sample).cpu().detach().numpy() # decode it
             img = np.reshape(x_decoded[0], list(solver.loader.img_dims))
             figure[i * x: (i+1) * x,
@@ -174,6 +179,29 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     plt.imshow(figure, cmap=cm)
     plt.show()
     _save_plot_fig(solver, figure, cm=cm, name="learned_data_manifold")
+
+'''
+# TODO: take a single test set image, encode it, fix the z from it, loop over all labels, and print a row out with the same z
+def plot_with_fixed_z(solver):
+    self.solver.model.eval()
+    with torch.no_grad():
+        for i, (data, target) in enumerate(self.test_loader):
+            x, y = data.to(device)[0], target.to(device)[0]
+            y = y.view(y.size(0), 1)
+            onehot = torch.FloatTensor(torch.zeros(y.size(0), self.y_size)) # batch_size x y_size
+            onehot.zero_()
+            onehot.scatter_(1, y, 1)
+            x = x.view(-1, self.input_dim)
+            x = torch.cat((x, onehot), dim=-1)
+            mu_x, logvar_x = self.encoder(x)
+            latent_space = self._reparameterization_trick(mu_x, logvar_x)
+            
+                if i == 0: # check w/ test set on first batch in test set.
+                    n = min(X.size(0), 16) # 2 x 8 grid
+                    comparison = torch.cat([X[:n], decoded.view(self.batch_size, 1, *self.loader.img_dims)[:n]])
+                    torchvision.utils.save_image(comparison.cpu(), self.folder_prefix + self.loader.folder_name \
+                    + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=n)
+'''
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
