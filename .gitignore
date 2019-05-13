@@ -1,8 +1,4 @@
 data
 results
-src/.ipynb_checkpoints
-src/__pycache__
-src/models/__pycache__
-src/models/vae/__pycache__
-src/models/cvae/__pycache__
-src/models/temporal/__pycache__
+*/.ipynb_checkpoints
+*/__pycache__
