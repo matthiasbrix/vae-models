@@ -12,7 +12,7 @@ losses = ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]
 z_stats = ["mu_z", "std_z", "varmu_z", "expected_var_z"]
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, cvae_mode, z_dim, epochs, step_lr, step_config, optim_config, warmup_epochs, beta, batch_size):
+    def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config, optim_config, warmup_epochs, beta, batch_size, cvae_mode=False):
         self.loader = data_loader
         self.model = model
         self.model.to(device)
