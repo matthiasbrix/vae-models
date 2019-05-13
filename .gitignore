@@ -1,5 +1,4 @@
 data
 results
-src/.ipynb_checkpoints
-src/__pycache__
-src/models
+*/.ipynb_checkpoints
+*/__pycache__
