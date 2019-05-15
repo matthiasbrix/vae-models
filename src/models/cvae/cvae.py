@@ -33,8 +33,8 @@ class Decoder(nn.Module):
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
-    def forward(self, x):
-        x = self.linear1(x)
+    def forward(self, z):
+        x = self.linear1(z)
         x = self.batch_norm1(x)
         x = self.relu(x)
         x = self.linear2(x)
@@ -49,16 +49,16 @@ class Cvae(nn.Module):
         self.decoder = Decoder(z_dim+y_size, hidden_dim, input_dim)
         self.y_size = y_size
 
-    def _onehot_encoding(self, y):
+    def onehot_encoding(self, y):
         y = y.view(y.size(0), 1).type(torch.LongTensor)
         onehot = torch.zeros(y.size(0), self.y_size, dtype=torch.float, device=device) # batch_size x y_size
         onehot.scatter_(1, y, 1)
         return onehot
 
-    def reparameterization_trick(self, mu, logsigma):
-        sigma = torch.exp(1/2*logsigma)
-        eps = torch.randn_like(sigma) # sampling eps ~ N(0, I)
-        return mu + sigma*eps # compute z = \mu(x) + \Sigma^{1/2}(x) * eps
+    def reparameterization_trick(self, mu_x, logvar_x):
+        sigma = torch.exp(1/2*logvar_x)
+        eps = torch.randn_like(sigma)
+        return mu_x + sigma*eps
 
     def loss_function(self, fx, X, logsigma, mu, beta):
         loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
@@ -66,12 +66,11 @@ class Cvae(nn.Module):
         return loss_reconstruction + beta*kl_divergence, loss_reconstruction, beta*kl_divergence
 
     def forward(self, x, y=None):
-        y_one_hot = self._onehot_encoding(y) # batch_size x y_size
-        x = x.view(-1, self.input_dim) # from batch_size x 1 x img.x x img.y to batch_size x img.x*img.y
-        x = torch.cat((x, y_one_hot), dim=-1) # batch_size x (img.x*img.y+y_one_hot.y)
+        y_one_hot = self.onehot_encoding(y) # batch_size x y_size
+        x = x.view(-1, self.input_dim) # from batch_size x 1 x x.x x x.y to batch_size x x.x*x.y
+        x = torch.cat((x, y_one_hot), dim=-1) # batch_size x (x.y+y_one_hot.y)
         mu_x, logvar_x = self.encoder(x)
         latent_space = self.reparameterization_trick(mu_x, logvar_x)
-        y_one_hot = self._onehot_encoding(y)
         z = torch.cat((latent_space, y_one_hot), dim=-1)
         decoded = self.decoder(z)
         return decoded, mu_x, logvar_x, latent_space

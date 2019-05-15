@@ -41,8 +41,8 @@ class Decoder(nn.Module):
         self.sigmoid = nn.Sigmoid()
 
     # compute p(x|z) (posterior) which is decoding to reconstruct x
-    def forward(self, x):
-        x = self.linear1(x)
+    def forward(self, z):
+        x = self.linear1(z)
         x = self.batch_norm1(x)
         x = self.relu(x)
         x = self.linear2(x)

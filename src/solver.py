@@ -90,9 +90,9 @@ class Solver(object):
             X, y = data.to(device), target.to(device)
             self.optimizer.zero_grad()
             if self.cvae_mode:
-                decoded, mu_x, logvar_x, latent_space = self.model(X, y)
+                decoded, mu_x, logvar_x, latent_space = self.model(X, y) # cvae model
             else:
-                decoded, mu_x, logvar_x, latent_space = self.model(X)
+                decoded, mu_x, logvar_x, latent_space = self.model(X) # vae, tdcvae models
             loss, reconstruction_loss, kl_divergence = self.model.loss_function(decoded, X, logvar_x, mu_x, self.beta)
             loss.backward() # compute gradients
             self.optimizer.step()

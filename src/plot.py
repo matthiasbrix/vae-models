@@ -119,7 +119,7 @@ def plot_rl_kl(solver, ticks_rate):
     plt.xticks(_xticks(kls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("KL divergence")
-    plt.title("KL divergence of q(z|x)||p(z) (training)")
+    plt.title("KL divergence of q(z|x)||p(z) (training) β={}".format(solver.beta_param))
 
     plt.tight_layout()
     plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_rl_kl_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
@@ -165,7 +165,7 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
             z_sample = np.tile(z_sample, solver.batch_size).reshape(solver.batch_size, solver.z_dim) # repeating the sample to batch_size x dim(z)
             z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
             if solver.cvae_mode:
-                # need also y_sample, so fixed label, but varying z
+                # need also y_sample, but varying z
                 idx = torch.randint(0, solver.loader.n_classes, (1,)).item()
                 y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.loader.n_classes)) # 100 x num_classes
                 y_sample[:, idx] = 1.
@@ -181,11 +181,11 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     _save_plot_fig(solver, figure, cm=cm, name="learned_data_manifold")
 
 # Replicating the handstyle image example from Kingma et. al in Semisupervised VAE paper
-# Take a single test set image (first from each batch), encode it, use that fixed z, loop over all labels
-# and print a row out with the fixed z but different labeled images
+# Take a single test set image (first from each batch), encode it, use that fixed z, 
+# loop over all labels and print a row out with the fixed z but different labeled images
 def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
     img_rows, img_cols = solver.loader.img_dims
-    figure = np.zeros((img_rows*n_rows, img_cols*n_cols+1))
+    figure = np.zeros((img_rows*n_rows, img_cols*n_cols))
     solver.model.eval()
     with torch.no_grad():
         for i, (data, target) in enumerate(solver.test_loader):
@@ -193,22 +193,19 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
                 break
             x, y = data.to(solver.device)[0], target.to(solver.device)[0]
             y = y.view(1, 1)
-            onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size))
-            onehot.zero_()
-            onehot.scatter_(1, y, 1)
+            onehot = solver.model.onehot_encoding(y)
             x = x.view(-1, solver.loader.input_dim)
             x_new = torch.cat((x, onehot), dim=-1)
             mu_x, logvar_x = solver.model.encoder(x_new)
             z = solver.model.reparameterization_trick(mu_x, logvar_x)
-            figure[i*img_rows:(i+1)*img_rows, 0:img_cols] = x.view(1, *solver.loader.img_dims).cpu().numpy()
-            for label in range(solver.loader.n_classes):
+            figure[i*img_rows:(i+1)*img_rows, 0:img_cols] = x.view(1, *solver.loader.img_dims).cpu().numpy() # the test image in leftmost column
+            for label in range(10): # just hardcoded to 10 outputs pr. row, otherwise call solver.loader.n_classes (but careful)
                 onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size))
                 onehot.zero_()
                 onehot[:, label] = 1.
                 z_new = torch.cat((z, onehot), dim=-1)
                 decoded = solver.model.decoder(z_new).view(1, *solver.loader.img_dims).cpu().numpy()
-                img = np.reshape(decoded[0], list(solver.loader.img_dims))
-                figure[i*img_rows:(i+1)*img_rows, (label+1)*img_cols: (label+2)*img_cols] = img
+                figure[i*img_rows:(i+1)*img_rows, (label+1)*img_cols: (label+2)*img_cols] = decoded
         plt.figure(figsize=fig_size)
         plt.axis("off")
         plt.imshow(figure, cmap=cm)
@@ -242,7 +239,7 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
         r = k // n_cols
         c = k % n_cols
         figure[r * img_rows: (r + 1) * img_rows,
-               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.loader.img_dims))   
+               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.loader.img_dims))
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
