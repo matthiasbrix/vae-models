@@ -17,7 +17,8 @@ def _save_plot_fig(solver, data, cm, name):
     ax.set_axis_off()
     fig.add_axes(ax)
     ax.imshow(data, cmap=cm)
-    plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_" + name + "_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
+    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_" + name + "_" + \
+        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
     plt.close()
 
 def _xticks(ls, ticks_rate):
@@ -34,12 +35,13 @@ def plot_losses(solver, ticks_rate):
     plt.plot(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train")
     plt.plot(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test")
     plt.xticks(_xticks(train_loss_history, ticks_rate))
-    plt.title("Loss on data set {}, dim(z)={}".format(solver.loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
+    plt.title("Loss on data set {}, dim(z)={}".format(solver.data_loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.legend(bbox_to_anchor=(1.3, 1), borderaxespad=0)
     plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.2)
-    plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_losses_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_losses_" + \
+        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
@@ -86,8 +88,8 @@ def plot_gaussian_distributions(solver):
         ax.set_ylim([0, max(maxys, maxnorm)+0.05])
         ax.set(xlabel='x', ylabel='y')
 
-    with open(solver.folder_prefix + solver.loader.folder_name + "/result_stats_" +\
-        solver.loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
+    with open(solver.folder_prefix + solver.data_loader.folder_name + "/result_stats_" +\
+        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
         file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
         for idx in plots:
             i = idx-1
@@ -98,7 +100,8 @@ def plot_gaussian_distributions(solver):
 
     f.subplots_adjust(top=0.9, left=0.1, right=0.8, bottom=0.1)
     axarr.flatten()[1].legend(bbox_to_anchor=(1.65, 1.0), borderaxespad=0)
-    plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_gaussian_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_gaussian_" + \
+        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
 def plot_rl_kl(solver, ticks_rate):
@@ -122,19 +125,21 @@ def plot_rl_kl(solver, ticks_rate):
     plt.title("KL divergence of q(z|x)||p(z) (training) β={}".format(solver.beta_param))
 
     plt.tight_layout()
-    plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/" + "plot_rl_kl_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_rl_kl_" \
+        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
 # Plot the latent space as scatter plot
 def plot_latent_space(solver):
     labels = solver.labels.tolist()
     plt.figure(figsize=(9, 7))
-    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.loader.n_classes))
+    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
     plt.xlabel("z_1")
     plt.ylabel("z_2")
     plt.colorbar()
-    plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.loader.dataset, solver.epochs))
-    plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_latent_space_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
+    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_latent_space_" \
+        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the latent space as scatter plot (no labels)
 def plot_latent_space_no_labels(solver):
@@ -142,8 +147,9 @@ def plot_latent_space_no_labels(solver):
     plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, cmap="Paired")
     plt.xlabel("z_1")
     plt.ylabel("z_2")
-    plt.title("Latent space of the VAE on data set {} after {} epochs".format(solver.loader.dataset, solver.epochs))
-    plt.savefig(solver.folder_prefix + solver.loader.folder_name + "/plot_latent_space_" + solver.loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    plt.title("Latent space of the VAE on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
+    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_latent_space_" + \
+        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # from https://github.com/Natsu6767/Variational-Autoencoder/blob/master/main.py
 # Since the prior of the latent space is Gaussian, linearly spaced coordinates on the unit square
@@ -151,7 +157,7 @@ def plot_latent_space_no_labels(solver):
 # variables z. For each of these values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
 def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
-    x, y = solver.loader.img_dims
+    x, y = solver.data_loader.img_dims
     figure = np.zeros((x*n, y*n))
     # Construct grid of latent variable values.
     # ppf is percent point function (inverse of CDF)
@@ -166,12 +172,12 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
             z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
             if solver.cvae_mode:
                 # need also y_sample, but varying z
-                idx = torch.randint(0, solver.loader.n_classes, (1,)).item()
-                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.loader.n_classes)) # 100 x num_classes
+                idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
+                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes)) # 100 x num_classes
                 y_sample[:, idx] = 1.
                 z_sample = torch.cat((z_sample, y_sample), dim=-1)
             x_decoded = solver.model.decoder(z_sample).cpu().detach().numpy()
-            img = np.reshape(x_decoded[0], list(solver.loader.img_dims))
+            img = np.reshape(x_decoded[0], list(solver.data_loader.img_dims))
             figure[i * x: (i+1) * x, j * y: (j+1) * y] = img
 
     plt.figure(figsize=fig_size)
@@ -184,7 +190,7 @@ def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
 # Take a single test set image (first from each batch), encode it, use that fixed z, 
 # loop over all labels and print a row out with the fixed z but different labeled images
 def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
-    img_rows, img_cols = solver.loader.img_dims
+    img_rows, img_cols = solver.data_loader.img_dims
     figure = np.zeros((img_rows*n_rows, img_cols*n_cols))
     solver.model.eval()
     with torch.no_grad():
@@ -194,17 +200,17 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
             x, y = data.to(solver.device)[0], target.to(solver.device)[0]
             y = y.view(1, 1)
             onehot = solver.model.onehot_encoding(y)
-            x = x.view(-1, solver.loader.input_dim)
+            x = x.view(-1, solver.data_loader.input_dim)
             x_new = torch.cat((x, onehot), dim=-1)
             mu_x, logvar_x = solver.model.encoder(x_new)
             z = solver.model.reparameterization_trick(mu_x, logvar_x)
-            figure[i*img_rows:(i+1)*img_rows, 0:img_cols] = x.view(1, *solver.loader.img_dims).cpu().numpy() # the test image in leftmost column
-            for label in range(10): # just hardcoded to 10 outputs pr. row, otherwise call solver.loader.n_classes (but careful)
+            figure[i*img_rows:(i+1)*img_rows, 0:img_cols] = x.view(1, *solver.data_loader.img_dims).cpu().numpy() # the test image in leftmost column
+            for label in range(10): # just hardcoded to 10 outputs pr. row, otherwise call solver.data_loader.n_classes (but careful)
                 onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size))
                 onehot.zero_()
                 onehot[:, label] = 1.
                 z_new = torch.cat((z, onehot), dim=-1)
-                decoded = solver.model.decoder(z_new).view(1, *solver.loader.img_dims).cpu().numpy()
+                decoded = solver.model.decoder(z_new).view(1, *solver.data_loader.img_dims).cpu().numpy()
                 figure[i*img_rows:(i+1)*img_rows, (label+1)*img_cols: (label+2)*img_cols] = decoded
         plt.figure(figsize=fig_size)
         plt.axis("off")
@@ -214,14 +220,14 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
-    img_rows, img_cols = solver.loader.img_dims
+    img_rows, img_cols = solver.data_loader.img_dims
     n_rows = int(np.ceil(n / float(n_cols)))
     figure = np.zeros((img_rows * n_rows, img_cols * n_cols))
-    for k, x in enumerate(solver.loader.data[:n]):
+    for k, x in enumerate(solver.data_loader.data[:n]):
         r = k // n_cols
         c = k % n_cols
         figure[r * img_rows: (r + 1) * img_rows,
-               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.loader.img_dims))
+               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.data_loader.img_dims))
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
@@ -230,7 +236,7 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
 
 # plot sampled faces in a grid
 def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
-    img_rows, img_cols = solver.loader.img_dims
+    img_rows, img_cols = solver.data_loader.img_dims
     n_rows = int(np.ceil(n / float(n_cols)))
     figure = np.zeros((img_rows * n_rows, img_cols * n_cols))
     samples = torch.randn(n, solver.z_dim).to(solver.device)
@@ -239,7 +245,7 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
         r = k // n_cols
         c = k % n_cols
         figure[r * img_rows: (r + 1) * img_rows,
-               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.loader.img_dims))
+               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.data_loader.img_dims))
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")

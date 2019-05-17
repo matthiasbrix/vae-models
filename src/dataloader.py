@@ -12,7 +12,6 @@ from sklearn.model_selection import train_test_split
 class DataLoader():
     
     def __init__(self, path, batch_size, dataset, z_dim):
-        
         kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
         train_set = None
         test_set = None
@@ -22,11 +21,12 @@ class DataLoader():
         self.n_classes = None
         self.h = None
         self.w = None
-
+        self.batch_size = batch_size
+        # directories
         self.path = path
         self.dataset = dataset
         self.folder_name = path + "/" + dataset + "_z=" + str(z_dim)
-        
+
         if dataset == "MNIST":
             self.n_classes = 10
             self.h = 28
@@ -67,6 +67,9 @@ class DataLoader():
         self.input_dim = np.prod(self.img_dims)
         self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=True, **kwargs)
+        self.num_train_batches = len(self.train_loader)
+        self.num_train_samples = len(self.train_loader.dataset)
+        self.num_test_samples = len(self.test_loader.dataset)
 
     # transform data with labels to pytorch tensors
     def _prepare_data_set(self, X, y, h, w):
