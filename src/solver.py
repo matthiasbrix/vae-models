@@ -75,9 +75,9 @@ class Solver(object):
     def _train_batch(self, x, metrics, y=None):
         self.optimizer.zero_grad()
         if self.cvae_mode:
-            decoded, mu_x, logvar_x, latent_space = self.model(x, y) # cvae model
+            decoded, mu_x, logvar_x, latent_space = self.model(x, y)
         elif self.tdcvae_mode:
-            decoded, x, mu_x, logvar_x, latent_space = self.model(x) # tdcvae models TODO: diff name than truth
+            decoded, x, mu_x, logvar_x, latent_space = self.model(x)
         else:
             decoded, mu_x, logvar_x, latent_space = self.model(x) # vae
         loss, reconstruction_loss, kl_divergence = self.model.loss_function(decoded, x, logvar_x, mu_x, self.beta)
@@ -89,12 +89,12 @@ class Solver(object):
 
     def _test_batch(self, x, batch_idx, epoch, y=None):
         if self.cvae_mode:
-            decoded, mu_x, logvar_x, _ = self.model(x, y) # cvae model
+            decoded, mu_x, logvar_x, _ = self.model(x, y)
         elif self.tdcvae_mode:
-            decoded, truth, mu_x, logvar_x, _ = self.model(x) # tdcvae models TODO: diff name than truth
+            decoded, x, mu_x, logvar_x, _ = self.model(x)
         else:
             decoded, mu_x, logvar_x, _ = self.model(x) # vae
-        loss, _, _ = self.model.loss_function(decoded, truth, mu_x, logvar_x, self.beta)
+        loss, _, _ = self.model.loss_function(decoded, x, mu_x, logvar_x, self.beta)
         if batch_idx == 0: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
             comparison = torch.cat([truth.view(self.data_loader.batch_size, 1, *self.data_loader.img_dims)[:n], \
@@ -178,9 +178,17 @@ class Solver(object):
         os.makedirs(self.folder_prefix+self.data_loader.folder_name, exist_ok=True)
         os.makedirs(self.save_model_dir, exist_ok=True)
 
+    def _save_model_params_to_file(self):
+        with open(self.folder_prefix + self.data_loader.folder_name + "/model_params_" +\
+            self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
+            param_file.write("epochs: {}\nbeta: {}\nbeta_param: {}\nwarmup_epochs: {}\ndim(z): {}\nstep_lr: {}\nbatch_size: {}\n\
+                step_size: {}\ngamma: {}".format(self.epochs, self.beta, self.beta, self.warmup_epochs, self.z_dim, self.step_lr,\
+                     self.data_loader.batch_size, self.step_config["step_size"], self.step_config["gamma"]))
+
     def main(self):
         print("+++++ START RUN +++++")
         self._prepare_directories()
+        self._save_model_params_to_file()
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
         for epoch in range(1, self.epochs+1):
             t0 = time.time()
