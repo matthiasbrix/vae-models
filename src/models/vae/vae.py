@@ -70,7 +70,7 @@ class Vae(nn.Module):
         return loss_reconstruction + beta*kl_divergence, loss_reconstruction, beta*kl_divergence
 
     def forward(self, data):
-        mu_x, logvar_x = self.encoder(data.view(-1, self.input_dim))
+        mu_x, logvar_x = self.encoder(data)
         z = self._reparameterization_trick(mu_x, logvar_x)
         decoded = self.decoder(z)
         return decoded, mu_x, logvar_x, z

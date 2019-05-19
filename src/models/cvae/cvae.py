@@ -6,7 +6,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 
 PATH = str(Path(__file__).parent.absolute()).split('/')[-1]
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
@@ -51,7 +51,7 @@ class Cvae(nn.Module):
 
     def onehot_encoding(self, y):
         y = y.view(y.size(0), 1).type(torch.LongTensor)
-        onehot = torch.zeros(y.size(0), self.y_size, dtype=torch.float, device=device) # batch_size x y_size
+        onehot = torch.zeros(y.size(0), self.y_size, dtype=torch.float, device=DEVICE) # batch_size x y_size
         onehot.scatter_(1, y, 1)
         return onehot
 
@@ -67,7 +67,6 @@ class Cvae(nn.Module):
 
     def forward(self, x, y=None):
         y_one_hot = self.onehot_encoding(y) # batch_size x y_size
-        x = x.view(-1, self.input_dim) # from batch_size x 1 x x.x x x.y to batch_size x x.x*x.y
         x = torch.cat((x, y_one_hot), dim=-1) # batch_size x (x.y+y_one_hot.y)
         mu_x, logvar_x = self.encoder(x)
         latent_space = self.reparameterization_trick(mu_x, logvar_x)
