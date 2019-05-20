@@ -122,7 +122,7 @@ def plot_rl_kl(solver, ticks_rate):
     plt.xticks(_xticks(kls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("KL divergence")
-    plt.title("KL divergence of q(z|x)||p(z) (training) β={}".format(solver.beta_param))
+    plt.title("KL divergence of q(z|x)||p(z) β={} (training)".format(solver.beta_param))
 
     plt.tight_layout()
     plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_rl_kl_" \
@@ -156,27 +156,34 @@ def plot_latent_space_no_labels(solver):
 # were transformed through the inverse CDF of the Gaussian to produce values of the latent
 # variables z. For each of these values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
+# TODO: DON'T NEED A FUCKING BATCH TO DECODE!!!
 def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
     x, y = solver.data_loader.img_dims
     figure = np.zeros((x*n, y*n))
     # Construct grid of latent variable values.
     # ppf is percent point function (inverse of CDF)
-    grid_x = stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
-    grid_y = stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
-
+    grid_x = np.linspace(-6, 6, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
+    grid_y = np.linspace(-6, 6, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
+    print(grid_x, grid_y)
+    print(stats.norm.ppf(np.linspace(0.05, 0.95, n)))
     # Decode for each square in the grid.
     for i, xi in enumerate(grid_x):
         for j, yj in enumerate(grid_y):
             z_sample = np.array([xi, yj])
-            z_sample = np.tile(z_sample, solver.batch_size).reshape(solver.batch_size, solver.z_dim) # repeating the sample to batch_size x dim(z)
+            z_sample = np.tile(z_sample, solver.data_loader.batch_size).reshape(solver.data_loader.batch_size, solver.z_dim) # repeating the sample to batch_size x dim(z)
             z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
             if solver.cvae_mode:
                 # need also y_sample, but varying z
                 idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
                 y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes)) # 100 x num_classes
                 y_sample[:, idx] = 1.
-                z_sample = torch.cat((z_sample, y_sample), dim=-1)
-            x_decoded = solver.model.decoder(z_sample).cpu().detach().numpy()
+                sample = torch.cat((z_sample, y_sample), dim=-1)
+            elif solver.tdcvae_mode:
+                x_t_batch = iter(solver.data_loader.train_loader).next()[0][:solver.data_loader.batch_size].view(-1, solver.data_loader.input_dim)
+                sample = torch.cat((x_t_batch, z_sample), dim=-1)
+            else:
+                sample = z_sample
+            x_decoded = solver.model.decoder(sample).cpu().detach().numpy()
             img = np.reshape(x_decoded[0], list(solver.data_loader.img_dims))
             figure[i * x: (i+1) * x, j * y: (j+1) * y] = img
 
@@ -251,6 +258,15 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     plt.axis("off")
     plt.tight_layout()
     _save_plot_fig(solver, figure, cm="gray", name="faces_samples_grid")
+
+def plot_y_space(solver):
+    plt.figure(figsize=(9, 7))
+    plt.scatter(solver.y_space[:, 0], solver.y_space[:, 1], s=10)
+    plt.xlabel("y_1")
+    plt.ylabel("y_2")
+    plt.title("Space q(y) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
+    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_y_space_" \
+        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Old - can be removed?
 # Useful if form is (10586, 1850) so no tensor

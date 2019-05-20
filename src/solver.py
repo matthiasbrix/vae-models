@@ -40,6 +40,7 @@ class Training(object):
         self.prepro = prepro
       
     def _train_batch(self, epoch_metrics, x, y=None):
+        y_space = None
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -48,7 +49,7 @@ class Training(object):
             theta_1, theta_2 = self.prepro.generate_angles()
             x_rot = self.prepro.rotate_batch(x, theta_1).view(-1, self.solver.data_loader.input_dim)
             x_next = self.prepro.rotate_batch(x, theta_2).view(-1, self.solver.data_loader.input_dim)
-            decoded, x, mu_x, logvar_x, latent_space = self.solver.model(x_rot, x_next)
+            decoded, x, mu_x, logvar_x, latent_space, y_space = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, latent_space = self.solver.model(x) # vae
@@ -58,33 +59,25 @@ class Training(object):
         self.solver.optimizer.step()
         epoch_metrics.compute_batch_train_metrics(loss.item(), reconstruction_loss,\
             kl_divergence, latent_space, mu_x, logvar_x)
-        return latent_space
-
-    def _train_non_labels(self, epoch, epoch_metrics):
-        for batch_idx, data in enumerate(self.solver.data_loader.train_loader):
-            x = data.to(self.solver.device)
-            latent_space = self._train_batch(epoch_metrics, x)
-            if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
-                start = batch_idx*x.size(0)
-                end = (batch_idx+1)*x.size(0)
-                self.solver.latent_space[start:end, :] = latent_space.cpu().detach().numpy()
-
-    def _train_w_labels(self, epoch, epoch_metrics):
-        for batch_idx, (data, target) in enumerate(self.solver.data_loader.train_loader):
-            x, y = data.to(self.solver.device), target.to(self.solver.device)
-            latent_space = self._train_batch(epoch_metrics, x, y)
-            if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
-                start = batch_idx*x.size(0)
-                end = (batch_idx+1)*x.size(0)
-                self.solver.labels[start:end] = y.cpu().detach().numpy()
-                self.solver.latent_space[start:end, :] = latent_space.cpu().detach().numpy()
+        return latent_space, y_space
 
     def train(self, with_labels, epoch, epoch_metrics):
         self.solver.model.train()
-        if with_labels:
-            self._train_w_labels(epoch, epoch_metrics)
-        else:
-            self._train_non_labels(epoch, epoch_metrics)
+        for batch_idx, data in enumerate(self.solver.data_loader.train_loader):
+            if with_labels:
+                x, y = data[0].to(self.solver.device), data[1].to(self.solver.device)
+                latent_space, y_space = self._train_batch(epoch_metrics, x, y)
+            else:
+                x = data.to(self.solver.device)
+                latent_space, y_space = self._train_batch(epoch_metrics, x)
+            if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
+                start = batch_idx*x.size(0)
+                end = (batch_idx+1)*x.size(0)
+                self.solver.latent_space[start:end, :] = latent_space.cpu().detach().numpy()
+                if y is not None:
+                    self.solver.labels[start:end] = y.cpu().detach().numpy()
+                if y_space is not None:
+                    self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
 
 class Testing(object):
     def __init__(self, solver, prepro):
@@ -99,7 +92,7 @@ class Testing(object):
             theta_1, theta_2 = self.prepro.generate_angles()
             x_rot = self.prepro.rotate_batch(x, theta_1).view(-1, self.solver.data_loader.input_dim)
             x_next = self.prepro.rotate_batch(x, theta_2).view(-1, self.solver.data_loader.input_dim)
-            decoded, x, mu_x, logvar_x, _ = self.solver.model(x_rot, x_next)
+            decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
@@ -112,23 +105,16 @@ class Testing(object):
             torchvision.utils.save_image(comparison.cpu(), self.solver.folder_prefix + self.solver.data_loader.folder_name \
                 + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
 
-    def _test_non_labels(self, epoch, epoch_metrics):
-        for batch_idx, data in enumerate(self.solver.data_loader.test_loader):
-            x = data.to(self.solver.device)
-            self._test_batch(epoch_metrics, batch_idx, epoch, x)
-
-    def _test_w_labels(self, epoch, epoch_metrics):
-        for batch_idx, (data, target) in enumerate(self.solver.data_loader.test_loader):
-            x, y = data.to(self.solver.device), target.to(self.solver.device)
-            self._test_batch(epoch_metrics, batch_idx, epoch, x, y)
-
     def test(self, with_labels, epoch, epoch_metrics):
         self.solver.model.eval()
         with torch.no_grad():
-            if with_labels:
-                self._test_w_labels(epoch, epoch_metrics)
-            else:
-                self._test_non_labels(epoch, epoch_metrics)
+            for batch_idx, data in enumerate(self.solver.data_loader.test_loader):
+                if with_labels:
+                    x, y = data[0].to(self.solver.device), data[1].to(self.solver.device)
+                    self._test_batch(epoch_metrics, batch_idx, epoch, x, y)
+                else:
+                    x = data.to(self.solver.device)
+                    self._test_batch(epoch_metrics, batch_idx, epoch, x)
 
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config, optim_config, warmup_epochs,\
@@ -151,6 +137,7 @@ class Solver(object):
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
         self.labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size)
         self.latent_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
+        self.y_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
