@@ -35,21 +35,22 @@ class EpochMetrics():
         self.test_loss_acc += test_loss
 
 class Training(object):
-    def __init__(self, solver):
+    def __init__(self, solver, prepro):
         self.solver = solver
-        
+        self.prepro = prepro
+      
     def _train_batch(self, epoch_metrics, x, y=None):
-        x = x.view(-1, self.solver.data_loader.input_dim)
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
+            x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, latent_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_t = x
-            # TODO: can't take a batch.... should fix the roatet
-            x_rot = x_t#self.prepro.det_rotate(x_t, theta_1).view(-1, self.input_dim)
-            x_next = x_t#self.prepro.det_rotate(x_t, theta_2).view(-1, self.input_dim)
+            theta_1, theta_2 = self.prepro.generate_angles()
+            x_rot = self.prepro.rotate_batch(x, theta_1).view(-1, self.solver.data_loader.input_dim)
+            x_next = self.prepro.rotate_batch(x, theta_2).view(-1, self.solver.data_loader.input_dim)
             decoded, x, mu_x, logvar_x, latent_space = self.solver.model(x_rot, x_next)
         else:
+            x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, latent_space = self.solver.model(x) # vae
         loss, reconstruction_loss, kl_divergence = \
             self.solver.model.loss_function(decoded, x, logvar_x, mu_x, self.solver.beta)
@@ -86,20 +87,21 @@ class Training(object):
             self._train_non_labels(epoch, epoch_metrics)
 
 class Testing(object):
-    def __init__(self, solver):
+    def __init__(self, solver, prepro):
         self.solver = solver
+        self.prepro = prepro
 
     def _test_batch(self, epoch_metrics, batch_idx, epoch, x, y=None):
-        x = x.view(-1, self.solver.data_loader.input_dim)
         if self.solver.cvae_mode:
+            x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_t = x
-            # TODO: do stuff also here
-            x_rot = x_t#self.prepro.det_rotate(x_t, theta_1).view(-1, self.input_dim)
-            x_next = x_t#self.prepro.det_rotate(x_t, theta_2).view(-1, self.input_dim)
+            theta_1, theta_2 = self.prepro.generate_angles()
+            x_rot = self.prepro.rotate_batch(x, theta_1).view(-1, self.solver.data_loader.input_dim)
+            x_next = self.prepro.rotate_batch(x, theta_2).view(-1, self.solver.data_loader.input_dim)
             decoded, x, mu_x, logvar_x, _ = self.solver.model(x_rot, x_next)
         else:
+            x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
         loss, _, _ = self.solver.model.loss_function(decoded, x, mu_x, logvar_x, self.solver.beta)
         epoch_metrics.compute_batch_test_metrics(loss.item())
@@ -130,9 +132,10 @@ class Testing(object):
 
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config, optim_config, warmup_epochs,\
-            beta, cvae_mode=False, tdcvae_mode=False):
+            beta, num_samples=100, cvae_mode=False, tdcvae_mode=False, prepro=None):
         self.data_loader = data_loader
         self.model = model
+        self.prepro = prepro
         self.model.to(DEVICE)
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
@@ -150,6 +153,7 @@ class Solver(object):
         self.latent_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
+        self.num_samples = num_samples
         self.warmup_epochs = warmup_epochs
         self.beta_param = beta
         self.beta = self.beta_param if not(self.warmup_epochs) else 0
@@ -174,25 +178,25 @@ class Solver(object):
         return test_loss
 
     # generating samples from only the decoder
-    def _sample(self, epoch):
+    def _sample(self, epoch, num_samples):
+        if num_samples > self.data_loader.batch_size:
+            print("Samples can't be generated number of samples exceeds the batch size")
+            return
         with torch.no_grad():
             if self.cvae_mode:
-                z_sample = torch.randn(100, self.z_dim).to(self.device) # 100 = 10 x 10 grid
+                z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
                 idx = torch.randint(0, self.data_loader.n_classes, (1,)).item()
                 y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), self.data_loader.n_classes)) # 100 x num_classes
                 y_sample[:, idx] = 1.
                 sample = torch.cat((z_sample, y_sample), dim=-1)
             elif self.tdcvae_mode:
-                # TODO: HOW TO HANDLE THE SAMPLING IN TDCVAE? Take a random image x, 
-                # and then decode with a random z
-                return
-                #z_sample = torch.randn(100, self.z_dim).to(device) # 100 = 10 x 10 grid
-                #xz_t = torch.cat((x_t, z_sample), dim=-1)
-                #x_t = self.decoder(xz_t) # x_{t+1}
+                z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
+                x_t_batch = iter(self.data_loader.train_loader).next()[0][:num_samples].view(-1, self.data_loader.input_dim)
+                sample = torch.cat((x_t_batch, z_sample), dim=-1)
             else:
-                sample = torch.randn(100, self.z_dim).to(self.device) # 100 = 10 x 10 grid'''
+                sample = torch.randn(num_samples, self.z_dim).to(self.device) # 100 = 10 x 10 grid
             sample = self.model.decoder(sample)
-            torchvision.utils.save_image(sample.view(100, 1, *self.data_loader.img_dims), \
+            torchvision.utils.save_image(sample.view(num_samples, 1, *self.data_loader.img_dims), \
                 self.folder_prefix + self.data_loader.folder_name + "/generated_sample_" +\
                     str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
 
@@ -204,8 +208,7 @@ class Solver(object):
     def _save_model_params_to_file(self):
         with open(self.folder_prefix + self.data_loader.folder_name + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
-            param_file.write("epochs: {}\nbeta: {}\nbeta_param: {}\nwarmup_epochs: {}\n\
-                dim(z): {}\nstep_lr: {}\nbatch_size: {}\n\step_size: {}\ngamma: {}".format(\
+            param_file.write("epochs: {}\nbeta: {}\nbeta_param: {}\nwarmup_epochs: {}\ndim(z): {}\nstep_lr: {}\nbatch_size: {}\nstep_size: {}\ngamma: {}".format(\
                     self.epochs, self.beta, self.beta, self.warmup_epochs, self.z_dim, self.step_lr,\
                      self.data_loader.batch_size, self.step_config["step_size"], self.step_config["gamma"]))
 
@@ -213,8 +216,8 @@ class Solver(object):
         print("+++++ START RUN +++++")
         self._prepare_directories()
         self._save_model_params_to_file()
-        training = Training(self)
-        testing = Testing(self)
+        training = Training(self, self.prepro)
+        testing = Testing(self, self.prepro)
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
         with_labels = self.data_loader.dataset != "FF"
         for epoch in range(1, self.epochs+1):
@@ -226,7 +229,7 @@ class Solver(object):
             testing.test(with_labels, epoch, epoch_metrics)
             test_loss = self._save_test_metrics(epoch_metrics)
             print("====> Test set loss avg: {:.4f}".format(test_loss))
-            self._sample(epoch)
+            self._sample(epoch, self.num_samples)
             if self.step_lr:
                 scheduler.step()
             if self.warmup_epochs and self.beta < self.beta_param:
