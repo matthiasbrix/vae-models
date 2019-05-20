@@ -7,6 +7,8 @@ class Preprocessing():
 
     def __init__(self, thetas):
         self.theta_range_1, self.theta_range_2 = [v for _, v in thetas.items()]
+        self.theta_range_1[1] += 1
+        self.theta_range_2[1] += 1
 
     def generate_angles(self):
         theta_1 = np.random.randint(*self.theta_range_1)
