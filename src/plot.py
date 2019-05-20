@@ -147,45 +147,34 @@ def plot_latent_space_no_labels(solver):
     plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, cmap="Paired")
     plt.xlabel("z_1")
     plt.ylabel("z_2")
-    plt.title("Latent space of the VAE on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
+    plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
     plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_latent_space_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
-# from https://github.com/Natsu6767/Variational-Autoencoder/blob/master/main.py
-# Since the prior of the latent space is Gaussian, linearly spaced coordinates on the unit square
-# were transformed through the inverse CDF of the Gaussian to produce values of the latent
-# variables z. For each of these values z, we plotted the corresponding generative
+# For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
-# TODO: DON'T NEED A FUCKING BATCH TO DECODE!!!
-def plot_latent_manifold(solver, cm, n=20, fig_size=(10, 10)):
+def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10)):
     x, y = solver.data_loader.img_dims
     figure = np.zeros((x*n, y*n))
-    # Construct grid of latent variable values.
-    # ppf is percent point function (inverse of CDF)
-    grid_x = np.linspace(-6, 6, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
-    grid_y = np.linspace(-6, 6, n) #stats.norm.ppf(np.linspace(0.05, 0.95, n)) # np.linspace(-4, 4, n) #
-    print(grid_x, grid_y)
-    print(stats.norm.ppf(np.linspace(0.05, 0.95, n)))
     # Decode for each square in the grid.
     for i, xi in enumerate(grid_x):
         for j, yj in enumerate(grid_y):
             z_sample = np.array([xi, yj])
-            z_sample = np.tile(z_sample, solver.data_loader.batch_size).reshape(solver.data_loader.batch_size, solver.z_dim) # repeating the sample to batch_size x dim(z)
+            z_sample = np.tile(z_sample, 1).reshape(1, solver.z_dim)
             z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
             if solver.cvae_mode:
-                # need also y_sample, but varying z
                 idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
-                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes)) # 100 x num_classes
+                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes))
                 y_sample[:, idx] = 1.
                 sample = torch.cat((z_sample, y_sample), dim=-1)
             elif solver.tdcvae_mode:
-                x_t_batch = iter(solver.data_loader.train_loader).next()[0][:solver.data_loader.batch_size].view(-1, solver.data_loader.input_dim)
-                sample = torch.cat((x_t_batch, z_sample), dim=-1)
+                x_t = iter(solver.data_loader.train_loader).next()[0][0].view(-1, solver.data_loader.input_dim)
+                sample = torch.cat((x_t, z_sample), dim=-1)
             else:
                 sample = z_sample
             x_decoded = solver.model.decoder(sample).cpu().detach().numpy()
-            img = np.reshape(x_decoded[0], list(solver.data_loader.img_dims))
-            figure[i * x: (i+1) * x, j * y: (j+1) * y] = img
+            img = np.reshape(x_decoded, list(solver.data_loader.img_dims))
+            figure[i*x:(i+1)*x, j*y:(j+1)*y] = img
 
     plt.figure(figsize=fig_size)
     plt.axis("off")
@@ -233,8 +222,8 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
     for k, x in enumerate(solver.data_loader.data[:n]):
         r = k // n_cols
         c = k % n_cols
-        figure[r * img_rows: (r + 1) * img_rows,
-               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.data_loader.img_dims))
+        figure[r*img_rows:(r+1)*img_rows,
+               c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
@@ -251,8 +240,8 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     for k, x in enumerate(samples):
         r = k // n_cols
         c = k % n_cols
-        figure[r * img_rows: (r + 1) * img_rows,
-               c * img_cols: (c + 1) * img_cols] = x.reshape(list(solver.data_loader.img_dims))
+        figure[r*img_rows:(r+1)*img_rows,
+               c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
