@@ -1,5 +1,3 @@
-import sys
-
 import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
@@ -60,8 +58,7 @@ class DataLoader():
             train_set = torch.from_numpy(ff_train)
             test_set = torch.from_numpy(ff_test)
         else:
-            print("DATASET N/A!")
-            sys.exit()
+            raise ValueError("DATASET N/A!")
         
         self.img_dims = (self.h, self.w)
         self.input_dim = np.prod(self.img_dims)

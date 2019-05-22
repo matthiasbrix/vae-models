@@ -158,11 +158,9 @@ def plot_latent_space_no_labels(solver):
 
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
-def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10)):
+def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None):
     x, y = solver.data_loader.img_dims
     figure = np.zeros((x*n, y*n))
-    if solver.tdcvae_mode:
-        x_t = iter(solver.data_loader.train_loader).next()[0][0].view(-1, solver.data_loader.input_dim)
     # Decode for each square in the grid.
     solver.model.eval()
     with torch.no_grad():

@@ -43,12 +43,11 @@ class Decoder(nn.Module):
         return self.sigmoid(x)
 
 class TD_Cvae(nn.Module):
-    def __init__(self, input_dim, hidden_dim, z_dim, T):
+    def __init__(self, input_dim, hidden_dim, z_dim):
         super(TD_Cvae, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim, z_dim)
         self.decoder = Decoder(z_dim+input_dim, hidden_dim, input_dim)
         self.input_dim = input_dim
-        self.T = T
         self.z_dim = z_dim
 
     # y_t \sim N(\mu(x_t), \sigma(x_t))

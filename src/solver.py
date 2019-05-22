@@ -35,9 +35,8 @@ class EpochMetrics():
         self.test_loss_acc += test_loss
 
 class Training(object):
-    def __init__(self, solver, prepro):
+    def __init__(self, solver):
         self.solver = solver
-        self.prepro = prepro
       
     def _train_batch(self, epoch_metrics, x, y=None):
         y_space = None
@@ -46,9 +45,7 @@ class Training(object):
             x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, latent_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            theta_1, theta_2 = self.prepro.generate_angles()
-            x_rot = self.prepro.rotate_batch(x, theta_1).view(-1, self.solver.data_loader.input_dim)
-            x_next = self.prepro.rotate_batch(x, theta_2).view(-1, self.solver.data_loader.input_dim)
+            x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
             decoded, x, mu_x, logvar_x, latent_space, y_space = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -80,18 +77,15 @@ class Training(object):
                     self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
 
 class Testing(object):
-    def __init__(self, solver, prepro):
+    def __init__(self, solver):
         self.solver = solver
-        self.prepro = prepro
 
     def _test_batch(self, epoch_metrics, batch_idx, epoch, x, y=None):
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            theta_1, theta_2 = self.prepro.generate_angles()
-            x_rot = self.prepro.rotate_batch(x, theta_1).view(-1, self.solver.data_loader.input_dim)
-            x_next = self.prepro.rotate_batch(x, theta_2).view(-1, self.solver.data_loader.input_dim)
+            x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -167,7 +161,7 @@ class Solver(object):
 
     # generating samples from only the decoder
     def _sample(self, epoch, num_samples):
-        if num_samples > self.data_loader.batch_size:
+        if num_samples > self.data_loader.batch_size: #  TODO corret below?
             print("Samples can't be generated number of samples exceeds the batch size")
             return
         with torch.no_grad():
@@ -179,8 +173,9 @@ class Solver(object):
                 sample = torch.cat((z_sample, y_sample), dim=-1)
             elif self.tdcvae_mode:
                 z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
-                x_t_batch = iter(self.data_loader.train_loader).next()[0][:num_samples].view(-1, self.data_loader.input_dim)
-                sample = torch.cat((x_t_batch, z_sample), dim=-1)
+                x_t = iter(self.data_loader.train_loader).next()[0][:num_samples]
+                x_rot, _ = self.prepro.preprocess_batch(x_t, self.data_loader.input_dim)
+                sample = torch.cat((x_rot, z_sample), dim=-1)
             else:
                 sample = torch.randn(num_samples, self.z_dim).to(self.device) # 100 = 10 x 10 grid
             sample = self.model.decoder(sample)
@@ -204,8 +199,8 @@ class Solver(object):
         print("+++++ START RUN +++++")
         self._prepare_directories()
         self._save_model_params_to_file()
-        training = Training(self, self.prepro)
-        testing = Testing(self, self.prepro)
+        training = Training(self)
+        testing = Testing(self)
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
         with_labels = self.data_loader.dataset != "FF"
         for epoch in range(1, self.epochs+1):
