@@ -38,7 +38,8 @@ def plot_losses(solver, ticks_rate):
     plt.title("Loss on data set {}, dim(z)={}".format(solver.data_loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
     plt.xlabel("epoch")
     plt.ylabel("loss")
-    plt.legend(bbox_to_anchor=(1.3, 1), borderaxespad=0)
+    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
+            fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.2)
     plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_losses_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
@@ -88,6 +89,7 @@ def plot_gaussian_distributions(solver):
         ax.set_ylim([0, max(maxys, maxnorm)+0.05])
         ax.set(xlabel='x', ylabel='y')
 
+    # writing stats results of z to file
     with open(solver.folder_prefix + solver.data_loader.folder_name + "/result_stats_" +\
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
         file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
@@ -99,7 +101,10 @@ def plot_gaussian_distributions(solver):
             file_res.write("\n")
 
     f.subplots_adjust(top=0.9, left=0.1, right=0.8, bottom=0.1)
-    axarr.flatten()[1].legend(bbox_to_anchor=(1.65, 1.0), borderaxespad=0)
+    ax = axarr.flatten()[2]
+    ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
+            fancybox=True, shadow=True, ncol=5)
+
     plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_gaussian_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
@@ -108,7 +113,7 @@ def plot_rl_kl(solver, ticks_rate):
     rls = solver.train_loss_history["recon_loss_acc"]
     kls = solver.train_loss_history["kl_diverg_acc"]
     x = np.arange(1, len(kls)+1)
-    plt.figure(figsize=(5, 5))
+    plt.figure(figsize=(4.5, 5))
 
     plt.subplot(2, 1, 1)
     plt.plot(x, rls)
@@ -122,7 +127,7 @@ def plot_rl_kl(solver, ticks_rate):
     plt.xticks(_xticks(kls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("KL divergence")
-    plt.title("KL divergence of q(z|x)||p(z) β={} (training)".format(solver.beta_param))
+    plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta_param))
 
     plt.tight_layout()
     plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_rl_kl_" \
@@ -156,28 +161,33 @@ def plot_latent_space_no_labels(solver):
 def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10)):
     x, y = solver.data_loader.img_dims
     figure = np.zeros((x*n, y*n))
+    if solver.tdcvae_mode:
+        x_t = iter(solver.data_loader.train_loader).next()[0][0].view(-1, solver.data_loader.input_dim)
     # Decode for each square in the grid.
-    for i, xi in enumerate(grid_x):
-        for j, yj in enumerate(grid_y):
-            z_sample = np.array([xi, yj])
-            z_sample = np.tile(z_sample, 1).reshape(1, solver.z_dim)
-            z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
-            if solver.cvae_mode:
-                idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
-                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes))
-                y_sample[:, idx] = 1.
-                sample = torch.cat((z_sample, y_sample), dim=-1)
-            elif solver.tdcvae_mode:
-                x_t = iter(solver.data_loader.train_loader).next()[0][0].view(-1, solver.data_loader.input_dim)
-                sample = torch.cat((x_t, z_sample), dim=-1)
-            else:
-                sample = z_sample
-            x_decoded = solver.model.decoder(sample).cpu().detach().numpy()
-            img = np.reshape(x_decoded, list(solver.data_loader.img_dims))
-            figure[i*x:(i+1)*x, j*y:(j+1)*y] = img
+    solver.model.eval()
+    with torch.no_grad():
+        for i, xi in enumerate(grid_x):
+            for j, yj in enumerate(grid_y):
+                z_sample = np.array([xi, yj])
+                z_sample = np.tile(z_sample, 1).reshape(1, solver.z_dim)
+                z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
+                if solver.cvae_mode:
+                    idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
+                    y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes))
+                    y_sample[:, idx] = 1.
+                    sample = torch.cat((z_sample, y_sample), dim=-1)
+                elif solver.tdcvae_mode:
+                    sample = torch.cat((x_t, z_sample), dim=-1)
+                else:
+                    sample = z_sample
+                x_decoded = solver.model.decoder(sample).cpu().detach().numpy()
+                img = np.reshape(x_decoded[0], list(solver.data_loader.img_dims))
+                figure[i*x:(i+1)*x, j*y:(j+1)*y] = img
 
     plt.figure(figsize=fig_size)
     plt.axis("off")
+    plt.xlabel("z_1")
+    plt.ylabel("z_2")
     plt.imshow(figure, cmap=cm)
     plt.show()
     _save_plot_fig(solver, figure, cm=cm, name="learned_data_manifold")
@@ -190,7 +200,7 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
     figure = np.zeros((img_rows*n_rows, img_cols*n_cols))
     solver.model.eval()
     with torch.no_grad():
-        for i, (data, target) in enumerate(solver.test_loader):
+        for i, (data, target) in enumerate(solver.data_loader.test_loader):
             if i == 10:
                 break
             x, y = data.to(solver.device)[0], target.to(solver.device)[0]
@@ -208,11 +218,12 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
                 z_new = torch.cat((z, onehot), dim=-1)
                 decoded = solver.model.decoder(z_new).view(1, *solver.data_loader.img_dims).cpu().numpy()
                 figure[i*img_rows:(i+1)*img_rows, (label+1)*img_cols: (label+2)*img_cols] = decoded
-        plt.figure(figsize=fig_size)
-        plt.axis("off")
-        plt.imshow(figure, cmap=cm)
-        plt.show()
-        _save_plot_fig(solver, figure, cm=cm, name="fixed_z_all_labels")
+    
+    plt.figure(figsize=fig_size)
+    plt.axis("off")
+    plt.imshow(figure, cmap=cm)
+    plt.show()
+    _save_plot_fig(solver, figure, cm=cm, name="fixed_z_all_labels")
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
@@ -236,12 +247,15 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     n_rows = int(np.ceil(n / float(n_cols)))
     figure = np.zeros((img_rows * n_rows, img_cols * n_cols))
     samples = torch.randn(n, solver.z_dim).to(solver.device)
-    samples = solver.model.decoder(samples).cpu().detach().numpy()
-    for k, x in enumerate(samples):
-        r = k // n_cols
-        c = k % n_cols
-        figure[r*img_rows:(r+1)*img_rows,
-               c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
+    solver.model.eval()
+    with torch.no_grad():
+        samples = solver.model.decoder(samples).cpu().detach().numpy()
+        for k, x in enumerate(samples):
+            r = k // n_cols
+            c = k % n_cols
+            figure[r*img_rows:(r+1)*img_rows,
+                c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
+    
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")

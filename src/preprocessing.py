@@ -64,3 +64,7 @@ class Preprocessing():
         return im_rot2
 
     # TODO: scale_batch - need also a way to rotate + scale
+    def scale_batch(self, batch, scale):
+        for i in range(batch.size(0)):
+            img = TF.resize(transforms.ToPILImage()(batch[i]), scale)
+            return transforms.ToTensor()(img)

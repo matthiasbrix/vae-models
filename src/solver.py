@@ -117,8 +117,9 @@ class Testing(object):
                     self._test_batch(epoch_metrics, batch_idx, epoch, x)
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config, optim_config, warmup_epochs,\
-            beta, num_samples=100, cvae_mode=False, tdcvae_mode=False, prepro=None):
+    def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config,\
+            optim_config, warmup_epochs, beta, num_samples=100, cvae_mode=False,\
+            tdcvae_mode=False, prepro=None):
         self.data_loader = data_loader
         self.model = model
         self.prepro = prepro
