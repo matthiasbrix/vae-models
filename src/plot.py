@@ -17,7 +17,7 @@ def _save_plot_fig(solver, data, cm, name):
     ax.set_axis_off()
     fig.add_axes(ax)
     ax.imshow(data, cmap=cm)
-    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_" + name + "_" + \
+    plt.savefig(solver.data_loader.result_dir + "/plot_" + name + "_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
     plt.close()
 
@@ -41,7 +41,7 @@ def plot_losses(solver, ticks_rate):
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
             fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.2)
-    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_losses_" + \
+    plt.savefig(solver.data_loader.result_dir + "/" + "plot_losses_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
@@ -90,7 +90,7 @@ def plot_gaussian_distributions(solver):
         ax.set(xlabel='x', ylabel='y')
 
     # writing stats results of z to file
-    with open(solver.folder_prefix + solver.data_loader.folder_name + "/result_stats_" +\
+    with open(solver.data_loader.result_dir + "/result_stats_" +\
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
         file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
         for idx in plots:
@@ -105,7 +105,7 @@ def plot_gaussian_distributions(solver):
     ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
             fancybox=True, shadow=True, ncol=5)
 
-    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_gaussian_" + \
+    plt.savefig(solver.data_loader.result_dir + "/" + "plot_gaussian_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
@@ -130,7 +130,7 @@ def plot_rl_kl(solver, ticks_rate):
     plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta_param))
 
     plt.tight_layout()
-    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/" + "plot_rl_kl_" \
+    plt.savefig(solver.data_loader.result_dir + "/" + "plot_rl_kl_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
@@ -143,7 +143,7 @@ def plot_latent_space(solver):
     plt.ylabel("z_2")
     plt.colorbar()
     plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
-    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_latent_space_" \
+    plt.savefig(solver.data_loader.result_dir + "/plot_latent_space_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the latent space as scatter plot (no labels)
@@ -153,7 +153,7 @@ def plot_latent_space_no_labels(solver):
     plt.xlabel("z_1")
     plt.ylabel("z_2")
     plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
-    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_latent_space_" + \
+    plt.savefig(solver.data_loader.result_dir + "/plot_latent_space_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative
@@ -234,7 +234,7 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
         c = k % n_cols
         figure[r*img_rows:(r+1)*img_rows,
                c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
-               
+
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
@@ -268,7 +268,7 @@ def plot_y_space(solver):
     plt.xlabel("y_1")
     plt.ylabel("y_2")
     plt.title("Space q(y) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
-    plt.savefig(solver.folder_prefix + solver.data_loader.folder_name + "/plot_y_space_" \
+    plt.savefig(solver.data_loader.result_dir + "/plot_y_space_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Old - can be removed?

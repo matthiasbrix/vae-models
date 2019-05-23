@@ -1,4 +1,3 @@
-import os
 import time
 
 import torch
@@ -98,7 +97,7 @@ class Testing(object):
             n = min(x.size(0), 16) # 2 x 8 grid
             comparison = torch.cat([x.view(self.solver.data_loader.batch_size, 1, *self.solver.data_loader.img_dims)[:n],\
             decoded.view(self.solver.data_loader.batch_size, 1, *self.solver.data_loader.img_dims)[:n]])
-            torchvision.utils.save_image(comparison.cpu(), self.solver.folder_prefix + self.solver.data_loader.folder_name \
+            torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.result_dir \
                 + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
 
     def test(self, with_labels, epoch, epoch_metrics):
@@ -123,8 +122,6 @@ class Solver(object):
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
 
-        self.folder_prefix = "../results/"
-        self.save_model_dir = self.folder_prefix+self.data_loader.path+"/saved_models/"
         self.step_lr = step_lr
         self.z_dim = z_dim
         self.epochs = epochs
@@ -182,16 +179,11 @@ class Solver(object):
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)
             sample = self.model.decoder(sample)
             torchvision.utils.save_image(sample.view(num_samples, 1, *self.data_loader.img_dims), \
-                self.folder_prefix + self.data_loader.folder_name + "/generated_sample_" +\
+                    self.data_loader.result_dir  + "/generated_sample_" +\
                     str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
 
-    def _prepare_directories(self):
-        os.makedirs(self.folder_prefix, exist_ok=True)
-        os.makedirs(self.folder_prefix+self.data_loader.folder_name, exist_ok=True)
-        os.makedirs(self.save_model_dir, exist_ok=True)
-
     def _save_model_params_to_file(self):
-        with open(self.folder_prefix + self.data_loader.folder_name + "/model_params_" +\
+        with open(self.data_loader.result_dir + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
             params = "epochs: {}\n"\
                 "beta: {}\n"\
@@ -215,7 +207,6 @@ class Solver(object):
 
     def main(self):
         print("+++++ START RUN +++++")
-        self._prepare_directories()
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
@@ -235,5 +226,5 @@ class Solver(object):
                 scheduler.step()
             if self.warmup_epochs and self.beta < self.beta_param:
                 self.beta += self.warmup_epochs/self.epochs * self.beta_param
-            print("{} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
+            print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
         print("+++++ RUN IS FINISHED +++++")

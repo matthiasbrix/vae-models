@@ -1,3 +1,4 @@
+import os
 import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
@@ -13,17 +14,21 @@ class DataLoader():
         kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
         train_set = None
         test_set = None
-        data_folder_prefix = "../data/"
-
         self.data = None
         self.n_classes = None
         self.h = None
         self.w = None
         self.batch_size = batch_size
         # directories
+        data_folder_prefix = "../data/"
         self.path = path
         self.dataset = dataset
-        self.folder_name = path + "/" + dataset + "_z=" + str(z_dim)
+        self.result_prefix_dir = "../results/"
+        self.save_model_dir = self.result_prefix_dir+"/saved_models/"
+        self.result_dir = path + "/" + dataset + "_z=" + str(z_dim) + "_0"
+        self._dir_index()
+        self.result_dir = self.result_prefix_dir + self.result_dir
+        self._prepare_directories()
 
         if dataset == "MNIST":
             self.n_classes = 10
@@ -76,3 +81,21 @@ class DataLoader():
         x_tensor = X.view(X.size(0), 1, h, w)
         data_set = [(x, y) for (x, y) in zip(x_tensor, y_tensor)]
         return data_set
+
+    # checks if folder already exists and return directory index
+    def _dir_index(self):
+        if not os.path.isdir(self.result_prefix_dir+self.result_dir):
+            return
+        expand = 0
+        tmp = self.result_dir.split("_")
+        new_dir_name = self.result_dir
+        while os.path.isdir(self.result_prefix_dir+new_dir_name):
+            expand += 1
+            tmp[-1] = str(expand)
+            new_dir_name = "_".join(tmp)
+        self.result_dir = new_dir_name
+
+    def _prepare_directories(self):
+        os.makedirs(self.result_prefix_dir, exist_ok=True)
+        os.makedirs(self.save_model_dir, exist_ok=True)
+        os.makedirs(self.result_dir, exist_ok=True)
