@@ -171,10 +171,11 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
                 z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
                 if solver.cvae_mode:
                     idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
-                    y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes))
+                    y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes)).to(solver.device)
                     y_sample[:, idx] = 1.
                     sample = torch.cat((z_sample, y_sample), dim=-1)
                 elif solver.tdcvae_mode:
+                    x_t = x_t.to(solver.device)
                     sample = torch.cat((x_t, z_sample), dim=-1)
                 else:
                     sample = z_sample
@@ -233,6 +234,7 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
         c = k % n_cols
         figure[r*img_rows:(r+1)*img_rows,
                c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
+               
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")

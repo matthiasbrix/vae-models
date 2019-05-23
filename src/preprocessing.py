@@ -51,7 +51,7 @@ class Preprocessing():
     def _rotate_batch(self, batch, angle):
         rotated = torch.zeros_like(batch)
         for i in range(batch.size(0)):
-            img = TF.rotate(transforms.ToPILImage()(batch[i]), angle)
+            img = TF.rotate(transforms.ToPILImage()(batch[i].cpu()), angle)
             rotated[i] = transforms.ToTensor()(img)
         return rotated
 
@@ -61,7 +61,7 @@ class Preprocessing():
         reshaped_dims = list([int(scale*x) for x in list(img_dims)])
         scaled = torch.zeros((batch.size(0), batch.size(1), *reshaped_dims))
         for i in range(batch.size(0)):
-            img = TF.resize(transforms.ToPILImage()(batch[i]), reshaped_dims)
+            img = TF.resize(transforms.ToPILImage()(batch[i].cpu()), reshaped_dims)
             scaled[i] = transforms.ToTensor()(img)
         return scaled
         

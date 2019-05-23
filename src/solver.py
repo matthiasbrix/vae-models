@@ -46,6 +46,7 @@ class Training(object):
             decoded, mu_x, logvar_x, latent_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
             x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
+            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
             decoded, x, mu_x, logvar_x, latent_space, y_space = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -86,6 +87,7 @@ class Testing(object):
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
             x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
+            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -175,9 +177,10 @@ class Solver(object):
                 z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
                 x_t = iter(self.data_loader.train_loader).next()[0][:num_samples]
                 x_rot, _ = self.prepro.preprocess_batch(x_t, self.data_loader.input_dim)
+                x_rot = x_rot.to(self.device)
                 sample = torch.cat((x_rot, z_sample), dim=-1)
             else:
-                sample = torch.randn(num_samples, self.z_dim).to(self.device) # 100 = 10 x 10 grid
+                sample = torch.randn(num_samples, self.z_dim).to(self.device)
             sample = self.model.decoder(sample)
             torchvision.utils.save_image(sample.view(num_samples, 1, *self.data_loader.img_dims), \
                 self.folder_prefix + self.data_loader.folder_name + "/generated_sample_" +\
