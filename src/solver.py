@@ -193,9 +193,25 @@ class Solver(object):
     def _save_model_params_to_file(self):
         with open(self.folder_prefix + self.data_loader.folder_name + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
-            param_file.write("epochs: {}\nbeta: {}\nbeta_param: {}\nwarmup_epochs: {}\ndim(z): {}\nstep_lr: {}\nbatch_size: {}\nstep_size: {}\ngamma: {}".format(\
-                    self.epochs, self.beta, self.beta, self.warmup_epochs, self.z_dim, self.step_lr,\
-                     self.data_loader.batch_size, self.step_config["step_size"], self.step_config["gamma"]))
+            params = "epochs: {}\n"\
+                "beta: {}\n"\
+                "beta_param: {}\n"\
+                "warmup_epochs: {}\n"\
+                "dim(z): {}\n"\
+                "batch_size: {}\n"\
+                "step_lr: {}\n"\
+                "step_size: {}\n"\
+                "gamma: {}\n"\
+                .format(self.epochs, self.beta, self.beta, self.warmup_epochs, self.z_dim, self.data_loader.batch_size,\
+                    self.step_lr, self.step_config["step_size"], self.step_config["gamma"])
+            if self.prepro:
+                if self.prepro.rotate:
+                    params += "thetas: (theta_1: {}, theta_2: {})\n"\
+                        .format(self.prepro.theta_range_1, self.prepro.theta_range_2)
+                if self.prepro.scale:
+                    params += "scales: {}\n"\
+                        .format(self.prepro.scale_range_1)
+            param_file.write(params)
 
     def main(self):
         print("+++++ START RUN +++++")

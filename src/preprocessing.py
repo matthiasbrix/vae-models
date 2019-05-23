@@ -29,11 +29,12 @@ class Preprocessing():
         self.scale = scales is not None
         if self.rotate:
             self.theta_range_1, self.theta_range_2 = [v for _, v in thetas.items()]
+            # add 1's because it's exclusive when gen. random
             self.theta_range_1[1] += 1
             self.theta_range_2[1] += 1
         if self.scale:
             self.scale_range_1 = scales["scale_1"]
-            self.scale_range_1[1] += 0.1
+            self.scale_range_1[1] += 0.1 # TODO: it's not precise...
             scale_1 = self._generate_scale()
             data_loader.img_dims = list([int(scale_1*x) for x in list((data_loader.img_dims[0], data_loader.img_dims[1]))])
             data_loader.input_dim = np.prod(data_loader.img_dims)
