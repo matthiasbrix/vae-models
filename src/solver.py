@@ -113,7 +113,7 @@ class Testing(object):
 
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config,\
-            optim_config, warmup_epochs, beta, num_samples=100, cvae_mode=False,\
+            optim_config, beta, num_samples=100, cvae_mode=False,\
             tdcvae_mode=False, prepro=None):
         self.data_loader = data_loader
         self.model = model
@@ -135,9 +135,7 @@ class Solver(object):
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
-        self.warmup_epochs = warmup_epochs
-        self.beta_param = beta
-        self.beta = self.beta_param if not(self.warmup_epochs) else 0
+        self.beta = beta
 
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
@@ -187,14 +185,12 @@ class Solver(object):
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
             params = "epochs: {}\n"\
                 "beta: {}\n"\
-                "beta_param: {}\n"\
-                "warmup_epochs: {}\n"\
                 "dim(z): {}\n"\
                 "batch_size: {}\n"\
                 "step_lr: {}\n"\
                 "step_size: {}\n"\
                 "gamma: {}\n"\
-                .format(self.epochs, self.beta, self.beta, self.warmup_epochs, self.z_dim, self.data_loader.batch_size,\
+                .format(self.epochs, self.beta, self.z_dim, self.data_loader.batch_size,\
                     self.step_lr, self.step_config["step_size"], self.step_config["gamma"])
             if self.prepro:
                 if self.prepro.rotate:
@@ -224,7 +220,5 @@ class Solver(object):
             self._sample(epoch, self.num_samples)
             if self.step_lr:
                 scheduler.step()
-            if self.warmup_epochs and self.beta < self.beta_param:
-                self.beta += self.warmup_epochs/self.epochs * self.beta_param
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
         print("+++++ RUN IS FINISHED +++++")
