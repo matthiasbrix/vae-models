@@ -19,7 +19,7 @@ class Encoder(nn.Module):
     # compute \mu(x_t), \sigma(x_t), so p(y_t|x_t)
     def forward(self, x):
         x = self.linear1(x)
-        x = self.batch_norm(x)
+        #x = self.batch_norm(x)
         x = self.relu(x)
         return self.linear21(x), self.linear22(x)
 
@@ -36,17 +36,17 @@ class Decoder(nn.Module):
     # compute p(x_{t+1}|x_t, z_t)
     def forward(self, x):
         x = self.linear1(x)
-        x = self.batch_norm1(x)
+        #x = self.batch_norm1(x)
         x = self.relu(x)
         x = self.linear2(x)
-        x = self.batch_norm2(x)
+        #x = self.batch_norm2(x)
         return self.sigmoid(x)
 
 class TD_Cvae(nn.Module):
     def __init__(self, input_dim, hidden_dim, z_dim):
         super(TD_Cvae, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim, z_dim)
-        self.decoder = Decoder(z_dim+input_dim, hidden_dim, input_dim)
+        self.decoder = Decoder(z_dim+input_dim, 784, input_dim)
         self.input_dim = input_dim
         self.z_dim = z_dim
 
@@ -57,8 +57,8 @@ class TD_Cvae(nn.Module):
         return mu_x_t + sigma_t*eps
 
     # z_t = (y_t - y_{t-1}) \sim N(\mu(x_t)-\mu(x_t), \Sigma(x_t)+\Sigma(x_{t-1}))
-    def _zrepresentation(self, y_t, y_prev):
-        return y_t - y_prev
+    def _zrepresentation(self, y_next, y_t):
+        return y_next - y_t
 
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
     # compute here D_{KL}[N(\mu(x), \Sigma(x))||N(0,1)]

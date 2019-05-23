@@ -45,7 +45,7 @@ class Training(object):
             decoded, mu_x, logvar_x, latent_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
             x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
-            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
+            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device) # TODO: do it the line before
             decoded, x, mu_x, logvar_x, latent_space, y_space = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -86,7 +86,7 @@ class Testing(object):
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
             x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
-            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
+            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device) # TODO: do it the line before
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -180,6 +180,7 @@ class Solver(object):
                     self.data_loader.result_dir  + "/generated_sample_" +\
                     str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
 
+    # TODO: write also the model to the file
     def _save_model_params_to_file(self):
         with open(self.data_loader.result_dir + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
@@ -207,7 +208,7 @@ class Solver(object):
         training = Training(self)
         testing = Testing(self)
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
-        with_labels = self.data_loader.dataset != "FF"
+        with_labels = self.data_loader.dataset != "FF" # TODO: should be def in data loader instead.
         for epoch in range(1, self.epochs+1):
             epoch_watch = time.time()
             epoch_metrics = EpochMetrics()
