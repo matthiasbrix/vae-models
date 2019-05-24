@@ -72,6 +72,7 @@ class Preprocessing():
 
     def preprocess_batch(self, x, input_dim):
         theta_diff = None
+        theta_1 = None
         if self.rotate:
             theta_1, theta_2 = self._generate_angles()
             x_rot = self._rotate_batch(x, theta_1)
@@ -79,4 +80,4 @@ class Preprocessing():
             theta_diff = theta_2 - theta_1
         else:
             raise ValueError("Prepro of batch failed")
-        return x_rot.view(-1, input_dim), x_next.view(-1, input_dim), theta_diff
+        return x_rot.view(-1, input_dim), x_next.view(-1, input_dim), theta_diff, theta_1

@@ -135,6 +135,7 @@ def plot_rl_kl(solver, ticks_rate):
     plt.show()
 
 # Plot the latent space as scatter plot
+# TODO: n_classes is not that generic? Should be an arg?
 def plot_latent_space(solver):
     labels = solver.labels.tolist()
     plt.figure(figsize=(9, 7))
@@ -155,6 +156,18 @@ def plot_latent_space_no_labels(solver):
     plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
     plt.savefig(solver.data_loader.result_dir + "/plot_latent_space_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+
+# TODO: merge with latent plot, and add to that proc an arg
+def plot_y_space(solver):
+    labels = solver.y_space_labels.tolist()
+    plt.figure(figsize=(9, 7))
+    plt.scatter(solver.y_space[:, 0], solver.y_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
+    plt.xlabel("y_1")
+    plt.ylabel("y_2")
+    plt.colorbar()
+    plt.title("Space q(y) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
+    plt.savefig(solver.data_loader.result_dir + "/plot_y_space_" \
+        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
@@ -265,15 +278,6 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     plt.axis("off")
     plt.tight_layout()
     _save_plot_fig(solver, figure, cm="gray", name="faces_samples_grid")
-
-def plot_y_space(solver):
-    plt.figure(figsize=(9, 7))
-    plt.scatter(solver.y_space[:, 0], solver.y_space[:, 1], s=10)
-    plt.xlabel("y_1")
-    plt.ylabel("y_2")
-    plt.title("Space q(y) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
-    plt.savefig(solver.data_loader.result_dir + "/plot_y_space_" \
-        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Old - can be removed?
 # Useful if form is (10586, 1850) so no tensor
