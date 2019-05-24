@@ -73,7 +73,7 @@ class Training(object):
                 self.solver.latent_space[start:end, :] = latent_space.cpu().detach().numpy()
                 if y is not None and not self.solver.tdcvae_mode:
                     self.solver.labels[start:end] = y.cpu().detach().numpy()
-                if self.solver.tdcvae_mode and theta_diff not None:
+                if self.solver.tdcvae_mode and theta_diff:
                     self.solver.labels[start:end] = np.repeat(theta_diff, x.size(0))
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
