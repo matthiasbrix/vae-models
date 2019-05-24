@@ -24,7 +24,6 @@ class DataLoader():
         self.path = path
         self.dataset = dataset
         self.result_prefix_dir = "../results/"
-        self.save_model_dir = self.result_prefix_dir+"/saved_models/"
         self.result_dir = path + "/" + dataset + "_z=" + str(z_dim) + "_0"
         self._dir_index()
         self.result_dir = self.result_prefix_dir + self.result_dir
