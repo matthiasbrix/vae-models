@@ -189,6 +189,10 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
     plt.ylabel("z_2")
     plt.imshow(figure, cmap=cm)
     plt.show()
+    with open(solver.data_loader.result_dir + "/plot_learned_data_manifold_grids_" +\
+        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
+        file_res.write("grid_x: {}\n".format(grid_x))
+        file_res.write("grid_y: {}\n".format(grid_y))
     _save_plot_fig(solver, figure, cm=cm, name="learned_data_manifold")
 
 # Replicating the handstyle image example from Kingma et. al in Semisupervised VAE paper
