@@ -58,11 +58,11 @@ class Training(object):
             kl_divergence, latent_space, mu_x, logvar_x)
         return latent_space, y_space, theta_diff, theta_1
 
-    def train(self, epoch, epoch_metrics):
+    def train(self, epoch, epoch_metrics, x):
         self.solver.model.train()
         for batch_idx, data in enumerate(self.solver.data_loader.train_loader):
             if self.solver.data_loader.with_labels:
-                x, y = data[0].to(self.solver.device), data[1].to(self.solver.device) # TODO: don't do if tdcvae because of prepro, because otherwise CPU -> GPU -> CPU -> GPU
+                _, y = data[0].to(self.solver.device), data[1].to(self.solver.device) # TODO: don't do if tdcvae because of prepro, because otherwise CPU -> GPU -> CPU -> GPU
                 latent_space, y_space, theta_diff, theta_1 = self._train_batch(epoch_metrics, x, y)
             else:
                 x = data.to(self.solver.device)
@@ -135,7 +135,7 @@ class Solver(object):
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
         self.latent_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
-        self.labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size) # TODO: rename to latent_space_labels
+        self.labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size) # TODO: rename to latent_space_labels or z_space_labels?
         self.y_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
         self.y_space_labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size)
         self.cvae_mode = cvae_mode
@@ -209,16 +209,17 @@ class Solver(object):
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
+        x_t = iter(self.data_loader.train_loader).next()[0][0]
         for epoch in range(1, self.epochs+1):
             epoch_watch = time.time()
             epoch_metrics = EpochMetrics()
-            training.train(epoch, epoch_metrics)
+            training.train(epoch, epoch_metrics, x_t)
             train_loss = self._save_train_metrics(epoch, epoch_metrics)
             print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss))
-            testing.test(epoch, epoch_metrics)
-            test_loss = self._save_test_metrics(epoch_metrics)
-            print("====> Test set loss avg: {:.4f}".format(test_loss))
-            self._sample(epoch, self.num_samples)
+            #testing.test(epoch, epoch_metrics)
+            #test_loss = self._save_test_metrics(epoch_metrics)
+            #print("====> Test set loss avg: {:.4f}".format(test_loss))
+            #self._sample(epoch, self.num_samples)
             if self.lr_scheduler:
                 self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))

@@ -66,7 +66,7 @@ class DataLoader():
         
         self.img_dims = (self.h, self.w)
         self.input_dim = np.prod(self.img_dims)
-        self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, **kwargs)
+        self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=False, **kwargs)
         self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=True, **kwargs)
         self.num_train_batches = len(self.train_loader)
         self.num_train_samples = len(self.train_loader.dataset)
