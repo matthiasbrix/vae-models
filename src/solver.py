@@ -114,8 +114,8 @@ class Testing(object):
                     self._test_batch(epoch_metrics, batch_idx, epoch, x)
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, lr_scheduler, z_dim, epochs, step_config,\
-            optim_config, beta, num_samples=100, cvae_mode=False,\
+    def __init__(self, model, data_loader, optimizer, z_dim, epochs, beta, step_config,\
+            optim_config, lr_scheduler=None, num_samples=100, cvae_mode=False,\
             tdcvae_mode=False, prepro=None):
         self.data_loader = data_loader
         self.model = model
@@ -124,11 +124,11 @@ class Solver(object):
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
 
-        self.beta = beta
-        self.lr_scheduler = lr_scheduler(self.optimizer, **step_config) if lr_scheduler else None
         self.z_dim = z_dim
         self.epochs = epochs
+        self.beta = beta
         self.step_config = step_config
+        self.lr_scheduler = lr_scheduler(self.optimizer, **step_config) if lr_scheduler else lr_scheduler
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
