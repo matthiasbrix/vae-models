@@ -78,3 +78,4 @@ class TD_Cvae(nn.Module):
         xz_t = torch.cat((x_t, z_t), dim=-1)
         x_dec = self.decoder(xz_t) # x_{t+1}
         return x_dec, x_next, mu_x_t-mu_x_next, torch.log(torch.exp(logvar_x_t)+torch.exp(logvar_x_t)), z_t, y_t
+        

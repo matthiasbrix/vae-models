@@ -146,7 +146,7 @@ def plot_latent_space(solver, space, labels, var):
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
     plt.title("Latent space q({}) on data set {} after {} epochs".format(var, solver.data_loader.dataset, solver.epochs))
-    plt.savefig(solver.data_loader.result_dir + "/plot_latent_space_" \
+    plt.savefig(solver.data_loader.result_dir + "/plot_" + str(var) + "_space_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative

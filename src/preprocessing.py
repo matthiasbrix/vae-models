@@ -47,7 +47,7 @@ class Preprocessing():
         theta_1 = np.random.randint(*self.theta_range_1)
         theta_2 = theta_1 + np.random.randint(*self.theta_range_2)
         return theta_1, theta_2
-    
+
     def _generate_scales(self):
         (a, b), (c, d) = self.scale_range_1, self.scale_range_2
         scale_1 = (b-a)*np.random.random_sample() + a
@@ -70,7 +70,7 @@ class Preprocessing():
         return scaled
 
     def _scale_rotate_batch(self, batch, scale, angle):
-        scaled = self._scale_batch(batch, scale)
+        scaled = self._scale_batch(batch)
         return self._rotate_batch(scaled, angle)
 
     def preprocess_batch(self, x):
@@ -83,13 +83,13 @@ class Preprocessing():
             res["theta_diff"] = theta_diff
             res["theta_1"] = theta_1
         elif self.scale:
-            scale_1, scale_2 = self._generate_scale()
-            x1 = self._scale_batch(x, scale_1)
-            x2 = self._scale_batch(x, scale_2)
+            scale_1, scale_2 = self._generate_scales()
+            x1 = self._scale_batch(x)
+            x2 = self._scale_batch(x)
             scale_diff = scale_2 - scale_1
             res["scale_diff"] = scale_diff
             res["scale_1"] = scale_1
-        if self.rotate and self.scale:
+        elif self.rotate and self.scale:
             pass
         else:
             raise ValueError("Prepro of batch failed")
