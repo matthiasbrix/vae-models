@@ -114,7 +114,7 @@ class Testing(object):
                     self._test_batch(epoch_metrics, batch_idx, epoch, x)
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, z_dim, epochs, step_lr, step_config,\
+    def __init__(self, model, data_loader, optimizer, lr_scheduler, z_dim, epochs, step_config,\
             optim_config, beta, num_samples=100, cvae_mode=False,\
             tdcvae_mode=False, prepro=None):
         self.data_loader = data_loader
@@ -125,7 +125,7 @@ class Solver(object):
         self.device = DEVICE
 
         self.beta = beta
-        self.step_lr = step_lr
+        self.lr_scheduler = lr_scheduler(self.optimizer, **step_config) if lr_scheduler else None
         self.z_dim = z_dim
         self.epochs = epochs
         self.step_config = step_config
@@ -183,15 +183,14 @@ class Solver(object):
         with open(self.data_loader.result_dir + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
             params = "epochs: {}\n"\
-                "optim: {}\n"\
+                "optimizer: {}\n"\
                 "beta: {}\n"\
                 "dim(z): {}\n"\
                 "batch_size: {}\n"\
-                "step_lr: {}\n"\
-                "step_size: {}\n"\
-                "gamma: {}\n"\
+                "lr_scheduler: {}\n"\
+                "step_config: {}\n"\
                 .format(self.epochs, self.optimizer, self.beta, self.z_dim, self.data_loader.batch_size,\
-                    self.step_lr, self.step_config["step_size"], self.step_config["gamma"])
+                    self.lr_scheduler, self.step_config)
             if self.prepro:
                 if self.prepro.rotate:
                     params += "thetas: (theta_1: {}, theta_2: {})\n"\
@@ -207,7 +206,6 @@ class Solver(object):
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
-        scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
         for epoch in range(1, self.epochs+1):
             epoch_watch = time.time()
             epoch_metrics = EpochMetrics()
@@ -218,7 +216,7 @@ class Solver(object):
             test_loss = self._save_test_metrics(epoch_metrics)
             print("====> Test set loss avg: {:.4f}".format(test_loss))
             self._sample(epoch, self.num_samples)
-            if self.step_lr:
-                scheduler.step()
+            if self.lr_scheduler:
+                self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
         print("+++++ RUN IS FINISHED +++++")
