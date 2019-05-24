@@ -97,5 +97,4 @@ class DataLoader():
 
     def _prepare_directories(self):
         os.makedirs(self.result_prefix_dir, exist_ok=True)
-        os.makedirs(self.save_model_dir, exist_ok=True)
         os.makedirs(self.result_dir, exist_ok=True)

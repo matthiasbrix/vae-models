@@ -46,7 +46,7 @@ class TD_Cvae(nn.Module):
     def __init__(self, input_dim, hidden_dim, z_dim):
         super(TD_Cvae, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim, z_dim)
-        self.decoder = Decoder(z_dim+input_dim, 784, input_dim)
+        self.decoder = Decoder(z_dim+input_dim, 784, input_dim) # TODO: hardcoding is not nice...
         self.input_dim = input_dim
         self.z_dim = z_dim
 

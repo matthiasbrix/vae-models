@@ -3,7 +3,6 @@ import time
 import torch
 import torch.utils.data
 import torchvision.utils
-
 import numpy as np
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
@@ -122,6 +121,7 @@ class Solver(object):
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
 
+        self.beta = beta
         self.step_lr = step_lr
         self.z_dim = z_dim
         self.epochs = epochs
@@ -135,7 +135,6 @@ class Solver(object):
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
-        self.beta = beta
 
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
@@ -158,9 +157,6 @@ class Solver(object):
 
     # generating samples from only the decoder
     def _sample(self, epoch, num_samples):
-        if num_samples > self.data_loader.batch_size: #  TODO corret below?
-            print("Samples can't be generated number of samples exceeds the batch size")
-            return
         with torch.no_grad():
             if self.cvae_mode:
                 z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
@@ -180,18 +176,18 @@ class Solver(object):
                     self.data_loader.result_dir  + "/generated_sample_" +\
                     str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
 
-    # TODO: write also the model to the file
     def _save_model_params_to_file(self):
         with open(self.data_loader.result_dir + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
             params = "epochs: {}\n"\
+                "optim: {}\n"\
                 "beta: {}\n"\
                 "dim(z): {}\n"\
                 "batch_size: {}\n"\
                 "step_lr: {}\n"\
                 "step_size: {}\n"\
                 "gamma: {}\n"\
-                .format(self.epochs, self.beta, self.z_dim, self.data_loader.batch_size,\
+                .format(self.epochs, self.optimizer, self.beta, self.z_dim, self.data_loader.batch_size,\
                     self.step_lr, self.step_config["step_size"], self.step_config["gamma"])
             if self.prepro:
                 if self.prepro.rotate:
@@ -200,6 +196,7 @@ class Solver(object):
                 if self.prepro.scale:
                     params += "scales: {}\n"\
                         .format(self.prepro.scale_range_1)
+                params += str(self.model)
             param_file.write(params)
 
     def main(self):

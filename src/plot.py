@@ -127,7 +127,7 @@ def plot_rl_kl(solver, ticks_rate):
     plt.xticks(_xticks(kls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("KL divergence")
-    plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta_param))
+    plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta))
 
     plt.tight_layout()
     plt.savefig(solver.data_loader.result_dir + "/" + "plot_rl_kl_" \
