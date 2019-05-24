@@ -72,6 +72,7 @@ class DataLoader():
         self.num_train_batches = len(self.train_loader)
         self.num_train_samples = len(self.train_loader.dataset)
         self.num_test_samples = len(self.test_loader.dataset)
+        self.with_labels = dataset != "FF"
 
     # transform data with labels to pytorch tensors
     def _prepare_data_set(self, X, y, h, w):
@@ -81,6 +82,11 @@ class DataLoader():
         x_tensor = X.view(X.size(0), 1, h, w)
         data_set = [(x, y) for (x, y) in zip(x_tensor, y_tensor)]
         return data_set
+
+    # makes all relevant directories
+    def _prepare_directories(self):
+        os.makedirs(self.result_prefix_dir, exist_ok=True)
+        os.makedirs(self.result_dir, exist_ok=True)
 
     # checks if folder already exists and return directory index
     def _dir_index(self):
@@ -95,6 +101,3 @@ class DataLoader():
             new_dir_name = "_".join(tmp)
         self.result_dir = new_dir_name
 
-    def _prepare_directories(self):
-        os.makedirs(self.result_prefix_dir, exist_ok=True)
-        os.makedirs(self.result_dir, exist_ok=True)

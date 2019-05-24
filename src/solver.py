@@ -38,12 +38,13 @@ class Training(object):
       
     def _train_batch(self, epoch_metrics, x, y=None):
         y_space = None
+        theta_diff = None
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, latent_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
+            x_rot, x_next, theta_diff = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
             x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device) # TODO: do it the line before
             decoded, x, mu_x, logvar_x, latent_space, y_space = self.solver.model(x_rot, x_next)
         else:
@@ -55,23 +56,25 @@ class Training(object):
         self.solver.optimizer.step()
         epoch_metrics.compute_batch_train_metrics(loss.item(), reconstruction_loss,\
             kl_divergence, latent_space, mu_x, logvar_x)
-        return latent_space, y_space
+        return latent_space, y_space, theta_diff
 
-    def train(self, with_labels, epoch, epoch_metrics):
+    def train(self, epoch, epoch_metrics):
         self.solver.model.train()
         for batch_idx, data in enumerate(self.solver.data_loader.train_loader):
-            if with_labels:
+            if self.solver.data_loader.with_labels:
                 x, y = data[0].to(self.solver.device), data[1].to(self.solver.device)
-                latent_space, y_space = self._train_batch(epoch_metrics, x, y)
+                latent_space, y_space, theta_diff = self._train_batch(epoch_metrics, x, y)
             else:
                 x = data.to(self.solver.device)
-                latent_space, y_space = self._train_batch(epoch_metrics, x)
+                latent_space, y_space, theta_diff = self._train_batch(epoch_metrics, x)
             if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
                 self.solver.latent_space[start:end, :] = latent_space.cpu().detach().numpy()
-                if y is not None:
+                if y is not None and not self.solver.tdcvae_mode:
                     self.solver.labels[start:end] = y.cpu().detach().numpy()
+                if self.solver.tdcvae_mode:
+                    self.solver.labels[start:end] = np.repeat(theta_diff, x.size(0))
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
 
@@ -84,7 +87,7 @@ class Testing(object):
             x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
+            x_rot, x_next, _ = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
             x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device) # TODO: do it the line before
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
@@ -99,11 +102,11 @@ class Testing(object):
             torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.result_dir \
                 + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
 
-    def test(self, with_labels, epoch, epoch_metrics):
+    def test(self, epoch, epoch_metrics):
         self.solver.model.eval()
         with torch.no_grad():
             for batch_idx, data in enumerate(self.solver.data_loader.test_loader):
-                if with_labels:
+                if self.solver.data_loader.with_labels:
                     x, y = data[0].to(self.solver.device), data[1].to(self.solver.device)
                     self._test_batch(epoch_metrics, batch_idx, epoch, x, y)
                 else:
@@ -205,14 +208,13 @@ class Solver(object):
         training = Training(self)
         testing = Testing(self)
         scheduler = torch.optim.lr_scheduler.StepLR(self.optimizer, **self.step_config)
-        with_labels = self.data_loader.dataset != "FF" # TODO: should be def in data loader instead.
         for epoch in range(1, self.epochs+1):
             epoch_watch = time.time()
             epoch_metrics = EpochMetrics()
-            training.train(with_labels, epoch, epoch_metrics)
+            training.train(epoch, epoch_metrics)
             train_loss = self._save_train_metrics(epoch, epoch_metrics)
             print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss))
-            testing.test(with_labels, epoch, epoch_metrics)
+            testing.test(epoch, epoch_metrics)
             test_loss = self._save_test_metrics(epoch_metrics)
             print("====> Test set loss avg: {:.4f}".format(test_loss))
             self._sample(epoch, self.num_samples)

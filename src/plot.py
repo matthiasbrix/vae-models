@@ -103,7 +103,7 @@ def plot_gaussian_distributions(solver):
     f.subplots_adjust(top=0.9, left=0.1, right=0.8, bottom=0.1)
     ax = axarr.flatten()[2]
     ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
-            fancybox=True, shadow=True, ncol=5)
+              fancybox=True, shadow=True, ncol=5)
 
     plt.savefig(solver.data_loader.result_dir + "/" + "plot_gaussian_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
