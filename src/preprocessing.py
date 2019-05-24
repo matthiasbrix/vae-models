@@ -71,6 +71,7 @@ class Preprocessing():
         return self._rotate_batch(scaled, angle)
 
     def preprocess_batch(self, x, input_dim):
+        theta_diff = None
         if self.rotate:
             theta_1, theta_2 = self._generate_angles()
             x_rot = self._rotate_batch(x, theta_1)
