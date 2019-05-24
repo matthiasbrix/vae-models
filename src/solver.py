@@ -14,14 +14,14 @@ class EpochMetrics():
             0.0, 0.0, 0.0, 0.0
 
     def compute_batch_train_metrics(self, train_loss, reconstruction_loss, kl_divergence,\
-        latent_space, mu_x, logvar_x):
+        z_space, mu_x, logvar_x):
         self.train_loss_acc += train_loss
         # accum. reconstruction loss and kl divergence
         self.recon_loss_acc += reconstruction_loss.item()
         self.kl_diverg_acc += kl_divergence.item()
         # compute mu(q(z|x)), std(q(z|x))
-        self.mu_z += torch.mean(latent_space).item() # need the metric just for one batch, actually don't need for all
-        self.std_z += torch.std(latent_space).item()
+        self.mu_z += torch.mean(z_space).item() # need the metric just for one batch, actually don't need for all
+        self.std_z += torch.std(z_space).item()
         # Var(mu(x))
         muzdim = torch.mean(mu_x, 0, True)
         muzdim = torch.mean(muzdim.pow(2)) # is E[\mu(x)^2]
@@ -35,50 +35,51 @@ class EpochMetrics():
 class Training(object):
     def __init__(self, solver):
         self.solver = solver
-     
+
     def _train_batch(self, epoch_metrics, x, y=None):
         y_space = None
-        theta_diff = None
+        result_prepro_params = None
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim)
-            decoded, mu_x, logvar_x, latent_space = self.solver.model(x, y)
+            decoded, mu_x, logvar_x, z_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next, theta_diff, theta_1 = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
-            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device) # TODO: do it the line before
-            decoded, x, mu_x, logvar_x, latent_space, y_space = self.solver.model(x_rot, x_next)
+            x_rot, x_next, result_prepro_params = self.solver.prepro.preprocess_batch(x)
+            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
+            decoded, x, mu_x, logvar_x, z_space, y_space = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
-            decoded, mu_x, logvar_x, latent_space = self.solver.model(x) # vae
+            decoded, mu_x, logvar_x, z_space = self.solver.model(x) # vae
         loss, reconstruction_loss, kl_divergence = \
             self.solver.model.loss_function(decoded, x, logvar_x, mu_x, self.solver.beta)
         loss.backward() # compute gradients
         self.solver.optimizer.step()
         epoch_metrics.compute_batch_train_metrics(loss.item(), reconstruction_loss,\
-            kl_divergence, latent_space, mu_x, logvar_x)
-        return latent_space, y_space, theta_diff, theta_1
+            kl_divergence, z_space, mu_x, logvar_x)
+        return z_space, y_space, result_prepro_params
 
-    def train(self, epoch, epoch_metrics, x):
+    def train(self, epoch, epoch_metrics):
         self.solver.model.train()
         for batch_idx, data in enumerate(self.solver.data_loader.train_loader):
             if self.solver.data_loader.with_labels:
-                _, y = data[0].to(self.solver.device), data[1].to(self.solver.device) # TODO: don't do if tdcvae because of prepro, because otherwise CPU -> GPU -> CPU -> GPU
-                latent_space, y_space, theta_diff, theta_1 = self._train_batch(epoch_metrics, x, y)
+                x, y = data[0].to(self.solver.device), data[1].to(self.solver.device) # TODO: don't do if tdcvae because of prepro, because otherwise CPU -> GPU -> CPU -> GPU
+                z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, x, y)
             else:
                 x = data.to(self.solver.device)
-                latent_space, y_space, theta_diff, theta_1 = self._train_batch(epoch_metrics, x)
+                z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, x)
+            # saving the z and y spaces if available
             if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
-                self.solver.latent_space[start:end, :] = latent_space.cpu().detach().numpy()
-                if y is not None and not self.solver.tdcvae_mode:
-                    self.solver.labels[start:end] = y.cpu().detach().numpy()
-                if self.solver.tdcvae_mode and theta_diff:
-                    self.solver.labels[start:end] = np.repeat(theta_diff, x.size(0))
-                if self.solver.tdcvae_mode and theta_1:
-                    self.solver.y_space_labels[start:end] = np.repeat(theta_1, x.size(0))
+                self.solver.z_space[start:end, :] = z_space.cpu().detach().numpy()
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
+                if not self.solver.tdcvae_mode and y is not None:
+                    self.solver.z_space_labels[start:end] = y.cpu().detach().numpy()
+                if self.solver.tdcvae_mode and result_prepro_params["theta_diff"]:
+                    self.solver.z_space_labels[start:end] = np.repeat(result_prepro_params["theta_diff"], x.size(0))
+                if self.solver.tdcvae_mode and result_prepro_params["theta_1"]:
+                    self.solver.y_space_labels[start:end] = np.repeat(result_prepro_params["theta_1"], x.size(0))
 
 class Testing(object):
     def __init__(self, solver):
@@ -89,8 +90,8 @@ class Testing(object):
             x = x.view(-1, self.solver.data_loader.input_dim)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next, _, _ = self.solver.prepro.preprocess_batch(x, self.solver.data_loader.input_dim)
-            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device) # TODO: do it the line before
+            x_rot, x_next, _ = self.solver.prepro.preprocess_batch(x)
+            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim)
@@ -134,8 +135,8 @@ class Solver(object):
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.latent_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
-        self.labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size) # TODO: rename to latent_space_labels or z_space_labels?
+        self.z_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
+        self.z_space_labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size)
         self.y_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
         self.y_space_labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size)
         self.cvae_mode = cvae_mode
@@ -167,7 +168,7 @@ class Solver(object):
             if self.cvae_mode:
                 z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
                 idx = torch.randint(0, self.data_loader.n_classes, (1,)).item()
-                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), self.data_loader.n_classes)) # 100 x num_classes
+                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), self.data_loader.n_classes)) # num_samples x num_classes
                 y_sample[:, idx] = 1.
                 sample = torch.cat((z_sample, y_sample), dim=-1)
             elif self.tdcvae_mode:
@@ -209,17 +210,16 @@ class Solver(object):
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
-        x_t = iter(self.data_loader.train_loader).next()[0][0]
         for epoch in range(1, self.epochs+1):
             epoch_watch = time.time()
             epoch_metrics = EpochMetrics()
-            training.train(epoch, epoch_metrics, x_t)
+            training.train(epoch, epoch_metrics)
             train_loss = self._save_train_metrics(epoch, epoch_metrics)
             print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss))
-            #testing.test(epoch, epoch_metrics)
-            #test_loss = self._save_test_metrics(epoch_metrics)
-            #print("====> Test set loss avg: {:.4f}".format(test_loss))
-            #self._sample(epoch, self.num_samples)
+            testing.test(epoch, epoch_metrics)
+            test_loss = self._save_test_metrics(epoch_metrics)
+            print("====> Test set loss avg: {:.4f}".format(test_loss))
+            self._sample(epoch, self.num_samples)
             if self.lr_scheduler:
                 self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))

@@ -134,39 +134,19 @@ def plot_rl_kl(solver, ticks_rate):
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
-# Plot the latent space as scatter plot
+# Plot the latent space as scatter plot with and without labels
 # TODO: n_classes is not that generic? Should be an arg?
-def plot_latent_space(solver):
-    labels = solver.labels.tolist()
+def plot_latent_space(solver, space, labels, var):
     plt.figure(figsize=(9, 7))
-    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
-    plt.xlabel("z_1")
-    plt.ylabel("z_2")
-    plt.colorbar()
-    plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
+    if solver.data_loader.with_labels:
+        plt.scatter(space[:, 0], space[:, 1], s=10, c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
+        plt.colorbar()
+    else:
+        plt.scatter(space[:, 0], space[:, 1], s=10, cmap="Paired")
+    plt.xlabel("{}_1".format(var))
+    plt.ylabel("{}_2".format(var))
+    plt.title("Latent space q({}) on data set {} after {} epochs".format(var, solver.data_loader.dataset, solver.epochs))
     plt.savefig(solver.data_loader.result_dir + "/plot_latent_space_" \
-        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
-
-# Plot the latent space as scatter plot (no labels)
-def plot_latent_space_no_labels(solver):
-    plt.figure(figsize=(9, 7))
-    plt.scatter(solver.latent_space[:, 0], solver.latent_space[:, 1], s=10, cmap="Paired")
-    plt.xlabel("z_1")
-    plt.ylabel("z_2")
-    plt.title("Latent space q(z) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
-    plt.savefig(solver.data_loader.result_dir + "/plot_latent_space_" + \
-        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
-
-# TODO: merge with latent plot, and add to that proc an arg
-def plot_y_space(solver):
-    labels = solver.y_space_labels.tolist()
-    plt.figure(figsize=(9, 7))
-    plt.scatter(solver.y_space[:, 0], solver.y_space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
-    plt.xlabel("y_1")
-    plt.ylabel("y_2")
-    plt.colorbar()
-    plt.title("Space q(y) on data set {} after {} epochs".format(solver.data_loader.dataset, solver.epochs))
-    plt.savefig(solver.data_loader.result_dir + "/plot_y_space_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative
