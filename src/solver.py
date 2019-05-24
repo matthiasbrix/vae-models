@@ -173,7 +173,7 @@ class Solver(object):
             elif self.tdcvae_mode:
                 z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
                 x_t = iter(self.data_loader.train_loader).next()[0][:num_samples]
-                x_t = x_t.view(-1, self.data_loader.input_dim).to(self.device)
+                x_t, _, _ = self.prepro.preprocess_batch(x_t)
                 sample = torch.cat((x_t, z_sample), dim=-1)
             else:
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)

@@ -35,7 +35,8 @@ class Preprocessing():
             self.theta_range_2[1] += 1
         if self.scale:
             self.scale_range_1, self.scale_range_2 = scales["scale_1"], scales["scale_2"]
-            self.scale_range_1[1] += 0.1 # TODO: it's not precise...
+            self.scale_range_1[1] = round(self.scale_range_1[1]+0.1, 1)
+            self.scale_range_2[1] = round(self.scale_range_2[1]+0.1, 1)
             # - implement scaling - just give max(scale_1, scale_2) neurons for the input? and then for the min, they're just ignored? Do padding? 
             # TODO: mtake
             # TODO: not sure if this below...
@@ -70,8 +71,8 @@ class Preprocessing():
         return scaled
 
     def _scale_rotate_batch(self, batch, scale, angle):
-        scaled = self._scale_batch(batch)
-        return self._rotate_batch(scaled, angle)
+        scaled_batch = self._scale_batch(batch)
+        return self._rotate_batch(scaled_batch, angle)
 
     def preprocess_batch(self, x):
         res = {}
@@ -80,17 +81,20 @@ class Preprocessing():
             x1 = self._rotate_batch(x, theta_1)
             x2 = self._rotate_batch(x, theta_2)
             theta_diff = theta_2 - theta_1
-            res["theta_diff"] = theta_diff
-            res["theta_1"] = theta_1
         elif self.scale:
             scale_1, scale_2 = self._generate_scales()
-            x1 = self._scale_batch(x)
-            x2 = self._scale_batch(x)
+            x1 = self._scale_batch(x, scale_1)
+            x2 = self._scale_batch(x, scale_2)
             scale_diff = scale_2 - scale_1
-            res["scale_diff"] = scale_diff
-            res["scale_1"] = scale_1
         elif self.rotate and self.scale:
+            # TODO:
             pass
         else:
             raise ValueError("Prepro of batch failed")
+        if self.rotate:
+            res["theta_diff"] = theta_diff
+            res["theta_1"] = theta_1
+        if self.scale:
+            res["scale_diff"] = scale_diff
+            res["scale_1"] = scale_1
         return x1.view(-1, self.data_loader.input_dim), x2.view(-1, self.data_loader.input_dim), res
