@@ -1,7 +1,9 @@
+from random import uniform
 import torchvision.transforms as transforms
 import torchvision.transforms.functional as TF
-import numpy as np
+import torch.nn.functional as F
 import torch
+import numpy as np
 
 '''
 for batch_idx, data in enumerate(data_loader.test_loader):
@@ -35,14 +37,9 @@ class Preprocessing():
             self.theta_range_2[1] += 1
         if self.scale:
             self.scale_range_1, self.scale_range_2 = scales["scale_1"], scales["scale_2"]
-            self.scale_range_1[1] = round(self.scale_range_1[1]+0.1, 1)
-            self.scale_range_2[1] = round(self.scale_range_2[1]+0.1, 1)
-            # - implement scaling - just give max(scale_1, scale_2) neurons for the input? and then for the min, they're just ignored? Do padding? 
-            # TODO: mtake
-            # TODO: not sure if this below...
-            # change img dims and input dim after the scaling
-            #self.data_loader.img_dims = list([int(scale_1*x) for x in list((data_loader.img_dims[0], data_loader.img_dims[1]))])
-            #self.data_loader.input_dim = np.prod(data_loader.img_dims)
+            max_scale = round(self.scale_range_1[1] + self.scale_range_2[1], 1)
+            self.data_loader.img_dims = tuple([int(max_scale*x) for x in list(self.data_loader.img_dims)])
+            self.data_loader.input_dim = np.prod(self.data_loader.img_dims)
 
     def _generate_angles(self):
         theta_1 = np.random.randint(*self.theta_range_1)
@@ -50,9 +47,8 @@ class Preprocessing():
         return theta_1, theta_2
 
     def _generate_scales(self):
-        (a, b), (c, d) = self.scale_range_1, self.scale_range_2
-        scale_1 = (b-a)*np.random.random_sample() + a
-        scale_2 = scale_1 + ((d-c)*np.random.random_sample() + c)
+        scale_1 = uniform(*self.scale_range_1)
+        scale_2 = scale_1 + uniform(*self.scale_range_2)
         return scale_1, scale_2
 
     def _rotate_batch(self, batch, angle):
@@ -62,16 +58,20 @@ class Preprocessing():
             rotated[i] = transforms.ToTensor()(img)
         return rotated
 
-    # TODO:
-    def _scale_batch(self, batch):
-        scaled = torch.zeros((batch.size(0), batch.size(1), *self.data_loader.input_dim))
+    # check if how much scaled shape will be <= self.data_loader.img_dims and then pad accordingliy
+    def _scale_batch(self, batch, scale):
+        reshaped_dims = tuple([int(scale*x) for x in list((batch.size(2), batch.size(3)))])
+        scaled = torch.zeros((batch.size(0), batch.size(1), *reshaped_dims))
         for i in range(batch.size(0)):
-            img = TF.resize(transforms.ToPILImage()(batch[i].cpu()), *self.data_loader.input_dim)
+            img = TF.resize(transforms.ToPILImage()(batch[i].cpu()), reshaped_dims)
             scaled[i] = transforms.ToTensor()(img)
+        if reshaped_dims < self.data_loader.img_dims:
+            x, y = tuple([(x-x2) for (x, x2) in zip(self.data_loader.img_dims, reshaped_dims)])
+            scaled = F.pad(scaled, (x, 0, y, 0))
         return scaled
 
     def _scale_rotate_batch(self, batch, scale, angle):
-        scaled_batch = self._scale_batch(batch)
+        scaled_batch = self._scale_batch(batch, scale)
         return self._rotate_batch(scaled_batch, angle)
 
     def preprocess_batch(self, x):

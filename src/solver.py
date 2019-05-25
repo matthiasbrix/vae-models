@@ -68,6 +68,7 @@ class Training(object):
             else:
                 z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, data) # data = x
             # saving the z space, and y space if it's available
+            # TODO: DO THIS SMARTER!!! put into proc, and also the saving of y space labels...
             if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
@@ -76,10 +77,14 @@ class Training(object):
                     self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
                 if not self.solver.tdcvae_mode and y is not None:
                     self.solver.z_space_labels[start:end] = y.cpu().detach().numpy()
-                if self.solver.tdcvae_mode and result_prepro_params["theta_diff"]:
+                if self.solver.tdcvae_mode and self.solver.prepro.rotate and result_prepro_params["theta_diff"]:
                     self.solver.z_space_labels[start:end] = np.repeat(result_prepro_params["theta_diff"], x.size(0))
-                if self.solver.tdcvae_mode and result_prepro_params["theta_1"]:
+                if self.solver.tdcvae_mode and self.solver.prepro.rotate and result_prepro_params["theta_1"]:
                     self.solver.y_space_labels[start:end] = np.repeat(result_prepro_params["theta_1"], x.size(0))
+                if self.solver.tdcvae_mode and self.solver.prepro.scale and result_prepro_params["scale_diff"]:
+                    self.solver.z_space_labels[start:end] = np.repeat(result_prepro_params["scale_diff"], x.size(0))
+                if self.solver.tdcvae_mode and self.solver.prepro.scale and result_prepro_params["scale_1"]:
+                    self.solver.y_space_labels[start:end] = np.repeat(result_prepro_params["scale_1"], x.size(0))
 
 class Testing(object):
     def __init__(self, solver):
@@ -196,11 +201,11 @@ class Solver(object):
                     self.lr_scheduler, self.step_config)
             if self.prepro:
                 if self.prepro.rotate:
-                    params += "thetas: (theta_1: {}, theta_2: {})\n"\
+                    params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
                         .format(self.prepro.theta_range_1, self.prepro.theta_range_2)
                 if self.prepro.scale:
-                    params += "scales: {}\n"\
-                        .format(self.prepro.scale_range_1)
+                    params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
+                        .format(self.prepro.scale_range_1, self.prepro.scale_range_2)
                 params += str(self.model)
             param_file.write(params)
 

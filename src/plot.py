@@ -21,6 +21,7 @@ def _save_plot_fig(solver, data, cm, name):
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
     plt.close()
 
+# TODO: breaks when too few epochs
 def _xticks(ls, ticks_rate):
     labels = np.arange(1, len(ls)+2, (len(ls)//ticks_rate))
     labels[1:] -= 1
