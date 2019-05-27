@@ -10,7 +10,7 @@ from sklearn.model_selection import train_test_split
 
 class DataLoader():
     
-    def __init__(self, path, batch_size, dataset, z_dim):
+    def __init__(self, path, batch_size, dataset, z_dim, single_x=False):
         kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
         train_set = None
         test_set = None
@@ -72,6 +72,8 @@ class DataLoader():
         self.num_train_samples = len(self.train_loader.dataset)
         self.num_test_samples = len(self.test_loader.dataset)
         self.with_labels = dataset != "FF"
+        # single image if wanted
+        self.single_x = iter(self.train_loader).next()[0][0].view(1, 1, self.h, self.w) if single_x else None
 
     # transform data with labels to pytorch tensors
     def _prepare_data_set(self, X, y, h, w):

@@ -38,6 +38,7 @@ class Training(object):
 
     def _train_batch(self, epoch_metrics, x, y=None):
         y_space = None
+        x = self.solver.data_loader.single_x if self.solver.data_loader.single_x is not None else x
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
@@ -120,6 +121,10 @@ class Solver(object):
         self.model = model
         self.prepro = prepro
         self.model.to(DEVICE)
+        # TODO: weight decay was used corresponding to a prior of (\theta, \phi) ∼ N(0,I) - correct?
+        # https://stats.stackexchange.com/questions/163388/l2-regularization-is-equivalent-to-gaussian-prior
+        # Kingma does this below but says the above?
+        optim_config["weight_decay"] = float(self.data_loader.num_train_batches)/float(self.data_loader.num_train_samples)
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
 
