@@ -38,14 +38,13 @@ class Training(object):
 
     def _train_batch(self, epoch_metrics, x, y=None):
         y_space = None
-        result_prepro_params = None
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             y = y.to(self.solver.device)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next, result_prepro_params = self.solver.prepro.preprocess_batch(x)
+            x_rot, x_next = self.solver.prepro.preprocess_batch(x)
             x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
             decoded, x, mu_x, logvar_x, z_space, y_space = self.solver.model(x_rot, x_next)
         else:
@@ -57,35 +56,27 @@ class Training(object):
         self.solver.optimizer.step()
         epoch_metrics.compute_batch_train_metrics(loss.item(), reconstruction_loss,\
             kl_divergence, z_space, mu_x, logvar_x)
-        return z_space, y_space, result_prepro_params
+        return z_space, y_space
 
     def train(self, epoch, epoch_metrics):
         self.solver.model.train()
         for batch_idx, data in enumerate(self.solver.data_loader.train_loader):
             if self.solver.data_loader.with_labels:
                 x, y = data[0], data[1]
-                z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, x, y)
+                z_space, y_space = self._train_batch(epoch_metrics, x, y)
             else:
                 x = data
-                z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, x)
+                z_space, y_space = self._train_batch(epoch_metrics, x)
             # saving the z space, and y space if it's available
-            # TODO: DO THIS SMARTER!!! put into proc, and also the saving of y space labels...
             if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
                 self.solver.z_space[start:end, :] = z_space.cpu().detach().numpy()
-                if y_space is not None:
-                    self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
                 if not self.solver.tdcvae_mode and self.solver.data_loader.with_labels and y is not None:
                     self.solver.z_space_labels[start:end] = y.cpu().detach().numpy()
-                if self.solver.tdcvae_mode and self.solver.prepro.rotate and result_prepro_params["theta_diff"]:
-                    self.solver.z_space_labels[start:end] = np.repeat(result_prepro_params["theta_diff"], x.size(0))
-                if self.solver.tdcvae_mode and self.solver.prepro.rotate and result_prepro_params["theta_1"]:
-                    self.solver.y_space_labels[start:end] = np.repeat(result_prepro_params["theta_1"], x.size(0))
-                if self.solver.tdcvae_mode and self.solver.prepro.scale and result_prepro_params["scale_diff"]:
-                    self.solver.z_space_labels[start:end] = np.repeat(result_prepro_params["scale_diff"], x.size(0))
-                if self.solver.tdcvae_mode and self.solver.prepro.scale and result_prepro_params["scale_1"]:
-                    self.solver.y_space_labels[start:end] = np.repeat(result_prepro_params["scale_1"], x.size(0))
+                if y_space is not None:
+                    self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
+                self.solver.prepro.save_params()
 
 class Testing(object):
     def __init__(self, solver):
@@ -96,7 +87,7 @@ class Testing(object):
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next, _ = self.solver.prepro.preprocess_batch(x)
+            x_rot, x_next = self.solver.prepro.preprocess_batch(x)
             x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
@@ -143,7 +134,6 @@ class Solver(object):
         self.z_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
         self.z_space_labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size)
         self.y_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
-        self.y_space_labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size)
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
@@ -179,7 +169,8 @@ class Solver(object):
             elif self.tdcvae_mode:
                 z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
                 x_t = iter(self.data_loader.train_loader).next()[0][:num_samples]
-                x_t, _, _ = self.prepro.preprocess_batch(x_t)
+                x_t, _ = self.prepro.preprocess_batch(x_t)
+                x_t = x_t.to(self.device)
                 sample = torch.cat((x_t, z_sample), dim=-1)
             else:
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)
@@ -198,8 +189,9 @@ class Solver(object):
                 "batch_size: {}\n"\
                 "lr_scheduler: {}\n"\
                 "step_config: {}\n"\
-                .format(self.epochs, self.optimizer, self.beta, self.z_dim, self.data_loader.batch_size,\
-                    self.lr_scheduler, self.step_config)
+                .format(self.epochs, self.optimizer, self.beta, self.z_dim,\
+                    self.data_loader.batch_size, self.lr_scheduler,\
+                    self.step_config)
             if self.prepro:
                 if self.prepro.rotate:
                     params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\

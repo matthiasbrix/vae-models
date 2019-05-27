@@ -4,6 +4,12 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import scipy.stats as stats
 
+DATASETS = {
+    "MNIST": "MNIST",
+    "FF": "Frey Faces",
+    "LFW": "Labeled Faces in the Wild"
+}
+
 # Auxiliary function for saving nice plots
 # Saves figure without white space borders
 # from https://fengl.org/2014/07/09/matplotlib-savefig-without-borderframe/
@@ -21,7 +27,6 @@ def _save_plot_fig(solver, data, cm, name):
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
     plt.close()
 
-# TODO: breaks when too few epochs
 def _xticks(ls, ticks_rate):
     labels = np.arange(1, len(ls)+2, (len(ls)//ticks_rate))
     labels[1:] -= 1
@@ -29,40 +34,48 @@ def _xticks(ls, ticks_rate):
     return labels.astype(int)
 
 # Plotting train and test losses
-def plot_losses(solver, ticks_rate):
+def plot_losses(solver):
     train_loss_history = solver.train_loss_history["train_loss_acc"]
     test_loss_history = solver.test_loss_history
     plt.figure(figsize=(5, 3))
     plt.plot(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train")
     plt.plot(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test")
+    ticks_rate = 4 if len(train_loss_history) >= 4 else len(train_loss_history)
     plt.xticks(_xticks(train_loss_history, ticks_rate))
-    plt.title("Loss on data set {}, dim(z)={}".format(solver.data_loader.dataset, solver.z_dim)) # marginal likelihood log p(x)
+    plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset], solver.z_dim)) # marginal likelihood log p(x)
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
             fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
     plt.savefig(solver.data_loader.result_dir + "/" + "plot_losses_" + \
-        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+        DATASETS[solver.data_loader.dataset] + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
 # TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
 def plot_gaussian_distributions(solver):
-    f, axarr = plt.subplots(2, 2, figsize=(8, 6))
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
     idx_y = 0
     epochs = len(solver.train_loss_history["train_loss_acc"]) # in case run was canceled
-    if epochs % 2 != 0:
-        plots = np.arange(1, epochs+1, np.ceil(epochs/4)+1).astype(int)
-        plots[2:] += 1
-        plots[-1] = epochs
-    else:
-        plots = np.arange(1, epochs+1, np.ceil(epochs/4)).astype(int)
-        plots[1:] -= 1
-        plots[-1] = epochs
-    f.subplots_adjust(hspace=0.5, wspace=0.3)
+    #if epochs % 2 != 0:
+    #    plots = np.arange(1, epochs+1, np.ceil(epochs/4)+1).astype(int)
+    #    plots[2:] += 1
+    #    plots[-1] = epochs
+    #else:
+    #    plots = np.arange(1, epochs+1, np.ceil(epochs/4)).astype(int)
+    #    plots[1:] -= 1
+    #    plots[-1] = epochs
+    plots = np.arange(1, epochs+1, np.ceil(epochs/4)).astype(int)
+    plots[-1] = epochs
+    if epochs == 1:
+        f, axarr = plt.subplots(1, 1, figsize=(8, 2))
+    if epochs == 2 or epochs == 3:
+        f, axarr = plt.subplots(1, 2, figsize=(8, 4))
+    if epochs >= 4:
+        f, axarr = plt.subplots(2, 2, figsize=(8, 6))
+        f.subplots_adjust(hspace=0.5, wspace=0.3)
     ys = []
     for idx in plots:
         i = idx-1
@@ -74,9 +87,14 @@ def plot_gaussian_distributions(solver):
         y = (1 / (np.sqrt(2 * np.pi * var_z))) * \
                 (np.power(np.e, -(np.power((x - mu_z), 2) / (2 * var_z))))
         ys.append(np.max(y))
-        axarr[idx_x, idx_y].plot(x, y, label="Latent distr.")
-        axarr[idx_x, idx_y].plot(x, stats.norm.pdf(x, 0, 1), label="Standard\nGaussian distr.")
-        axarr[idx_x, idx_y].set_title("epoch %d\nμ(z)=%.4f, σ^2(z)=%.4f" % (epoch, mu_z, var_z))
+        if epochs <= 3:
+            axarr[idx_y].plot(x, y, label="Latent distr.")
+            axarr[idx_y].plot(x, stats.norm.pdf(x, 0, 1), label="Standard\nGaussian distr.")
+            axarr[idx_y].set_title("epoch %d\nμ(z)=%.4f, σ^2(z)=%.4f" % (epoch, mu_z, var_z))
+        else:
+            axarr[idx_x, idx_y].plot(x, y, label="Latent distr.")
+            axarr[idx_x, idx_y].plot(x, stats.norm.pdf(x, 0, 1), label="Standard\nGaussian distr.")
+            axarr[idx_x, idx_y].set_title("epoch %d\nμ(z)=%.4f, σ^2(z)=%.4f" % (epoch, mu_z, var_z))
         if idx_x == idx_y or idx_x > idx_y:
             idx_y += 1
         else: # idx_x < idx_y
@@ -101,21 +119,25 @@ def plot_gaussian_distributions(solver):
             file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
             file_res.write("\n")
 
+    if epochs <= 3:
+        ax = axarr.flatten()[0]
+    if epochs >= 4:
+        ax = axarr.flatten()[2]
     f.subplots_adjust(top=0.9, left=0.1, right=0.9, bottom=0.2)
-    ax = axarr.flatten()[2]
     ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
-              fancybox=True, shadow=True, ncol=5)
+            fancybox=True, shadow=True, ncol=5)
 
-    plt.savefig(solver.data_loader.result_dir + "/" + "plot_gaussian_" + \
+    plt.savefig(solver.data_loader.result_dir + "/" + "plot_gaussian_" +\
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
-def plot_rl_kl(solver, ticks_rate):
+def plot_rl_kl(solver):
     rls = solver.train_loss_history["recon_loss_acc"]
     kls = solver.train_loss_history["kl_diverg_acc"]
     x = np.arange(1, len(kls)+1)
     plt.figure(figsize=(4.5, 5))
 
+    ticks_rate = 4 if len(rls) >= 4 else len(rls)
     plt.subplot(2, 1, 1)
     plt.plot(x, rls)
     plt.xticks(_xticks(rls, ticks_rate))
@@ -137,16 +159,17 @@ def plot_rl_kl(solver, ticks_rate):
 
 # Plot the latent space as scatter plot with and without labels
 # TODO: n_classes is not that generic? Should be an arg?
-def plot_latent_space(solver, space, var, labels=None):
+def plot_latent_space(solver, space, var, title=None, labels=None):
     plt.figure(figsize=(9, 7))
     if solver.data_loader.with_labels:
         plt.scatter(space[:, 0], space[:, 1], s=10, c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
-        plt.colorbar()
+        clb = plt.colorbar()
+        clb.ax.set_title(title)
     else:
         plt.scatter(space[:, 0], space[:, 1], s=10, cmap="Paired")
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
-    plt.title("Latent space q({}) on data set {} after {} epochs".format(var, solver.data_loader.dataset, solver.epochs))
+    plt.title("Latent space q({}) on data set {} after {} epochs".format(var, DATASETS[solver.data_loader.dataset], solver.epochs))
     plt.savefig(solver.data_loader.result_dir + "/plot_" + str(var) + "_space_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
@@ -221,6 +244,21 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
     plt.imshow(figure, cmap=cm)
     plt.show()
     _save_plot_fig(solver, figure, cm=cm, name="fixed_z_all_labels")
+
+# TODO
+def plot_prepro_params_distribution(counts):
+    indices = list(counts.keys())
+    plt.figure(figsize=(20, 20))
+    plt.bar(indices, counts.values())
+    plt.xlabel("theta_1")
+    plt.ylabel("Count")
+    plt.xticks(indices, fontsize=5, rotation=30)
+    plt.title("Angle distribution for y_t")
+    plt.show()
+
+# TODO: make a subplot for each class on how much it has been rotated
+def plot_prepro_params_distribution_categories():
+    pass
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
