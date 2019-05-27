@@ -41,7 +41,7 @@ def plot_losses(solver, ticks_rate):
     plt.ylabel("loss")
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
             fancybox=True, shadow=True, ncol=5)
-    plt.subplots_adjust(left=0.2, right=0.8, top=0.9, bottom=0.2)
+    plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
     plt.savefig(solver.data_loader.result_dir + "/" + "plot_losses_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
@@ -101,7 +101,7 @@ def plot_gaussian_distributions(solver):
             file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
             file_res.write("\n")
 
-    f.subplots_adjust(top=0.9, left=0.1, right=0.8, bottom=0.1)
+    f.subplots_adjust(top=0.9, left=0.1, right=0.9, bottom=0.2)
     ax = axarr.flatten()[2]
     ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
               fancybox=True, shadow=True, ncol=5)
@@ -137,7 +137,7 @@ def plot_rl_kl(solver, ticks_rate):
 
 # Plot the latent space as scatter plot with and without labels
 # TODO: n_classes is not that generic? Should be an arg?
-def plot_latent_space(solver, space, labels, var):
+def plot_latent_space(solver, space, var, labels=None):
     plt.figure(figsize=(9, 7))
     if solver.data_loader.with_labels:
         plt.scatter(space[:, 0], space[:, 1], s=10, c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))

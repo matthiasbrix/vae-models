@@ -13,13 +13,11 @@ class Encoder(nn.Module):
         self.linear1 = nn.Linear(Din, H)
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
         self.linear22 = nn.Linear(H, Dout) # \Sigma(x)
-        #self.batch_norm = nn.BatchNorm1d(H)
         self.relu = nn.ReLU()
 
     # compute \mu(x_t), \sigma(x_t), so p(y_t|x_t)
     def forward(self, x):
         x = self.linear1(x)
-        #x = self.batch_norm(x)
         x = self.relu(x)
         return self.linear21(x), self.linear22(x)
 
@@ -28,18 +26,14 @@ class Decoder(nn.Module):
         super(Decoder, self).__init__()
         self.linear1 = nn.Linear(Dout, H)
         self.linear2 = nn.Linear(H, Din)
-        #self.batch_norm1 = nn.BatchNorm1d(H)
-        #self.batch_norm2 = nn.BatchNorm1d(Din)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
     # compute p(x_{t+1}|x_t, z_t)
     def forward(self, x):
         x = self.linear1(x)
-        #x = self.batch_norm1(x)
         x = self.relu(x)
         x = self.linear2(x)
-        #x = self.batch_norm2(x)
         return self.sigmoid(x)
 
 class TD_Cvae(nn.Module):

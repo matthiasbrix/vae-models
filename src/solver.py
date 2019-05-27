@@ -66,7 +66,8 @@ class Training(object):
                 x, y = data[0], data[1]
                 z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, x, y)
             else:
-                z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, data) # data = x
+                x = data
+                z_space, y_space, result_prepro_params = self._train_batch(epoch_metrics, x)
             # saving the z space, and y space if it's available
             # TODO: DO THIS SMARTER!!! put into proc, and also the saving of y space labels...
             if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
@@ -75,7 +76,7 @@ class Training(object):
                 self.solver.z_space[start:end, :] = z_space.cpu().detach().numpy()
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
-                if not self.solver.tdcvae_mode and y is not None:
+                if not self.solver.tdcvae_mode and self.solver.data_loader.with_labels and y is not None:
                     self.solver.z_space_labels[start:end] = y.cpu().detach().numpy()
                 if self.solver.tdcvae_mode and self.solver.prepro.rotate and result_prepro_params["theta_diff"]:
                     self.solver.z_space_labels[start:end] = np.repeat(result_prepro_params["theta_diff"], x.size(0))
@@ -206,7 +207,7 @@ class Solver(object):
                 if self.prepro.scale:
                     params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                         .format(self.prepro.scale_range_1, self.prepro.scale_range_2)
-                params += str(self.model)
+            params += str(self.model)
             param_file.write(params)
 
     def main(self):
