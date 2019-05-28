@@ -84,6 +84,7 @@ class Testing(object):
         self.solver = solver
 
     def _test_batch(self, epoch_metrics, batch_idx, epoch, x, y=None):
+        x = self.solver.data_loader.single_x if self.solver.data_loader.single_x is not None else x
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
@@ -98,8 +99,8 @@ class Testing(object):
         epoch_metrics.compute_batch_test_metrics(loss.item())
         if batch_idx == 0: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
-            comparison = torch.cat([x.view(self.solver.data_loader.batch_size, 1, *self.solver.data_loader.img_dims)[:n],\
-            decoded.view(self.solver.data_loader.batch_size, 1, *self.solver.data_loader.img_dims)[:n]])
+            comparison = torch.cat([x.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n],\
+            decoded.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n]])
             torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.result_dir \
                 + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
 
@@ -204,6 +205,7 @@ class Solver(object):
                 if self.prepro.scale:
                     params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                         .format(self.prepro.scale_range_1, self.prepro.scale_range_2)
+            params += "single data x: {}\n".format(self.data_loader.single_x is not None)
             params += str(self.model)
             param_file.write(params)
 
