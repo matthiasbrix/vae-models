@@ -97,6 +97,7 @@ class Testing(object):
         epoch_metrics.compute_batch_test_metrics(loss.item())
         if batch_idx == 0: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
+            # TODO: is view necc.?
             comparison = torch.cat([x.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n],\
             decoded.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n]])
             torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.result_dir \
@@ -180,6 +181,7 @@ class Solver(object):
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)
             sample = self.model.decoder(sample)
             num_samples = min(num_samples, sample.size(0))
+            # TODO: is view necc.? and the min above?
             torchvision.utils.save_image(sample.view(num_samples, 1, *self.data_loader.img_dims), \
                     self.data_loader.result_dir  + "/generated_sample_" +\
                     str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
@@ -199,12 +201,14 @@ class Solver(object):
                     self.step_config)
             if self.prepro:
                 if self.prepro.rotate:
+                    self.prepro.theta_range_1[1] -= 1
+                    self.prepro.theta_range_2[1] -= 1
                     params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
                         .format(self.prepro.theta_range_1, self.prepro.theta_range_2)
                 if self.prepro.scale:
                     params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                         .format(self.prepro.scale_range_1, self.prepro.scale_range_2)
-            params += "single image: {}\n".format(self.data_loader.single_x is not None)
+            params += "single image: {}\n".format(self.data_loader.single_x)
             params += "picked class: {}\n".format(self.data_loader.picked_class)
             params += "\n"
             params += str(self.model)
