@@ -54,6 +54,7 @@ def plot_losses(solver):
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
 # TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
+# TODO: test with 5 epochs...
 def plot_gaussian_distributions(solver):
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
@@ -158,13 +159,23 @@ def plot_rl_kl(solver):
     plt.show()
 
 # Plot the latent space as scatter plot with and without labels
-# TODO: n_classes is not that generic? Should be an arg?
-def plot_latent_space(solver, space, var, title=None, labels=None):
+def plot_latent_space(solver, space, var=None, title=None, labels=None):
     plt.figure(figsize=(9, 7))
     if solver.data_loader.with_labels:
-        plt.scatter(space[:, 0], space[:, 1], s=10, c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
-        clb = plt.colorbar()
-        clb.ax.set_title(title)
+        if var == "z":
+            ticks = np.arange(solver.prepro.theta_range_2[0], solver.prepro.theta_range_2[1]+1, 10).tolist()
+            plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", 6))
+            clb = plt.colorbar()
+            clb.ax.set_title(title)
+        elif var == "y":
+            ticks = np.arange(solver.prepro.theta_range_1[0], solver.prepro.theta_range_1[1]+1, 30).tolist()
+            asd = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", 12))
+            clb = plt.colorbar(asd, ticks=ticks)
+            clb.ax.set_title(title)
+        else:
+            plt.scatter(space[:, 0], space[:, 1], s=10, c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
+            clb = plt.colorbar()
+            clb.ax.set_title(title)
     else:
         plt.scatter(space[:, 0], space[:, 1], s=10, cmap="Paired")
     plt.xlabel("{}_1".format(var))
@@ -245,10 +256,10 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
     plt.show()
     _save_plot_fig(solver, figure, cm=cm, name="fixed_z_all_labels")
 
-# TODO
+# TODO: asdf
 def plot_prepro_params_distribution(counts):
     indices = list(counts.keys())
-    plt.figure(figsize=(20, 20))
+    plt.figure(figsize=(10, 10))
     plt.bar(indices, counts.values())
     plt.xlabel("theta_1")
     plt.ylabel("Count")
