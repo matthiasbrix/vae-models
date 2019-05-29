@@ -2,6 +2,7 @@ import numpy as np
 import torch
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+import matplotlib.colors as mcolors
 import scipy.stats as stats
 
 DATASETS = {
@@ -256,18 +257,33 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
     plt.show()
     _save_plot_fig(solver, figure, cm=cm, name="fixed_z_all_labels")
 
-# TODO: asdf
-def plot_prepro_params_distribution(counts):
-    indices = list(counts.keys())
-    plt.figure(figsize=(10, 10))
-    plt.bar(indices, counts.values())
-    plt.xlabel("theta_1")
+# make a bar chart with x being preprocessing group (scale/rotate), y the number of occurences
+# of each bin
+def plot_prepro_params_distribution(solver, xticks, param, title):
+    bins = list(zip(xticks[:-1], xticks[1:]))
+    counts = np.zeros(len(bins))
+    for theta in solver.prepro.prepro_params[param]:
+        for bin_idx, (x, y) in enumerate(bins):
+            if theta >= x and theta < y:
+                counts[bin_idx] += 1
+    plt.figure(figsize=(5, 4))
+    viridis = plt.cm.get_cmap('Paired', 13)
+    rvb = mcolors.LinearSegmentedColormap.from_list("", viridis.colors)
+    norm = (xticks - np.min(xticks))/np.ptp(xticks)
+    #print((xticks - np.min(xticks))/np.ptp(xticks))
+    #print(len(counts), len(norm), len(bins))
+    plt.bar(np.arange(0, len(counts)), counts, color=rvb(norm))
+    plt.xlabel(param)
     plt.ylabel("Count")
-    plt.xticks(indices, fontsize=5, rotation=30)
-    plt.title("Angle distribution for y_t")
+    plt.xticks(np.arange(0, len(counts)), labels=bins, rotation=30)
+    plt.title(title)
+    plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25) 
+    plt.savefig(solver.data_loader.result_dir + "/plot_plot_prepro_params_distribution_" \
+        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
-# TODO: make a subplot for each class on how much it has been rotated
+# TODO: make a stacked bar graph, x being the theta groups, y the count, the colors the different classes.
+# https://matplotlib.org/3.1.0/gallery/lines_bars_and_markers/bar_stacked.html#sphx-glr-gallery-lines-bars-and-markers-bar-stacked-py
 def plot_prepro_params_distribution_categories():
     pass
 
