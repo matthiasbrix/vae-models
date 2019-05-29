@@ -38,7 +38,6 @@ class Training(object):
 
     def _train_batch(self, epoch_metrics, x, y=None):
         y_space = None
-        x = self.solver.data_loader.single_x if self.solver.data_loader.single_x is not None else x
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
@@ -69,7 +68,7 @@ class Training(object):
                 x = data
                 z_space, y_space = self._train_batch(epoch_metrics, x)
             # saving the z space, and y space if it's available
-            if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)-1):
+            if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)):
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
                 self.solver.z_space[start:end, :] = z_space.cpu().detach().numpy()
@@ -84,7 +83,6 @@ class Testing(object):
         self.solver = solver
 
     def _test_batch(self, epoch_metrics, batch_idx, epoch, x, y=None):
-        x = self.solver.data_loader.single_x if self.solver.data_loader.single_x is not None else x
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
@@ -137,9 +135,9 @@ class Solver(object):
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.z_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
-        self.z_space_labels = np.zeros((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size)
-        self.y_space = np.zeros(((len(self.data_loader.train_loader)-1)*self.data_loader.batch_size, z_dim))
+        self.z_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim))
+        self.z_space_labels = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size))
+        self.y_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim))
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
@@ -173,14 +171,15 @@ class Solver(object):
                 y_sample[:, idx] = 1.
                 sample = torch.cat((z_sample, y_sample), dim=-1)
             elif self.tdcvae_mode:
-                z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
                 x_t = iter(self.data_loader.train_loader).next()[0][:num_samples]
+                z_sample = torch.randn(x_t.size(0), self.z_dim).to(self.device)
                 x_t, _ = self.prepro.preprocess_batch(x_t)
                 x_t = x_t.to(self.device)
                 sample = torch.cat((x_t, z_sample), dim=-1)
             else:
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)
             sample = self.model.decoder(sample)
+            num_samples = min(num_samples, sample.size(0))
             torchvision.utils.save_image(sample.view(num_samples, 1, *self.data_loader.img_dims), \
                     self.data_loader.result_dir  + "/generated_sample_" +\
                     str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
@@ -205,12 +204,14 @@ class Solver(object):
                 if self.prepro.scale:
                     params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                         .format(self.prepro.scale_range_1, self.prepro.scale_range_2)
-            params += "single data x: {}\n".format(self.data_loader.single_x is not None)
+            params += "single image: {}\n".format(self.data_loader.single_x is not None)
+            params += "picked class: {}\n".format(self.data_loader.picked_class)
+            params += "\n"
             params += str(self.model)
             param_file.write(params)
 
     def main(self):
-        print("+++++ START RUN +++++")
+        print("+++++ START RUN | saved files in {} +++++".format(self.data_loader.result_dir))
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)

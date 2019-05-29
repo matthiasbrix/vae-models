@@ -1,5 +1,6 @@
 import os
 import torch
+from torch.utils.data.sampler import RandomSampler
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import numpy as np
@@ -8,9 +9,10 @@ import scipy.io
 from sklearn.datasets import fetch_lfw_people
 from sklearn.model_selection import train_test_split
 
+from samplers import ClassSampler
+
 class DataLoader():
-    
-    def __init__(self, path, batch_size, dataset, z_dim, single_x=False):
+    def __init__(self, path, batch_size, dataset, z_dim, single_x=False, specific_class=None):
         kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
         train_set = None
         test_set = None
@@ -19,16 +21,15 @@ class DataLoader():
         self.h = None
         self.w = None
         self.batch_size = batch_size
+        self.dataset = dataset
         # directories
         data_folder_prefix = "../data/"
         self.path = path
-        self.dataset = dataset
         self.result_prefix_dir = "../results/"
         self.result_dir = path + "/" + dataset + "_z=" + str(z_dim) + "_0"
         self._dir_index()
         self.result_dir = self.result_prefix_dir + self.result_dir
         self._prepare_directories()
-
         if dataset == "MNIST":
             self.n_classes = 10
             self.h = 28
@@ -64,16 +65,27 @@ class DataLoader():
         else:
             raise ValueError("DATASET N/A!")
         
+        if single_x:
+            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, sampler=RandomSampler(train_set, replacement=True, num_samples=1), shuffle=False, **kwargs)
+            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, sampler=RandomSampler(test_set, replacement=True, num_samples=1), shuffle=False, **kwargs)
+        elif specific_class:
+            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, sampler=ClassSampler(train_set, specific_class), drop_last=True, shuffle=False, **kwargs)
+            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, sampler=ClassSampler(test_set, specific_class), drop_last=True, shuffle=False, **kwargs)
+        elif single_x and specific_class:
+            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, sampler=ClassSampler(train_set, specific_class, 1), shuffle=False, **kwargs)
+            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, sampler=ClassSampler(test_set, specific_class, 1), shuffle=False, **kwargs)
+        else:
+            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, drop_last=True, shuffle=True, **kwargs)
+            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, drop_last=True, shuffle=True, **kwargs)
+
         self.img_dims = (self.h, self.w)
-        self.input_dim = np.prod(self.img_dims)
-        self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, shuffle=True, **kwargs)
-        self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=True, **kwargs)
+        self.input_dim = np.prod(self.img_dims)        
         self.num_train_batches = len(self.train_loader)
         self.num_train_samples = len(self.train_loader.dataset)
         self.num_test_samples = len(self.test_loader.dataset)
         self.with_labels = dataset != "FF"
-        # single image if wanted
-        self.single_x = iter(self.train_loader).next()[0][0].view(1, 1, self.h, self.w) if single_x else None
+        self.single_x = single_x
+        self.picked_class = specific_class
 
     # transform data with labels to pytorch tensors
     def _prepare_data_set(self, X, y, h, w):
