@@ -68,7 +68,7 @@ class Training(object):
                 x = data
                 z_space, y_space = self._train_batch(epoch_metrics, x)
             # saving the z space, and y space if it's available
-            if epoch == self.solver.epochs and batch_idx != (len(self.solver.data_loader.train_loader)):
+            if epoch == self.solver.epochs:
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
                 self.solver.z_space[start:end, :] = z_space.cpu().detach().numpy()
@@ -221,11 +221,12 @@ class Solver(object):
             training.train(epoch, epoch_metrics)
             train_loss = self._save_train_metrics(epoch, epoch_metrics)
             print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss))
-            testing.test(epoch, epoch_metrics)
-            test_loss = self._save_test_metrics(epoch_metrics)
-            print("====> Test set loss avg: {:.4f}".format(test_loss))
-            self._sample(epoch, self.num_samples)
-            if self.lr_scheduler:
-                self.lr_scheduler.step()
+            if self.data_loader.single_x is False:
+                testing.test(epoch, epoch_metrics)
+                test_loss = self._save_test_metrics(epoch_metrics)
+                print("====> Test set loss avg: {:.4f}".format(test_loss))
+                self._sample(epoch, self.num_samples)
+                if self.lr_scheduler:
+                    self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
         print("+++++ RUN IS FINISHED +++++")

@@ -1,6 +1,6 @@
 import os
 import torch
-from torch.utils.data.sampler import RandomSampler
+from torch.utils.data.sampler import RandomSampler, BatchSampler
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import numpy as np
@@ -65,21 +65,22 @@ class DataLoader():
         else:
             raise ValueError("DATASET N/A!")
         
-        if single_x:
-            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, sampler=RandomSampler(train_set, replacement=True, num_samples=1), shuffle=False, **kwargs)
-            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, sampler=RandomSampler(test_set, replacement=True, num_samples=1), shuffle=False, **kwargs)
+        # TODO: change class sampler to sample 1 image up to batch_size times * how many posible batches ...
+        if single_x and specific_class:
+            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, sampler=ClassSampler(train_set, specific_class, 1), shuffle=False, **kwargs)
+            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, sampler=ClassSampler(test_set, specific_class, 1), shuffle=False, **kwargs)
+        elif single_x: # TODO: maybe have custom sampler for single x - I want like above
+            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, sampler=BatchSampler(RandomSampler(train_set, replacement=True, num_samples=128), batch_size=batch_size, drop_last=False), shuffle=False, **kwargs)
+            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, sampler=BatchSampler(RandomSampler(train_set, replacement=True, num_samples=128), batch_size=batch_size, drop_last=False), shuffle=False, **kwargs)
         elif specific_class:
             self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, sampler=ClassSampler(train_set, specific_class), drop_last=True, shuffle=False, **kwargs)
             self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, sampler=ClassSampler(test_set, specific_class), drop_last=True, shuffle=False, **kwargs)
-        elif single_x and specific_class:
-            self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, sampler=ClassSampler(train_set, specific_class, 1), shuffle=False, **kwargs)
-            self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, sampler=ClassSampler(test_set, specific_class, 1), shuffle=False, **kwargs)
         else:
             self.train_loader = torch.utils.data.DataLoader(dataset=train_set, batch_size=batch_size, drop_last=True, shuffle=True, **kwargs)
             self.test_loader = torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, drop_last=True, shuffle=True, **kwargs)
 
         self.img_dims = (self.h, self.w)
-        self.input_dim = np.prod(self.img_dims)        
+        self.input_dim = np.prod(self.img_dims)
         self.num_train_batches = len(self.train_loader)
         self.num_train_samples = len(self.train_loader.dataset)
         self.num_test_samples = len(self.test_loader.dataset)
@@ -113,4 +114,3 @@ class DataLoader():
             tmp[-1] = str(expand)
             new_dir_name = "_".join(tmp)
         self.result_dir = new_dir_name
-

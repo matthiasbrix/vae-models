@@ -10,7 +10,7 @@ class ClassSampler(Sampler):
         if num_samples is not None:
             filter_indices = torch.randint(0, len(self.indices), (num_samples,)) # 5 from self.indices, say, 0...4 so indices for numbers 0, 10, ..., 40
             self.indices = [self.indices[i] for i in filter_indices]
-        torch.from_numpy(self.indices)
+        torch.tensor(self.indices)
 
     # provide an __iter__ method, providing a way
     # to iterate over indices of dataset elements
