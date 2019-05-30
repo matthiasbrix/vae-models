@@ -160,18 +160,16 @@ def plot_rl_kl(solver):
     plt.show()
 
 # Plot the latent space as scatter plot with and without labels
-def plot_latent_space(solver, space, var=None, title=None, labels=None):
+def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None):
     plt.figure(figsize=(9, 7))
     if solver.data_loader.with_labels:
         if var == "z":
-            ticks = np.arange(solver.prepro.theta_range_2[0], solver.prepro.theta_range_2[1]+1, 10).tolist()
-            plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", 6))
-            clb = plt.colorbar()
+            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", 6))
+            clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
         elif var == "y":
-            ticks = np.arange(solver.prepro.theta_range_1[0], solver.prepro.theta_range_1[1]+1, 30).tolist()
-            asd = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", 12))
-            clb = plt.colorbar(asd, ticks=ticks)
+            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap="Paired") #plt.cm.get_cmap("Paired", 12)
+            clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
         else:
             plt.scatter(space[:, 0], space[:, 1], s=10, c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
@@ -267,17 +265,20 @@ def plot_prepro_params_distribution(solver, xticks, param, title):
             if theta >= x and theta < y:
                 counts[bin_idx] += 1
     plt.figure(figsize=(5, 4))
-    viridis = plt.cm.get_cmap('Paired', 13)
+    viridis = plt.cm.get_cmap('Paired', 12)
+    test = []
+    for tick in xticks:
+        if tick != 0:
+            test.append(tick)
     rvb = mcolors.LinearSegmentedColormap.from_list("", viridis.colors)
+    xticks = xticks[:-1]
     norm = (xticks - np.min(xticks))/np.ptp(xticks)
-    #print((xticks - np.min(xticks))/np.ptp(xticks))
-    #print(len(counts), len(norm), len(bins))
     plt.bar(np.arange(0, len(counts)), counts, color=rvb(norm))
     plt.xlabel(param)
     plt.ylabel("Count")
     plt.xticks(np.arange(0, len(counts)), labels=bins, rotation=30)
     plt.title(title)
-    plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25) 
+    plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25)
     plt.savefig(solver.data_loader.result_dir + "/plot_plot_prepro_params_distribution_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
