@@ -72,8 +72,8 @@ class Training(object):
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
                 self.solver.z_space[start:end, :] = z_space.cpu().detach().numpy()
-                if not self.solver.tdcvae_mode and self.solver.data_loader.with_labels and y is not None:
-                    self.solver.z_space_labels[start:end] = y.cpu().detach().numpy()
+                if self.solver.data_loader.with_labels and y is not None:
+                    self.solver.data_labels[start:end] = y.cpu().detach().numpy()
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
                 self.solver.prepro.save_params()
@@ -137,8 +137,8 @@ class Solver(object):
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
         self.z_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim))
-        self.z_space_labels = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size))
         self.y_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim))
+        self.data_labels = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size))
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
