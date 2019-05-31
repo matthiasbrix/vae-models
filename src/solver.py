@@ -136,9 +136,9 @@ class Solver(object):
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.z_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim))
-        self.y_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim))
-        self.data_labels = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size))
+        self.z_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim)) # TODO: torch
+        self.y_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim)) # TODO: torch
+        self.data_labels = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size)) # TODO: torch
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples

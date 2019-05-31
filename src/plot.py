@@ -121,7 +121,6 @@ def plot_gaussian_distributions(solver):
             solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
             file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
             file_res.write("\n")
-
     if epochs <= 3:
         ax = axarr.flatten()[0]
     if epochs >= 4:
@@ -258,13 +257,20 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
 
 # make a bar chart with x being preprocessing group (scale/rotate), y the number of occurences
 # of each bin
-def plot_prepro_params_distribution(solver, xticks, param, title):
-    bins = list(zip(xticks[:-1], xticks[1:]))
-    counts = np.zeros(len(bins))
-    for theta in solver.prepro.prepro_params[param]:
-        for bin_idx, (x, y) in enumerate(bins):
-            if theta >= x and theta < y:
-                counts[bin_idx] += 1
+def plot_prepro_params_distribution(solver, xticks, param, title, ylabel, data=None):
+    theta_bins = list(zip(xticks[:-1], xticks[1:]))
+    counts = np.zeros(len(theta_bins))
+    if data is not None:
+        theta_alpha, alpha_bins = data
+        for theta, alpha in theta_alpha:
+            for bin_idx, (x, y) in enumerate(alpha_bins):
+                if alpha >= x and alpha < y:
+                    counts[bin_idx] += 1
+    else:
+        for theta in solver.prepro.prepro_params[param]:
+            for bin_idx, (x, y) in enumerate(theta_bins):
+                if theta >= x and theta < y:
+                    counts[bin_idx] += 1
     plt.figure(figsize=(5, 4))
     paired_cmap = plt.cm.get_cmap("Paired", 12)
     rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
@@ -272,8 +278,8 @@ def plot_prepro_params_distribution(solver, xticks, param, title):
     norm = (xticks - np.min(xticks))/np.ptp(xticks)
     plt.bar(np.arange(0, len(counts)), counts, color=rvb(norm))
     plt.xlabel(param)
-    plt.ylabel("Count")
-    plt.xticks(np.arange(0, len(counts)), labels=bins, rotation=30)
+    plt.ylabel(ylabel)
+    plt.xticks(np.arange(0, len(counts)), labels=theta_bins, rotation=30)
     plt.title(title)
     plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25)
     plt.savefig(solver.data_loader.result_dir + "/plot_plot_prepro_params_distribution_" \
@@ -281,19 +287,25 @@ def plot_prepro_params_distribution(solver, xticks, param, title):
     plt.show()
 
 # stacked bar graph, x being the theta groups, y the count, the colors the different classes.
-def plot_prepro_params_distribution_categories(solver, xticks, param, title):
-    bins = list(zip(xticks[:-1], xticks[1:]))
-    classes_bins = np.zeros((len(bins), solver.data_loader.n_classes))
-    for batch_idx, theta in enumerate(solver.prepro.prepro_params[param]): # theta=some degree from the list of theta_1
-        start = batch_idx*solver.data_loader.batch_size
-        end = (batch_idx+1)*solver.data_loader.batch_size
-        for bin_idx, (x, y) in enumerate(bins):
-            if theta >= x and theta < y:
-                for label in solver.data_labels[start:end]:
-                    classes_bins[bin_idx][int(label)] += 1 # if dict use (x,y) instead of bin_idx
+def plot_prepro_params_distribution_categories(solver, xticks, param, title, ytitle, data=None):
+    theta_bins = list(zip(xticks[:-1], xticks[1:]))
+    classes_bins = np.zeros((len(theta_bins), solver.data_loader.n_classes))
+    if data is not None:
+        theta_alpha_label, alpha_bins = data
+        for theta, alpha, label in theta_alpha_label:
+            for bin_idx, (x, y) in enumerate(alpha_bins):
+                if alpha >= x and alpha < y:
+                    classes_bins[bin_idx][int(label)] += 1
+    else:
+        for batch_idx, theta in enumerate(solver.prepro.prepro_params[param]): # theta=some degree from the list of theta_1
+            start = batch_idx*solver.data_loader.batch_size
+            end = (batch_idx+1)*solver.data_loader.batch_size
+            for bin_idx, (x, y) in enumerate(theta_bins):
+                if theta >= x and theta < y:
+                    for label in solver.data_labels[start:end]:
+                        classes_bins[bin_idx][int(label)] += 1
     # preparation of chart
     plt.figure(figsize=(8, 8))
-    snickers_bar = plt.bar
     width = 0.35
     categories = np.arange(solver.data_loader.n_classes)
     bottoms = np.cumsum(classes_bins, axis=0) # for correct shifting of bar
@@ -302,22 +314,22 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title):
     paired_cmap = plt.cm.get_cmap("Paired", 12)
     rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
     norm = (xticks - np.min(xticks))/np.ptp(xticks)
-    for bin_idx in range(len(bins)):
+    for bin_idx in range(len(theta_bins)):
         distr = classes_bins[bin_idx]
         if bin_idx == 0:
-            bar = snickers_bar(categories, distr, width, color=rvb(norm[bin_idx]))
+            plt.bar(categories, distr, width, color=rvb(norm[bin_idx]))
         else:
-            bar = snickers_bar(categories, distr, width, color=rvb(norm[bin_idx]), bottom=bottoms[bin_idx-1])
+            plt.bar(categories, distr, width, color=rvb(norm[bin_idx]), bottom=bottoms[bin_idx-1])
     # labels, legends, ticks and save plot
     plt.xlabel("Labels")
-    plt.ylabel("Number of elements in each bin")
+    plt.ylabel(ytitle)
     plt.title(title)
     plt.xticks(categories)
     maxy = np.max(np.sum(classes_bins, axis=0))
     yticks = np.arange(0, np.around(int(maxy), decimals=-3)+1, 500)
     plt.yticks(yticks)
     handles = []
-    for bin_idx, bucket in enumerate(bins):
+    for bin_idx, bucket in enumerate(theta_bins):
         handles.append(mpatches.Patch(color=rvb(norm[bin_idx]), label=bucket))
     plt.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, -0.175),
             fancybox=True, shadow=True, ncol=6)
