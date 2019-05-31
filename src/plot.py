@@ -294,14 +294,13 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title):
     # preparation of chart
     plt.figure(figsize=(8, 8))
     snickers_bar = plt.bar
-    bar_charts = []
     width = 0.35
     categories = np.arange(solver.data_loader.n_classes)
     bottoms = np.cumsum(classes_bins, axis=0) # for correct shifting of bar
     # colouring here
     xticks = xticks[:-1]
-    viridis = plt.cm.get_cmap("Paired", 12)
-    rvb = mcolors.LinearSegmentedColormap.from_list("", viridis.colors)
+    paired_cmap = plt.cm.get_cmap("Paired", 12)
+    rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
     norm = (xticks - np.min(xticks))/np.ptp(xticks)
     for bin_idx in range(len(bins)):
         distr = classes_bins[bin_idx]
@@ -309,7 +308,6 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title):
             bar = snickers_bar(categories, distr, width, color=rvb(norm[bin_idx]))
         else:
             bar = snickers_bar(categories, distr, width, color=rvb(norm[bin_idx]), bottom=bottoms[bin_idx-1])
-        bar_charts.append((bar, distr))
     # labels, legends, ticks and save plot
     plt.xlabel("Labels")
     plt.ylabel("Number of elements in each bin")
