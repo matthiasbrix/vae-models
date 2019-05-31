@@ -266,8 +266,8 @@ def plot_prepro_params_distribution(solver, xticks, param, title):
             if theta >= x and theta < y:
                 counts[bin_idx] += 1
     plt.figure(figsize=(5, 4))
-    viridis = plt.cm.get_cmap("Paired", 12)
-    rvb = mcolors.LinearSegmentedColormap.from_list("", viridis.colors)
+    paired_cmap = plt.cm.get_cmap("Paired", 12)
+    rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
     xticks = xticks[:-1]
     norm = (xticks - np.min(xticks))/np.ptp(xticks)
     plt.bar(np.arange(0, len(counts)), counts, color=rvb(norm))
@@ -281,49 +281,41 @@ def plot_prepro_params_distribution(solver, xticks, param, title):
     plt.show()
 
 # stacked bar graph, x being the theta groups, y the count, the colors the different classes.
-# TODO: make more modular
-def plot_prepro_params_distribution_categories(solver, title):
-    # preparation of datastructure C x NO_BINS (e.g. 10 x 12)
-    distr = np.arange(solver.prepro.theta_range_1[0], solver.prepro.theta_range_1[1]+1, 30)
-    bins = list(zip(distr[:-1], distr[1:]))
-    #classes = np.arange(0, solver.data_loader.n_classes)
-    classes_bins = np.zeros((solver.data_loader.n_classes, len(bins)))
-    #classes_bins = {y:{x:0 for x in bins} for y in classes}
+def plot_prepro_params_distribution_categories(solver, xticks, title):
+    bins = list(zip(xticks[:-1], xticks[1:]))
+    classes_bins = np.zeros((len(bins), solver.data_loader.n_classes))
     for batch_idx, theta in enumerate(solver.prepro.prepro_params["theta_1"]): # theta=some degree from the list of theta_1
         start = batch_idx*solver.data_loader.batch_size
         end = (batch_idx+1)*solver.data_loader.batch_size
-        for bin_idx, (x, y) in enumerate(bins): # x=-180, y=-150
+        for bin_idx, (x, y) in enumerate(bins):
             if theta >= x and theta < y:
                 for label in solver.data_labels[start:end]:
-                    classes_bins[int(label)][bin_idx] += 1 # if dict use (x,y) instead of bin_idx
-
+                    classes_bins[bin_idx][int(label)] += 1 # if dict use (x,y) instead of bin_idx
     # preparation of chart
     plt.figure(figsize=(8, 8))
     snickers_bar = plt.bar
     bar_charts = []
     width = 0.35
-    cats = np.arange(len(classes_bins))
-    gggg = np.cumsum(classes_bins.T, axis=0) # for correct shifting of bar
+    categories = np.arange(solver.data_loader.n_classes)
+    bottoms = np.cumsum(classes_bins, axis=0) # for correct shifting of bar
     # colouring here
-    xticks = np.arange(solver.prepro.theta_range_1[0], solver.prepro.theta_range_1[1]+1, 30)
     xticks = xticks[:-1]
     viridis = plt.cm.get_cmap("Paired", 12)
     rvb = mcolors.LinearSegmentedColormap.from_list("", viridis.colors)
     norm = (xticks - np.min(xticks))/np.ptp(xticks)
     for bin_idx in range(len(bins)):
-        distr = classes_bins[:, bin_idx].T
+        distr = classes_bins[bin_idx]
         if bin_idx == 0:
-            bar = snickers_bar(cats, distr, width, color=rvb(norm[bin_idx]))
+            bar = snickers_bar(categories, distr, width, color=rvb(norm[bin_idx]))
         else:
-            button = gggg[bin_idx-1]
-            bar = snickers_bar(cats, distr, width, color=rvb(norm[bin_idx]), bottom=button)
+            bar = snickers_bar(categories, distr, width, color=rvb(norm[bin_idx]), bottom=bottoms[bin_idx-1])
         bar_charts.append((bar, distr))
-
+    # labels, legends, ticks and save plot
     plt.xlabel("Labels")
     plt.ylabel("Number of elements in each bin")
     plt.title(title)
-    plt.xticks(cats)
-    maxy = np.max(np.sum(classes_bins.T, axis=0))
+    plt.xticks(categories)
+    maxy = np.max(np.sum(classes_bins, axis=0))
     yticks = np.arange(0, np.around(int(maxy), decimals=-3)+1, 500)
     plt.yticks(yticks)
     handles = []
