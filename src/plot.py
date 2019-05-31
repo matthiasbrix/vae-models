@@ -281,10 +281,10 @@ def plot_prepro_params_distribution(solver, xticks, param, title):
     plt.show()
 
 # stacked bar graph, x being the theta groups, y the count, the colors the different classes.
-def plot_prepro_params_distribution_categories(solver, xticks, title):
+def plot_prepro_params_distribution_categories(solver, xticks, param, title):
     bins = list(zip(xticks[:-1], xticks[1:]))
     classes_bins = np.zeros((len(bins), solver.data_loader.n_classes))
-    for batch_idx, theta in enumerate(solver.prepro.prepro_params["theta_1"]): # theta=some degree from the list of theta_1
+    for batch_idx, theta in enumerate(solver.prepro.prepro_params[param]): # theta=some degree from the list of theta_1
         start = batch_idx*solver.data_loader.batch_size
         end = (batch_idx+1)*solver.data_loader.batch_size
         for bin_idx, (x, y) in enumerate(bins):
