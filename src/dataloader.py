@@ -16,6 +16,7 @@ class DataLoader():
         self.directories = directories
         self.data = None
         self.n_classes = None
+        self.c = None
         self.h = None
         self.w = None
         self.batch_size = batch_size
@@ -23,11 +24,13 @@ class DataLoader():
         root = directories.data_dir_prefix+dataset
         if dataset == "MNIST":
             self.n_classes = 10
+            self.c = 1
             self.h = 28
             self.w = 28
             train_set = datasets.MNIST(root=root, train=True, transform=transforms.ToTensor(), download=True)
             test_set = datasets.MNIST(root=root, train=False, transform=transforms.ToTensor(), download=False)
         elif dataset == "LFW":
+            self.c = 1
             self.h = 50
             self.w = 37
             lfw = fetch_lfw_people(data_home=root, resize=0.4)
@@ -44,6 +47,7 @@ class DataLoader():
             train_set = self._prepare_data_set(train_set, y_train, h, w)
             test_set = self._prepare_data_set(test_set, y_test, h, w)
         elif dataset == "FF":
+            self.c = 1
             self.h = 28
             self.w = 20
             ff = scipy.io.loadmat(root+"/frey_rawface.mat")

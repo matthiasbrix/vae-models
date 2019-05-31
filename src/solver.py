@@ -3,7 +3,6 @@ import time
 import torch
 import torch.utils.data
 import torchvision.utils
-import numpy as np
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -71,11 +70,11 @@ class Training(object):
             if epoch == self.solver.epochs:
                 start = batch_idx*x.size(0)
                 end = (batch_idx+1)*x.size(0)
-                self.solver.z_space[start:end, :] = z_space.cpu().detach().numpy()
+                self.solver.z_space[start:end, :] = z_space
                 if self.solver.data_loader.with_labels and y is not None:
-                    self.solver.data_labels[start:end] = y.cpu().detach().numpy()
+                    self.solver.data_labels[start:end] = y
                 if y_space is not None:
-                    self.solver.y_space[start:end, :] = y_space.cpu().detach().numpy()
+                    self.solver.y_space[start:end, :] = y_space
                 self.solver.prepro.save_params()
 
 class Testing(object):
@@ -97,9 +96,8 @@ class Testing(object):
         epoch_metrics.compute_batch_test_metrics(loss.item())
         if batch_idx == 0: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
-            # TODO: is view necc.?
-            comparison = torch.cat([x.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n],\
-                decoded.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n]])
+            comparison = torch.cat([x.view(x.size(0), self.solver.data_loader.c, *self.solver.data_loader.img_dims)[:n],\
+                decoded.view(x.size(0), self.solver.data_loader.c, *self.solver.data_loader.img_dims)[:n]])
             torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.directories.result_dir \
                 + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
 
@@ -136,9 +134,9 @@ class Solver(object):
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.z_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim)) # TODO: torch
-        self.y_space = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim)) # TODO: torch
-        self.data_labels = np.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size)) # TODO: torch
+        self.z_space = torch.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim), device=self.device)
+        self.y_space = torch.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim), device=self.device)
+        self.data_labels = torch.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size), device=self.device)
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
@@ -181,10 +179,10 @@ class Solver(object):
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)
             sample = self.model.decoder(sample)
             num_samples = min(num_samples, sample.size(0))
-            # TODO: is view necc.? and the min above?
-            torchvision.utils.save_image(sample.view(num_samples, 1, *self.data_loader.img_dims), \
-                    self.data_loader.directories.result_dir + "/generated_sample_" +\
-                    str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
+            torchvision.utils.save_image(sample.view(num_samples, self.data_loader.c,\
+                    *self.data_loader.img_dims), self.data_loader.directories.result_dir\
+                    + "/generated_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png",\
+                    nrow=10)
 
     def _save_model_params_to_file(self):
         with open(self.data_loader.directories.result_dir + "/model_params_" +\
@@ -233,4 +231,7 @@ class Solver(object):
                 if self.lr_scheduler:
                     self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
+        self.z_space = self.z_space.cpu().detach().numpy()
+        self.y_space = self.y_space.cpu().detach().numpy()
+        self.data_labels = self.data_labels.cpu().detach().numpy()
         print("+++++ RUN IS FINISHED +++++")
