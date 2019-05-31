@@ -5,7 +5,7 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
-PATH = str(Path(__file__).parent.absolute()).split('/')[-1]
+MODEL_NAME = str(Path(__file__).parent.absolute()).split('/')[-1]
 
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):

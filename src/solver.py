@@ -99,8 +99,8 @@ class Testing(object):
             n = min(x.size(0), 16) # 2 x 8 grid
             # TODO: is view necc.?
             comparison = torch.cat([x.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n],\
-            decoded.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n]])
-            torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.result_dir \
+                decoded.view(x.size(0), 1, *self.solver.data_loader.img_dims)[:n]])
+            torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.directories.result_dir \
                 + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
 
     def test(self, epoch, epoch_metrics):
@@ -183,11 +183,11 @@ class Solver(object):
             num_samples = min(num_samples, sample.size(0))
             # TODO: is view necc.? and the min above?
             torchvision.utils.save_image(sample.view(num_samples, 1, *self.data_loader.img_dims), \
-                    self.data_loader.result_dir  + "/generated_sample_" +\
+                    self.data_loader.directories.result_dir + "/generated_sample_" +\
                     str(epoch) + "_z=" + str(self.z_dim) + ".png", nrow=10)
 
     def _save_model_params_to_file(self):
-        with open(self.data_loader.result_dir + "/model_params_" +\
+        with open(self.data_loader.directories.result_dir + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
             params = "epochs: {}\n"\
                 "optimizer: {}\n"\
@@ -215,7 +215,7 @@ class Solver(object):
             param_file.write(params)
 
     def main(self):
-        print("+++++ START RUN | saved files in {} +++++".format(self.data_loader.result_dir))
+        print("+++++ START RUN | saved files in {} +++++".format(self.data_loader.directories.result_dir))
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)

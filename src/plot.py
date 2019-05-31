@@ -25,7 +25,7 @@ def _save_plot_fig(solver, data, cm, name):
     ax.set_axis_off()
     fig.add_axes(ax)
     ax.imshow(data, cmap=cm)
-    plt.savefig(solver.data_loader.result_dir + "/plot_" + name + "_" + \
+    plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + name + "_" + \
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
     plt.close()
 
@@ -50,7 +50,7 @@ def plot_losses(solver):
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
             fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
-    plt.savefig(solver.data_loader.result_dir + "/" + "plot_losses_" + \
+    plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" + \
         DATASETS[solver.data_loader.dataset] + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
@@ -112,7 +112,7 @@ def plot_gaussian_distributions(solver):
         ax.set(xlabel='x', ylabel='y')
 
     # writing stats results of z to file
-    with open(solver.data_loader.result_dir + "/result_stats_" +\
+    with open(solver.data_loader.directories.result_dir + "/result_stats_" +\
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
         file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
         for idx in plots:
@@ -129,7 +129,7 @@ def plot_gaussian_distributions(solver):
     ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
             fancybox=True, shadow=True, ncol=5)
 
-    plt.savefig(solver.data_loader.result_dir + "/" + "plot_gaussian_" +\
+    plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_gaussian_" +\
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
@@ -155,7 +155,7 @@ def plot_rl_kl(solver):
     plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta))
 
     plt.tight_layout()
-    plt.savefig(solver.data_loader.result_dir + "/" + "plot_rl_kl_" \
+    plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_rl_kl_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
@@ -180,7 +180,7 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
     plt.title("Latent space q({}) on data set {} after {} epochs".format(var, DATASETS[solver.data_loader.dataset], solver.epochs))
-    plt.savefig(solver.data_loader.result_dir + "/plot_" + str(var) + "_space_" \
+    plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative
@@ -216,7 +216,7 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
     plt.ylabel("z_2")
     plt.imshow(figure, cmap=cm)
     plt.show()
-    with open(solver.data_loader.result_dir + "/plot_learned_data_manifold_grids_" +\
+    with open(solver.data_loader.directories.result_dir + "/plot_learned_data_manifold_grids_" +\
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
         file_res.write("grid_x: {}\n".format(grid_x))
         file_res.write("grid_y: {}\n".format(grid_y))
@@ -282,7 +282,7 @@ def plot_prepro_params_distribution(solver, xticks, param, title, ylabel, data=N
     plt.xticks(np.arange(0, len(counts)), labels=theta_bins, rotation=30)
     plt.title(title)
     plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25)
-    plt.savefig(solver.data_loader.result_dir + "/plot_plot_prepro_params_distribution_" \
+    plt.savefig(solver.data_loader.directories.result_dir + "/plot_plot_prepro_params_distribution_" \
         + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 
@@ -334,7 +334,7 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
     plt.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, -0.175),
             fancybox=True, shadow=True, ncol=6)
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
-    plt.savefig(solver.data_loader.result_dir + "/plot_prepro_params_distribution_categories_" \
+    plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_params_distribution_categories_" \
             + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
 

@@ -1,4 +1,3 @@
-import os
 import torch
 from torch.utils.data.sampler import RandomSampler, BatchSampler
 import torchvision.datasets as datasets
@@ -12,34 +11,26 @@ from sklearn.model_selection import train_test_split
 from samplers import ClassSampler
 
 class DataLoader():
-    def __init__(self, path, batch_size, dataset, z_dim, single_x=False, specific_class=None):
+    def __init__(self, directories, batch_size, dataset, single_x=False, specific_class=None):
         kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
-        train_set = None
-        test_set = None
+        self.directories = directories
         self.data = None
         self.n_classes = None
         self.h = None
         self.w = None
         self.batch_size = batch_size
         self.dataset = dataset
-        # directories
-        data_folder_prefix = "../data/"
-        self.path = path
-        self.result_prefix_dir = "../results/"
-        self.result_dir = path + "/" + dataset + "_z=" + str(z_dim) + "_0"
-        self._dir_index()
-        self.result_dir = self.result_prefix_dir + self.result_dir
-        self._prepare_directories()
+        root = directories.data_dir_prefix+dataset
         if dataset == "MNIST":
             self.n_classes = 10
             self.h = 28
             self.w = 28
-            train_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=True, transform=transforms.ToTensor(), download=True)
-            test_set = datasets.MNIST(root=data_folder_prefix+"MNIST", train=False, transform=transforms.ToTensor(), download=False)
+            train_set = datasets.MNIST(root=root, train=True, transform=transforms.ToTensor(), download=True)
+            test_set = datasets.MNIST(root=root, train=False, transform=transforms.ToTensor(), download=False)
         elif dataset == "LFW":
             self.h = 50
             self.w = 37
-            lfw = fetch_lfw_people(data_home=data_folder_prefix+"LFW", resize=0.4)
+            lfw = fetch_lfw_people(data_home=root, resize=0.4)
             _, h, w = lfw['images'].shape
             X = lfw['data']
             y = lfw['target']
@@ -55,7 +46,7 @@ class DataLoader():
         elif dataset == "FF":
             self.h = 28
             self.w = 20
-            ff = scipy.io.loadmat(data_folder_prefix+"FF/frey_rawface.mat")
+            ff = scipy.io.loadmat(root+"/frey_rawface.mat")
             ff = ff["ff"].T.reshape((-1, 1, self.h, self.w))
             ff = ff.astype('float32')/255.0
             ff_train, ff_test = train_test_split(ff, test_size=0.20)
@@ -96,21 +87,3 @@ class DataLoader():
         x_tensor = X.view(X.size(0), 1, h, w)
         data_set = [(x, y) for (x, y) in zip(x_tensor, y_tensor)]
         return data_set
-
-    # makes all relevant directories
-    def _prepare_directories(self):
-        os.makedirs(self.result_prefix_dir, exist_ok=True)
-        os.makedirs(self.result_dir, exist_ok=True)
-
-    # checks if folder already exists and return directory index
-    def _dir_index(self):
-        if not os.path.isdir(self.result_prefix_dir+self.result_dir):
-            return
-        expand = 0
-        tmp = self.result_dir.split("_")
-        new_dir_name = self.result_dir
-        while os.path.isdir(self.result_prefix_dir+new_dir_name):
-            expand += 1
-            tmp[-1] = str(expand)
-            new_dir_name = "_".join(tmp)
-        self.result_dir = new_dir_name

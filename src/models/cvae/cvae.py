@@ -5,7 +5,7 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
-PATH = str(Path(__file__).parent.absolute()).split('/')[-1]
+MODEL_NAME = str(Path(__file__).parent.absolute()).split('/')[-1]
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Encoder(nn.Module):

@@ -5,26 +5,6 @@ import torch.nn.functional as F
 import torch
 import numpy as np
 
-'''
-for batch_idx, data in enumerate(data_loader.test_loader):
-    #asd2 = data[0]
-    asd = prepro.scale_rotate_batch(data[0], 2.0, 180) #prepro.rotate_batch(data[0], 180)#prepro.scale_rotate_batch(data[0], 2.0, 180)
-    #print(asd.shape, asd[0,0].shape)
-#plt.imshow(asd[10,0])
-import torchvision
-grid_img = torchvision.utils.make_grid(asd)
-plt.imshow(grid_img.permute(1, 2, 0))
-#grid_img = torchvision.utils.make_grid(asd2)
-#plt.imshow(grid_img.permute(1, 2, 0))
-    import matplotlib.pyplot as plt
-        #print(x.shape)
-    #x_rot, _ = prepro.preprocess_batch(x_t, solver.data_loader.input_dim)
-    #plt.imshow(x_rot.view(28,28))
-    #print(solver.data_loader.input_dim)
-    #plt.imshow(x.view(28, 28))
-    #print(x_rot.shape)
-'''
-
 class Preprocessing():
     def __init__(self, data_loader, thetas=None, scales=None):
         self.rotate = thetas is not None
