@@ -163,11 +163,11 @@ def plot_rl_kl(solver):
 def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None):
     plt.figure(figsize=(9, 7))
     if solver.data_loader.with_labels:
-        if var == "z":
+        if var == "z" and ticks:
             scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", 6))
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
-        elif var == "y":
+        elif var == "y" and ticks:
             scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap="Paired") #plt.cm.get_cmap("Paired", 12)
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
@@ -248,7 +248,6 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
                 z_new = torch.cat((z, onehot), dim=-1)
                 decoded = solver.model.decoder(z_new).view(1, *solver.data_loader.img_dims).cpu().numpy()
                 figure[i*img_rows:(i+1)*img_rows, (label+1)*img_cols: (label+2)*img_cols] = decoded
-    
     plt.figure(figsize=fig_size)
     plt.axis("off")
     plt.imshow(figure, cmap=cm)
@@ -326,7 +325,8 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
     plt.title(title)
     plt.xticks(categories)
     maxy = np.max(np.sum(classes_bins, axis=0))
-    yticks = np.arange(0, np.around(int(maxy), decimals=-3)+1, 500)
+    steps = 2000 if solver.data_loader.single_x else 500
+    yticks = np.arange(0, np.around(int(maxy), decimals=-3)+1, steps)
     plt.yticks(yticks)
     handles = []
     for bin_idx, bucket in enumerate(theta_bins):
@@ -348,7 +348,6 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
         c = k % n_cols
         figure[r*img_rows:(r+1)*img_rows,
                c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
-
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")
@@ -369,7 +368,6 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
             c = k % n_cols
             figure[r*img_rows:(r+1)*img_rows,
                 c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
-    
     plt.figure(figsize=fig_size)
     plt.imshow(figure, cmap="gray")
     plt.axis("off")

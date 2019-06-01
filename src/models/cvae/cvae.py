@@ -9,44 +9,48 @@ MODEL_NAME = str(Path(__file__).parent.absolute()).split('/')[-1]
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Encoder(nn.Module):
-    def __init__(self, Din, H, Dout):
+    def __init__(self, Din, H, Dout, batch_norm_flag):
         super(Encoder, self).__init__()
+        self.batch_norm_flag = batch_norm_flag
         self.linear1 = nn.Linear(Din, H)
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
         self.linear22 = nn.Linear(H, Dout) # \Sigma(x)
-        self.batch_norm = nn.BatchNorm1d(H)
+        if self.batch_norm_flag:
+            self.batch_norm = nn.BatchNorm1d(H)
         self.relu = nn.ReLU()
 
     def forward(self, x):
         x = self.linear1(x)
-        x = self.batch_norm(x)
+        x = self.batch_norm(x) if self.batch_norm_flag else x
         x = self.relu(x)
         return self.linear21(x), self.linear22(x)
 
 class Decoder(nn.Module):
-    def __init__(self, Dout, H, Din):
+    def __init__(self, Dout, H, Din, batch_norm_flag):
         super(Decoder, self).__init__()
+        self.batch_norm_flag = batch_norm_flag
         self.linear1 = nn.Linear(Dout, H)
         self.linear2 = nn.Linear(H, Din)
-        self.batch_norm1 = nn.BatchNorm1d(H)
-        self.batch_norm2 = nn.BatchNorm1d(Din)
+        if self.batch_norm_flag:
+            self.batch_norm1 = nn.BatchNorm1d(H)
+            self.batch_norm2 = nn.BatchNorm1d(Din)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
     def forward(self, z):
         x = self.linear1(z)
-        x = self.batch_norm1(x)
+        x = self.batch_norm1(x) if self.batch_norm_flag else x
         x = self.relu(x)
         x = self.linear2(x)
-        x = self.batch_norm2(x)
+        x = self.batch_norm2(x) if self.batch_norm_flag else x
         return self.sigmoid(x)
 
 class Cvae(nn.Module):
-    def __init__(self, input_dim, hidden_dim, z_dim, y_size):
+    def __init__(self, input_dim, hidden_dim, z_dim, y_size, batch_norm_flag):
         super(Cvae, self).__init__()
         self.input_dim = input_dim
-        self.encoder = Encoder(input_dim+y_size, hidden_dim, z_dim)
-        self.decoder = Decoder(z_dim+y_size, hidden_dim, input_dim)
+        self.encoder = Encoder(input_dim+y_size, hidden_dim, z_dim, batch_norm_flag)
+        self.decoder = Decoder(z_dim+y_size, hidden_dim, input_dim, batch_norm_flag)
         self.y_size = y_size
 
     def onehot_encoding(self, y):

@@ -75,7 +75,8 @@ class Training(object):
                     self.solver.data_labels[start:end] = y
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space
-                self.solver.prepro.save_params()
+                if self.solver.prepro:
+                    self.solver.prepro.save_params()
 
 class Testing(object):
     def __init__(self, solver):
@@ -185,6 +186,8 @@ class Solver(object):
                     nrow=10)
 
     def _save_model_params_to_file(self):
+        if not self.data_loader.directories.make_dirs:
+            return
         with open(self.data_loader.directories.result_dir + "/model_params_" +\
             self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
             params = "epochs: {}\n"\
@@ -207,13 +210,16 @@ class Solver(object):
                     params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                         .format(self.prepro.scale_range_1, self.prepro.scale_range_2)
             params += "single image: {}\n".format(self.data_loader.single_x)
-            params += "picked class: {}\n".format(self.data_loader.picked_class)
+            params += "specific class: {}\n".format(self.data_loader.specific_class)
             params += "\n"
             params += str(self.model)
             param_file.write(params)
 
     def main(self):
-        print("+++++ START RUN | saved files in {} +++++".format(self.data_loader.directories.result_dir))
+        if self.data_loader.directories.make_dirs:
+            print("+++++ START RUN | saved files in {} +++++".format(self.data_loader.directories.result_dir_no_prefix))
+        else:
+            print("+++++ START RUN +++++")
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
@@ -227,9 +233,9 @@ class Solver(object):
                 testing.test(epoch, epoch_metrics)
                 test_loss = self._save_test_metrics(epoch_metrics)
                 print("====> Test set loss avg: {:.4f}".format(test_loss))
-                self._sample(epoch, self.num_samples)
-                if self.lr_scheduler:
-                    self.lr_scheduler.step()
+            self._sample(epoch, self.num_samples)
+            if self.lr_scheduler:
+                self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
         self.z_space = self.z_space.cpu().detach().numpy()
         self.y_space = self.y_space.cpu().detach().numpy()
