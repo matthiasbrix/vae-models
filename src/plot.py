@@ -266,7 +266,7 @@ def plot_prepro_params_distribution(solver, xticks, param, title, ylabel, data=N
                 if alpha >= x and alpha < y:
                     counts[bin_idx] += 1
     else:
-        for theta in solver.prepro.prepro_params[param]:
+        for theta in solver.data_loader.prepro_params[param]:
             for bin_idx, (x, y) in enumerate(theta_bins):
                 if theta >= x and theta < y:
                     counts[bin_idx] += 1
@@ -296,7 +296,7 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
                 if alpha >= x and alpha < y:
                     classes_bins[bin_idx][int(label)] += 1
     else:
-        for batch_idx, theta in enumerate(solver.prepro.prepro_params[param]): # theta=some degree from the list of theta_1
+        for batch_idx, theta in enumerate(solver.data_loader.prepro_params[param]): # theta=some degree from the list of theta_1
             start = batch_idx*solver.data_loader.batch_size
             end = (batch_idx+1)*solver.data_loader.batch_size
             for bin_idx, (x, y) in enumerate(theta_bins):

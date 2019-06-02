@@ -40,7 +40,7 @@ class TD_Cvae(nn.Module):
     def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, z_dim):
         super(TD_Cvae, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim_enc, z_dim)
-        self.decoder = Decoder(z_dim+input_dim, hidden_dim_dec, input_dim)
+        self.decoder = Decoder(z_dim+input_dim, hidden_dim_dec, input_dim) # TODO: needed with hidden dim dec?
         self.input_dim = input_dim
         self.z_dim = z_dim
 

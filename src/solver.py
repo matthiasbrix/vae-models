@@ -43,8 +43,9 @@ class Training(object):
             y = y.to(self.solver.device)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next = self.solver.prepro.preprocess_batch(x)
-            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
+            x_rot, x_next = x
+            x_rot, x_next = x_rot.view(-1, self.solver.data_loader.input_dim).to(self.solver.device),\
+                x_next.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, x, mu_x, logvar_x, z_space, y_space = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
@@ -68,15 +69,17 @@ class Training(object):
                 z_space, y_space = self._train_batch(epoch_metrics, x)
             # saving the z space, and y space if it's available
             if epoch == self.solver.epochs:
-                start = batch_idx*x.size(0)
-                end = (batch_idx+1)*x.size(0)
+                start = batch_idx*x[0].size(0)
+                end = (batch_idx+1)*x[0].size(0)
                 self.solver.z_space[start:end, :] = z_space
                 if self.solver.data_loader.with_labels and y is not None:
                     self.solver.data_labels[start:end] = y
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space
-                if self.solver.prepro:
-                    self.solver.prepro.save_params()
+                if self.solver.data_loader.scale_obj:
+                    self.solver.data_loader.scale_obj.save_params()
+                if self.solver.data_loader.rotate_obj:
+                    self.solver.data_loader.rotate_obj.save_params()            
 
 class Testing(object):
     def __init__(self, solver):
@@ -87,8 +90,9 @@ class Testing(object):
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next = self.solver.prepro.preprocess_batch(x)
-            x_rot, x_next = x_rot.to(self.solver.device), x_next.to(self.solver.device)
+            x_rot, x_next = x
+            x_rot, x_next = x_rot.view(-1, self.solver.data_loader.input_dim).to(self.solver.device),\
+                x_next.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
@@ -115,10 +119,9 @@ class Testing(object):
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, z_dim, epochs, beta, step_config,\
             optim_config, lr_scheduler=None, num_samples=100, cvae_mode=False,\
-            tdcvae_mode=False, prepro=None):
+            tdcvae_mode=False):
         self.data_loader = data_loader
         self.model = model
-        self.prepro = prepro
         self.model.to(DEVICE)
         # TODO: weight decay was used corresponding to a prior of (\theta, \phi) ∼ N(0,I) - correct?
         # https://stats.stackexchange.com/questions/163388/l2-regularization-is-equivalent-to-gaussian-prior
@@ -165,17 +168,18 @@ class Solver(object):
     def _sample(self, epoch, num_samples):
         with torch.no_grad():
             if self.cvae_mode:
-                z_sample = torch.randn(num_samples, self.z_dim).to(self.device)
+                z_sample = torch.randn(num_samples, self.z_dim)
                 idx = torch.randint(0, self.data_loader.n_classes, (1,)).item()
                 y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), self.data_loader.n_classes)) # num_samples x num_classes
                 y_sample[:, idx] = 1.
-                sample = torch.cat((z_sample, y_sample), dim=-1)
+                sample = torch.cat((z_sample, y_sample), dim=-1).to(self.device)
             elif self.tdcvae_mode:
-                x_t = iter(self.data_loader.train_loader).next()[0][:num_samples]
-                z_sample = torch.randn(x_t.size(0), self.z_dim).to(self.device)
-                x_t, _ = self.prepro.preprocess_batch(x_t)
-                x_t = x_t.to(self.device)
-                sample = torch.cat((x_t, z_sample), dim=-1)
+                x_t = iter(self.data_loader.train_loader).next()[0][0]
+                num_samples = min(num_samples, x_t.size(0))
+                x_t = x_t[:num_samples]
+                z_sample = torch.randn(x_t.size(0), self.z_dim)
+                x_t = x_t.view(-1, self.data_loader.input_dim)
+                sample = torch.cat((x_t, z_sample), dim=-1).to(self.device)
             else:
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)
             sample = self.model.decoder(sample)
@@ -200,15 +204,14 @@ class Solver(object):
                 .format(self.epochs, self.optimizer, self.beta, self.z_dim,\
                     self.data_loader.batch_size, self.lr_scheduler,\
                     self.step_config)
-            if self.prepro:
-                if self.prepro.rotate:
-                    self.prepro.theta_range_1[1] -= 1
-                    self.prepro.theta_range_2[1] -= 1
-                    params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
-                        .format(self.prepro.theta_range_1, self.prepro.theta_range_2)
-                if self.prepro.scale:
-                    params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
-                        .format(self.prepro.scale_range_1, self.prepro.scale_range_2)
+            if self.data_loader.thetas:
+                self.data_loader.theta_range_1[1] -= 1
+                self.data_loader.theta_range_2[1] -= 1
+                params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
+                    .format(self.data_loader.theta_range_1, self.data_loader.theta_range_2)
+            if self.data_loader.scales:
+                params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
+                    .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
             params += "single image: {}\n".format(self.data_loader.single_x)
             params += "specific class: {}\n".format(self.data_loader.specific_class)
             params += "\n"
@@ -220,7 +223,7 @@ class Solver(object):
             print("+++++ START RUN | saved files in {} +++++".format(\
                 self.data_loader.directories.result_dir_no_prefix))
         else:
-            print("+++++ START RUN +++++")
+            print("+++++ START RUN +++++ | no save mode")
         self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
