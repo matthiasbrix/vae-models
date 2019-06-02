@@ -25,10 +25,10 @@ class DataLoader():
             test_set = datasets.MNIST(root=root, train=False, transform=transforms.ToTensor(), download=True)
         elif dataset == "LFW":
             self.c = 1
-            self.h = 50
-            self.w = 37       
             data = DatasetLFW(root)
-            self.n_classes = data.n_classes
+            self.h = data.h
+            self.w = data.w
+            self.n_classes = data.num_classes
             train_size = int(0.8 * len(data))
             test_size = len(data) - train_size
             train_set, test_set = torch.utils.data.random_split(data, [train_size, test_size])
@@ -42,7 +42,7 @@ class DataLoader():
             train_set, test_set = torch.utils.data.random_split(data, [train_size, test_size])
         else:
             raise ValueError("DATASET N/A!")
-        
+        # TODO: include the channel and adjust other code accordingly
         self.img_dims = (self.h, self.w)
         self.input_dim = np.prod(self.img_dims)
         self.with_labels = dataset != "FF"

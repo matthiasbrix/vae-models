@@ -21,11 +21,13 @@ class DatasetFF(Dataset):
 class DatasetLFW(Dataset):
     def __init__(self, file_path, resize=0.4):
         lfw = fetch_lfw_people(data_home=file_path, resize=resize)
-        _, h, w = lfw['images'].shape
-        self.data = self._prepare_data_set(lfw['data'], lfw['target'], h, w)
-        self.n_classes = lfw['target_names'].shape[0]
+        _, height, width = lfw['images'].shape
+        self.h = height
+        self.w = width
+        self.num_classes = lfw['target_names'].shape[0]
+        self.data = self._init_data_set(lfw['data'], lfw['target'], height, width)
 
-    def _prepare_data_set(self, X, y, h, w):
+    def _init_data_set(self, X, y, h, w):
         y_tensor = torch.FloatTensor(y)
         X = X/255.0
         X = torch.stack([torch.FloatTensor(i) for i in X])
