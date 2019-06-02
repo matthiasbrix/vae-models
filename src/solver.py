@@ -217,7 +217,8 @@ class Solver(object):
 
     def main(self):
         if self.data_loader.directories.make_dirs:
-            print("+++++ START RUN | saved files in {} +++++".format(self.data_loader.directories.result_dir_no_prefix))
+            print("+++++ START RUN | saved files in {} +++++".format(\
+                self.data_loader.directories.result_dir_no_prefix))
         else:
             print("+++++ START RUN +++++")
         self._save_model_params_to_file()

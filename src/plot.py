@@ -339,11 +339,19 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
     plt.show()
 
 # takes only numpy array in, so mainly for testing puposes
-def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
+def plot_faces_grid(n, n_cols, solver, to_data, fig_size=(10, 8)):
     img_rows, img_cols = solver.data_loader.img_dims
     n_rows = int(np.ceil(n / float(n_cols)))
     figure = np.zeros((img_rows * n_rows, img_cols * n_cols))
-    for k, x in enumerate(solver.data_loader.data[:n]):
+    data = np.zeros((n, *to_data.shape[1:]))
+    remain = n
+    offset = 0
+    while remain is not 0:
+        mini = min(to_data.shape[0], remain)
+        data[offset:(offset+mini)] = np.array(to_data)[:mini]
+        remain -= mini
+        offset += mini
+    for k, x in enumerate(data):
         r = k // n_cols
         c = k % n_cols
         figure[r*img_rows:(r+1)*img_rows,
