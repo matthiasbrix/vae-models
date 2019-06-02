@@ -8,7 +8,6 @@ from samplers import ClassSampler, SingleDataPointSampler
 class DataLoader():
     def __init__(self, directories, batch_size, dataset, single_x=False, specific_class=None):
         self.directories = directories
-        self.data = None
         self.n_classes = None
         self.c = None
         self.h = None
