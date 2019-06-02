@@ -5,56 +5,53 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
-#########################################################################
-#
-# Some code is copied from
-# https://github.com/pytorch/examples/blob/master/vae/main.py
-#
-#########################################################################
-
-PATH = str(Path(__file__).parent.absolute()).split('/')[-1]
+MODEL_NAME = str(Path(__file__).parent.absolute()).split('/')[-1]
 
 class Encoder(nn.Module):
-    def __init__(self, Din, H, Dout):
+    def __init__(self, Din, H, Dout, batch_norm_flag):
         super(Encoder, self).__init__()
+        self.batch_norm_flag = batch_norm_flag
         self.linear1 = nn.Linear(Din, H)
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
         self.linear22 = nn.Linear(H, Dout) # \Sigma(x)
-        self.batch_norm = nn.BatchNorm1d(H)
+        if self.batch_norm_flag:
+            self.batch_norm = nn.BatchNorm1d(H)
         self.relu = nn.ReLU()
 
     # compute q(z|x) which is encoding X into z
     def forward(self, x):
         x = self.linear1(x)
-        x = self.batch_norm(x)
+        x = self.batch_norm(x) if self.batch_norm_flag else x
         x = self.relu(x)
         return self.linear21(x), self.linear22(x) # \mu(x), \Sigma(x)
 
 class Decoder(nn.Module):
-    def __init__(self, Dout, H, Din):
+    def __init__(self, Dout, H, Din, batch_norm_flag):
         super(Decoder, self).__init__()
+        self.batch_norm_flag = batch_norm_flag
         self.linear1 = nn.Linear(Dout, H)
         self.linear2 = nn.Linear(H, Din)
-        self.batch_norm1 = nn.BatchNorm1d(H)
-        self.batch_norm2 = nn.BatchNorm1d(Din)
+        if self.batch_norm_flag:
+            self.batch_norm1 = nn.BatchNorm1d(H)
+            self.batch_norm2 = nn.BatchNorm1d(Din)
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
     # compute p(x|z) (posterior) which is decoding to reconstruct x
-    def forward(self, x):
-        x = self.linear1(x)
-        x = self.batch_norm1(x)
+    def forward(self, z):
+        x = self.linear1(z)
+        x = self.batch_norm1(x) if self.batch_norm_flag else x
         x = self.relu(x)
         x = self.linear2(x)
-        x = self.batch_norm2(x)
+        x = self.batch_norm2(x) if self.batch_norm_flag else x
         return self.sigmoid(x)
 
 class Vae(nn.Module):
-    def __init__(self, input_dim, hidden_dim, z_dim):
+    def __init__(self, input_dim, hidden_dim, z_dim, batch_norm_flag):
         super(Vae, self).__init__()
         self.input_dim = input_dim
-        self.encoder = Encoder(input_dim, hidden_dim, z_dim)
-        self.decoder = Decoder(z_dim, hidden_dim, input_dim)
+        self.encoder = Encoder(input_dim, hidden_dim, z_dim, batch_norm_flag)
+        self.decoder = Decoder(z_dim, hidden_dim, input_dim, batch_norm_flag)
 
     # sampling from N(\mu(x), \Sigma(x))
     def _reparameterization_trick(self, mu, logsigma):
@@ -70,7 +67,7 @@ class Vae(nn.Module):
         return loss_reconstruction + beta*kl_divergence, loss_reconstruction, beta*kl_divergence
 
     def forward(self, data):
-        mu_x, logvar_x = self.encoder(data.view(-1, self.input_dim))
+        mu_x, logvar_x = self.encoder(data)
         z = self._reparameterization_trick(mu_x, logvar_x)
         decoded = self.decoder(z)
         return decoded, mu_x, logvar_x, z
