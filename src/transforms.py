@@ -19,7 +19,7 @@ class Rotate(object):
     def __call__(self, sample):
         x_t = sample
         x_next = sample
-        # for scale + rotate
+        # for scale + rotate mode
         if isinstance(sample, tuple):
             x_t, x_next = sample
         if self.count % self.batch_size == 0:
@@ -65,12 +65,13 @@ class Scale(object):
             raise ValueError("One of the scales is <= 0!")
         return scale_1, scale_2
     
+    # scaling of a single smaple (C, H, W), but excluding the scaling of the channel
     def _scale_sample(self, scale, sample):
         sample_tensor = transforms.ToTensor()(sample)
-        reshaped_dims = tuple([int(scale*x) for x in list((sample_tensor.size(1), sample_tensor.size(2)))])
-        scaled_sample = transforms.ToTensor()(TF.resize(sample, reshaped_dims))
-        if reshaped_dims < self.img_dims:
-            x, y = tuple([(x-x2) for (x, x2) in zip(self.img_dims, reshaped_dims)])
+        reshaped_spatial_dims = tuple([int(scale*x) for x in list((sample_tensor.size(1), sample_tensor.size(2)))])
+        scaled_sample = transforms.ToTensor()(TF.resize(sample, reshaped_spatial_dims))
+        if reshaped_spatial_dims < self.img_dims[1:]:
+            x, y = tuple([(x-x2) for (x, x2) in zip(self.img_dims[1:], reshaped_spatial_dims)])
             scaled_sample = F.pad(scaled_sample, (x, 0, y, 0))
         return scaled_sample
     
