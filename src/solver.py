@@ -43,10 +43,10 @@ class Training(object):
             y = y.to(self.solver.device)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next = x
-            x_rot, x_next = x_rot.view(-1, self.solver.data_loader.input_dim).to(self.solver.device),\
+            x_t, x_next = x
+            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(self.solver.device),\
                 x_next.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
-            decoded, x, mu_x, logvar_x, z_space, y_space = self.solver.model(x_rot, x_next)
+            decoded, x, mu_x, logvar_x, z_space, y_space = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x) # vae
@@ -69,17 +69,15 @@ class Training(object):
                 z_space, y_space = self._train_batch(epoch_metrics, x)
             # saving the z space, and y space if it's available
             if epoch == self.solver.epochs:
-                start = batch_idx*x[0].size(0)
-                end = (batch_idx+1)*x[0].size(0)
+                start = batch_idx*self.solver.data_loader.batch_size
+                end = (batch_idx+1)*self.solver.data_loader.batch_size
                 self.solver.z_space[start:end, :] = z_space
                 if self.solver.data_loader.with_labels and y is not None:
                     self.solver.data_labels[start:end] = y
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space
-                if self.solver.data_loader.scale_obj:
-                    self.solver.data_loader.scale_obj.save_params()
-                if self.solver.data_loader.rotate_obj:
-                    self.solver.data_loader.rotate_obj.save_params()            
+                if self.solver.data_loader.rotate_obj or self.solver.data_loader.scale_obj:
+                    self.solver.data_loader.train_loader.dataset.transform.save_params()
 
 class Testing(object):
     def __init__(self, solver):
@@ -90,10 +88,10 @@ class Testing(object):
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_rot, x_next = x
-            x_rot, x_next = x_rot.view(-1, self.solver.data_loader.input_dim).to(self.solver.device),\
+            x_t, x_next = x
+            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(self.solver.device),\
                 x_next.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
-            decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_rot, x_next)
+            decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
@@ -101,8 +99,8 @@ class Testing(object):
         epoch_metrics.compute_batch_test_metrics(loss.item())
         if batch_idx == 0: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
-            comparison = torch.cat([x.view(x.size(0), self.solver.data_loader.c, *self.solver.data_loader.img_dims)[:n],\
-                decoded.view(x.size(0), self.solver.data_loader.c, *self.solver.data_loader.img_dims)[:n]])
+            comparison = torch.cat([x.view(x.size(0), *self.solver.data_loader.img_dims)[:n],\
+                decoded.view(x.size(0), *self.solver.data_loader.img_dims)[:n]])
             torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.directories.result_dir \
                 + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
 
@@ -184,10 +182,9 @@ class Solver(object):
                 sample = torch.randn(num_samples, self.z_dim).to(self.device)
             sample = self.model.decoder(sample)
             num_samples = min(num_samples, sample.size(0))
-            torchvision.utils.save_image(sample.view(num_samples, self.data_loader.c,\
-                    *self.data_loader.img_dims), self.data_loader.directories.result_dir\
-                    + "/generated_sample_" + str(epoch) + "_z=" + str(self.z_dim) + ".png",\
-                    nrow=10)
+            torchvision.utils.save_image(sample.view(num_samples, *self.data_loader.img_dims),\
+                    self.data_loader.directories.result_dir + "/generated_sample_" + str(epoch)\
+                    + "_z=" + str(self.z_dim) + ".png", nrow=10)
 
     def _save_model_params_to_file(self):
         if not self.data_loader.directories.make_dirs:
@@ -204,6 +201,7 @@ class Solver(object):
                 .format(self.epochs, self.optimizer, self.beta, self.z_dim,\
                     self.data_loader.batch_size, self.lr_scheduler,\
                     self.step_config)
+            params += "dataset: {}\n".format(self.data_loader.dataset)
             if self.data_loader.thetas:
                 self.data_loader.theta_range_1[1] -= 1
                 self.data_loader.theta_range_2[1] -= 1

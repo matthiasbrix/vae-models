@@ -1,7 +1,7 @@
 import numpy as np
 import torch
+import torchvision
 import matplotlib.pyplot as plt
-import matplotlib.gridspec as gridspec
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import scipy.stats as stats
@@ -9,25 +9,9 @@ import scipy.stats as stats
 DATASETS = {
     "MNIST": "MNIST",
     "FF": "Frey Faces",
-    "LFW": "Labeled Faces in the Wild"
+    "LFW": "Labeled Faces in the Wild",
+    "SVHN": "SVHN"
 }
-
-# Auxiliary function for saving nice plots
-# Saves figure without white space borders
-# from https://fengl.org/2014/07/09/matplotlib-savefig-without-borderframe/
-def _save_plot_fig(solver, data, cm, name):
-    sizes = np.shape(data)
-    height = float(sizes[0])
-    width = float(sizes[1])
-    fig = plt.figure()
-    fig.set_size_inches(width/height, 1, forward=False)
-    ax = plt.Axes(fig, [0., 0., 1., 1.])
-    ax.set_axis_off()
-    fig.add_axes(ax)
-    ax.imshow(data, cmap=cm)
-    plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + name + "_" + \
-        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png", dpi=height)
-    plt.close()
 
 def _xticks(ls, ticks_rate):
     labels = np.arange(1, len(ls)+2, (len(ls)//ticks_rate))
@@ -56,7 +40,7 @@ def plot_losses(solver):
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
 # TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
-# TODO: test with 5 epochs...
+# TODO: test with 5 epochs... and 3 epochs, toally scrwed up...
 def plot_gaussian_distributions(solver):
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
@@ -186,8 +170,8 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
 def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None):
-    x, y = solver.data_loader.img_dims
-    figure = np.zeros((x*n, y*n))
+    c, h, w = solver.data_loader.img_dims
+    figure = torch.zeros((c, h*n, w*n))
     # Decode for each square in the grid.
     solver.model.eval()
     with torch.no_grad():
@@ -206,33 +190,36 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
                     sample = torch.cat((x_t, z_sample), dim=-1)
                 else:
                     sample = z_sample
-                x_decoded = solver.model.decoder(sample).cpu().detach().numpy()
-                img = np.reshape(x_decoded[0], list(solver.data_loader.img_dims))
-                figure[i*x:(i+1)*x, j*y:(j+1)*y] = img
-
+                x_decoded = solver.model.decoder(sample)
+                figure[:, i*h:(i+1)*h, j*w:(j+1)*w] = x_decoded.view(*solver.data_loader.img_dims)
+    grid_img = torchvision.utils.make_grid(figure)
     plt.figure(figsize=fig_size)
     plt.axis("off")
     plt.xlabel("z_1")
     plt.ylabel("z_2")
-    plt.imshow(figure, cmap=cm)
+    plt.imshow(grid_img.permute(1, 2, 0), cmap=cm)
     plt.show()
+    # save stats of the grid (x,y ranges as defined in the notebook)
     with open(solver.data_loader.directories.result_dir + "/plot_learned_data_manifold_grids_" +\
         solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
         file_res.write("grid_x: {}\n".format(grid_x))
         file_res.write("grid_y: {}\n".format(grid_y))
-    _save_plot_fig(solver, figure, cm=cm, name="learned_data_manifold")
+    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+        "/plot_learned_data_manifold_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
 
 # Replicating the handstyle image example from Kingma et. al in Semisupervised VAE paper
-# Take a single test set image (first from each batch), encode it, use that fixed z, 
+# Take a single test set image (first from each batch), encode it, use that fixed z,
 # loop over all labels and print a row out with the fixed z but different labeled images
-def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
-    img_rows, img_cols = solver.data_loader.img_dims
-    figure = np.zeros((img_rows*n_rows, img_cols*n_cols))
+def plot_with_fixed_z(solver, cm, fig_size=(6, 6)):
+    c, h, w = solver.data_loader.img_dims
+    n_rows, n_cols = solver.data_loader.n_classes, solver.data_loader.n_classes+1
+    figure = torch.zeros((c, h*n_rows, w*n_cols))
     solver.model.eval()
     with torch.no_grad():
         for i, (data, target) in enumerate(solver.data_loader.test_loader):
-            if i == 10:
+            if i == n_rows:
                 break
+            # encode a single image from the test set
             x, y = data.to(solver.device)[0], target.to(solver.device)[0]
             y = y.view(1, 1)
             onehot = solver.model.onehot_encoding(y)
@@ -240,19 +227,22 @@ def plot_with_fixed_z(solver, n_rows, n_cols, cm, fig_size=(6, 6)):
             x_new = torch.cat((x, onehot), dim=-1)
             mu_x, logvar_x = solver.model.encoder(x_new)
             z = solver.model.reparameterization_trick(mu_x, logvar_x)
-            figure[i*img_rows:(i+1)*img_rows, 0:img_cols] = x.view(1, *solver.data_loader.img_dims).cpu().numpy() # the test image in leftmost column
-            for label in range(10): # just hardcoded to 10 outputs pr. row, otherwise call solver.data_loader.n_classes (but careful)
+            figure[:, i*h:(i+1)*h, 0:w] = x.view(*solver.data_loader.img_dims) # the test image in leftmost column
+            # decode an image for each class (looping over the columns basically)
+            for label in range(solver.data_loader.n_classes):
                 onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size))
                 onehot.zero_()
                 onehot[:, label] = 1.
                 z_new = torch.cat((z, onehot), dim=-1)
-                decoded = solver.model.decoder(z_new).view(1, *solver.data_loader.img_dims).cpu().numpy()
-                figure[i*img_rows:(i+1)*img_rows, (label+1)*img_cols: (label+2)*img_cols] = decoded
+                decoded = solver.model.decoder(z_new).view(*solver.data_loader.img_dims)
+                figure[:, i*h:(i+1)*h, (label+1)*w: (label+2)*w] = decoded
+    grid_img = torchvision.utils.make_grid(figure)
     plt.figure(figsize=fig_size)
     plt.axis("off")
-    plt.imshow(figure, cmap=cm)
+    plt.imshow(grid_img.permute(1, 2, 0), cmap=cm)
     plt.show()
-    _save_plot_fig(solver, figure, cm=cm, name="fixed_z_all_labels")
+    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+        "/plot_fixed_z_all_labels_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
 
 # make a bar chart with x being preprocessing group (scale/rotate), y the number of occurences
 # of each bin
@@ -339,62 +329,54 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
     plt.show()
 
 # takes only numpy array in, so mainly for testing puposes
-def plot_faces_grid(n, n_cols, solver, to_data, fig_size=(10, 8)):
-    img_rows, img_cols = solver.data_loader.img_dims
+def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
+    c, h, w = solver.data_loader.img_dims
     n_rows = int(np.ceil(n / float(n_cols)))
-    figure = np.zeros((img_rows * n_rows, img_cols * n_cols))
-    data = np.zeros((n, *to_data.shape[1:]))
+    figure = torch.zeros((c, h*n_rows, w*n_cols))
+    data = torch.zeros(n, *solver.data_loader.img_dims)
     remain = n
     offset = 0
-    while remain is not 0:
-        mini = min(to_data.shape[0], remain)
-        data[offset:(offset+mini)] = np.array(to_data)[:mini]
-        remain -= mini
-        offset += mini
+    # filling out the tensor with data from the batch
+    for _, batch in enumerate(solver.data_loader.train_loader):
+        batch = batch[0] if solver.data_loader.with_labels else batch
+        if remain is not 0:
+            extract = min(batch.shape[0], remain)
+            data[offset:(offset+extract)] = batch[:extract]
+            remain -= extract
+            offset += extract
+    # iterate over the batch and insert to figure tensor
     for k, x in enumerate(data):
-        r = k // n_cols
-        c = k % n_cols
-        figure[r*img_rows:(r+1)*img_rows,
-               c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
+        row = k // n_cols
+        col = k % n_cols
+        figure[:, row*h:(row+1)*h, col*w:(col+1)*w] =\
+            x.view(*solver.data_loader.img_dims)
+    grid_img = torchvision.utils.make_grid(figure)
     plt.figure(figsize=fig_size)
-    plt.imshow(figure, cmap="gray")
     plt.axis("off")
-    plt.tight_layout()
-    _save_plot_fig(solver, figure, cm="gray", name="faces_grid")
+    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
+    plt.show()
+    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+        "/plot_faces_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
 
-# plot sampled faces in a grid
+# plot sampled faces in a grid and saves to file
 def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
-    img_rows, img_cols = solver.data_loader.img_dims
-    n_rows = int(np.ceil(n / float(n_cols)))
-    figure = np.zeros((img_rows * n_rows, img_cols * n_cols))
+    c, h, w = solver.data_loader.img_dims
+    n_rows = int(np.ceil(n/float(n_cols)))
+    figure = torch.zeros((c, h*n_rows, w*n_cols))
     samples = torch.randn(n, solver.z_dim).to(solver.device)
     solver.model.eval()
     with torch.no_grad():
-        samples = solver.model.decoder(samples).cpu().detach().numpy()
+        # decode the n samples and iterate over them and insert to figure tensor
+        samples = solver.model.decoder(samples)
         for k, x in enumerate(samples):
-            r = k // n_cols
-            c = k % n_cols
-            figure[r*img_rows:(r+1)*img_rows,
-                c*img_cols:(c+1)*img_cols] = x.reshape(list(solver.data_loader.img_dims))
+            row = k // n_cols
+            col = k % n_cols
+            figure[:, row*h:(row+1)*h, col*w:(col+1)*w] =\
+                x.view(*solver.data_loader.img_dims)
+    grid_img = torchvision.utils.make_grid(figure)
     plt.figure(figsize=fig_size)
-    plt.imshow(figure, cmap="gray")
     plt.axis("off")
-    plt.tight_layout()
-    _save_plot_fig(solver, figure, cm="gray", name="faces_samples_grid")
-
-# Old - can be removed?
-# Useful if form is (10586, 1850) so no tensor
-# Plot gallery of faces
-def plot_gallery_old(images, img_dims, n_row=12, n_col=12):
-    gs = gridspec.GridSpec(n_row, n_col)
-    # set the space between subplots and the position of the subplots in the figure
-    gs.update(wspace=0.0, hspace=0.0, left=0.1, right=0.4, bottom=0.1, top=0.4) # adjust right and top for size
-    plt.figure(figsize=(1.8 * n_col, 2.4 * n_row))
-    #plt.subplots_adjust(left=None, bottom=None, right=None, top=None, wspace=None, hspace=None)
-    #plt.subplots_adjust(bottom=0, left=.01, right=.99, top=.90, hspace=.35)
-    for i, g in enumerate(gs): # range(n_row * n_col):
-        plt.subplot(g) #n_row, n_col, i + 1)
-        image = images[i].reshape(*img_dims).astype(int)
-        plt.imshow(image, cmap="gray")
-        plt.axis("off")
-        plt.tight_layout()
+    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
+    plt.show()
+    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+        "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
