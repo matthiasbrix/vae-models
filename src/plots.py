@@ -28,15 +28,16 @@ def plot_losses(solver):
     plt.plot(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test")
     ticks_rate = 4 if len(train_loss_history) >= 4 else len(train_loss_history)
     plt.xticks(_xticks(train_loss_history, ticks_rate))
-    plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset], solver.z_dim)) # marginal likelihood log p(x)
+    plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset], solver.z_dim))
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
             fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
-    plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" + \
-        DATASETS[solver.data_loader.dataset] + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" + \
+            DATASETS[solver.data_loader.dataset] + "_z=" + str(solver.z_dim) + ".png")
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
 # TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
@@ -96,15 +97,16 @@ def plot_gaussian_distributions(solver):
         ax.set(xlabel='x', ylabel='y')
 
     # writing stats results of z to file
-    with open(solver.data_loader.directories.result_dir + "/result_stats_" +\
-        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
-        file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
-        for idx in plots:
-            i = idx-1
-            epoch, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i],\
-            solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
-            file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
-            file_res.write("\n")
+    if solver.data_loader.directories.make_dirs:
+        with open(solver.data_loader.directories.result_dir + "/result_stats_" +\
+            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
+            file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
+            for idx in plots:
+                i = idx-1
+                epoch, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i],\
+                solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
+                file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
+                file_res.write("\n")
     if epochs <= 3:
         ax = axarr.flatten()[0]
     if epochs >= 4:
@@ -112,9 +114,9 @@ def plot_gaussian_distributions(solver):
     f.subplots_adjust(top=0.9, left=0.1, right=0.9, bottom=0.2)
     ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
             fancybox=True, shadow=True, ncol=5)
-
-    plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_gaussian_" +\
-        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_gaussian_" +\
+            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
 def plot_rl_kl(solver):
@@ -139,9 +141,10 @@ def plot_rl_kl(solver):
     plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta))
 
     plt.tight_layout()
-    plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_rl_kl_" \
-        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_rl_kl_"\
+            + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the latent space as scatter plot with and without labels
 def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None):
@@ -164,8 +167,9 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
     plt.title("Latent space q({}) on data set {} after {} epochs".format(var, DATASETS[solver.data_loader.dataset], solver.epochs))
-    plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
-        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
+            + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
@@ -199,13 +203,14 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
     plt.ylabel("z_2")
     plt.imshow(grid_img.permute(1, 2, 0), cmap=cm)
     plt.show()
-    # save stats of the grid (x,y ranges as defined in the notebook)
-    with open(solver.data_loader.directories.result_dir + "/plot_learned_data_manifold_grids_" +\
-        solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
-        file_res.write("grid_x: {}\n".format(grid_x))
-        file_res.write("grid_y: {}\n".format(grid_y))
-    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-        "/plot_learned_data_manifold_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
+    if solver.data_loader.directories.make_dirs:
+        # save stats of the grid (x,y ranges as defined in the notebook)
+        with open(solver.data_loader.directories.result_dir + "/plot_learned_data_manifold_grids_" +\
+            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
+            file_res.write("grid_x: {}\n".format(grid_x))
+            file_res.write("grid_y: {}\n".format(grid_y))
+        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+            "/plot_learned_data_manifold_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
 
 # Replicating the handstyle image example from Kingma et. al in Semisupervised VAE paper
 # Take a single test set image (first from each batch), encode it, use that fixed z,
@@ -241,8 +246,9 @@ def plot_with_fixed_z(solver, cm, fig_size=(6, 6)):
     plt.axis("off")
     plt.imshow(grid_img.permute(1, 2, 0), cmap=cm)
     plt.show()
-    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-        "/plot_fixed_z_all_labels_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
+    if solver.data_loader.directories.make_dirs:
+        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+            "/plot_fixed_z_all_labels_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
 
 # make a bar chart with x being preprocessing group (scale/rotate), y the number of occurences
 # of each bin
@@ -271,9 +277,10 @@ def plot_prepro_params_distribution(solver, xticks, param, title, ylabel, data=N
     plt.xticks(np.arange(0, len(counts)), labels=theta_bins, rotation=30)
     plt.title(title)
     plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25)
-    plt.savefig(solver.data_loader.directories.result_dir + "/plot_plot_prepro_params_distribution_" \
-        + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/plot_plot_prepro_params_distribution_" \
+            + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # stacked bar graph, x being the theta groups, y the count, the colors the different classes.
 def plot_prepro_params_distribution_categories(solver, xticks, param, title, ytitle, data=None):
@@ -324,9 +331,10 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
     plt.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, -0.175),
             fancybox=True, shadow=True, ncol=6)
     plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
-    plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_params_distribution_categories_" \
-            + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
     plt.show()
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_params_distribution_categories_" \
+                + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
@@ -355,8 +363,9 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
     plt.axis("off")
     plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
     plt.show()
-    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-        "/plot_faces_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
+    if solver.data_loader.directories.make_dirs:
+        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+            "/plot_faces_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
 
 # plot sampled faces in a grid and saves to file
 def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
@@ -378,5 +387,6 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     plt.axis("off")
     plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
     plt.show()
-    torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-        "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
+    if solver.data_loader.directories.make_dirs:
+        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+            "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")

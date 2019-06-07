@@ -76,7 +76,7 @@ class Training(object):
                     self.solver.data_labels[start:end] = y
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space
-                if self.solver.data_loader.rotate_obj or self.solver.data_loader.scale_obj:
+                if self.solver.data_loader.thetas or self.solver.data_loader.scales:
                     self.solver.data_loader.train_loader.dataset.transform.save_params()
 
 class Testing(object):
@@ -97,7 +97,7 @@ class Testing(object):
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
         loss, _, _ = self.solver.model.loss_function(decoded, x, mu_x, logvar_x, self.solver.beta)
         epoch_metrics.compute_batch_test_metrics(loss.item())
-        if batch_idx == 0: # check w/ test set on first batch in test set.
+        if batch_idx == 0 and self.solver.data_loader.directories.make_dirs: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
             comparison = torch.cat([x.view(x.size(0), *self.solver.data_loader.img_dims)[:n],\
                 decoded.view(x.size(0), *self.solver.data_loader.img_dims)[:n]])
@@ -121,9 +121,6 @@ class Solver(object):
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
-        # TODO: weight decay was used corresponding to a prior of (\theta, \phi) ∼ N(0,I) - correct?
-        # https://stats.stackexchange.com/questions/163388/l2-regularization-is-equivalent-to-gaussian-prior
-        # Kingma does this below but says the above?
         optim_config["weight_decay"] = float(self.data_loader.num_train_batches)/float(self.data_loader.num_train_samples)
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
@@ -235,7 +232,8 @@ class Solver(object):
                 testing.test(epoch, epoch_metrics)
                 test_loss = self._save_test_metrics(epoch_metrics)
                 print("====> Test set loss avg: {:.4f}".format(test_loss))
-            self._sample(epoch, self.num_samples)
+            if self.data_loader.directories.make_dirs:
+                self._sample(epoch, self.num_samples)
             if self.lr_scheduler:
                 self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
