@@ -18,8 +18,6 @@ class DataLoader():
         self.dataset = dataset
         self.thetas = thetas
         self.scales = scales
-        self.scale_obj = None
-        self.rotate_obj = None
         self.prepro_params = {}
         root = directories.data_dir_prefix+dataset
         
@@ -91,15 +89,13 @@ class DataLoader():
 
     def _get_transform(self):
         if self.thetas and not self.scales:
-            self.rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
-            return self.rotate_obj
+            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
         if self.scales and not self.thetas:
-            self.scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.prepro_params)
-            return self.scale_obj
+            return Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.prepro_params)
         if self.scales and self.thetas:
-            self.scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.prepro_params)
-            self.rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
-            return transforms.Compose([self.scale_obj, CustomToPILImage(), self.rotate_obj])
+            scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.prepro_params)
+            rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
+            return transforms.Compose([scale_obj, CustomToPILImage(), rotate_obj])
         else:
             return transforms.ToTensor()
 
