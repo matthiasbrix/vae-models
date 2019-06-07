@@ -76,10 +76,8 @@ class Training(object):
                     self.solver.data_labels[start:end] = y
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space
-                if self.solver.data_loader.scale_obj:
-                    self.solver.data_loader.scale_obj.save_params()
-                if self.solver.data_loader.rotate_obj:
-                    self.solver.data_loader.rotate_obj.save_params()     
+                if self.solver.data_loader.rotate_obj or self.solver.data_loader.scale_obj:
+                    self.solver.data_loader.train_loader.dataset.transform.save_params()
 
 class Testing(object):
     def __init__(self, solver):

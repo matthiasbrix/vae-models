@@ -4,6 +4,8 @@ import torchvision.transforms.functional as TF
 import torch.nn.functional as F
 import numpy as np
 
+# TODO: problem is that when we save 
+
 class Rotate(object):
     def __init__(self, batch_size, theta_range_1, theta_range_2, prepro_params=None):
         self.count = 0

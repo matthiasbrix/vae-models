@@ -62,7 +62,6 @@ class DataLoader():
             test_set = datasets.SVHN(root=root, split="test", transform=transforms.ToTensor(), download=True)
         else:
             raise ValueError("DATASET N/A!")
-        # TODO: include the channel in dims and adjust other code accordingly
         self.input_dim = np.prod(self.img_dims)
         self.with_labels = dataset != "FF"
         self.single_x = single_x
