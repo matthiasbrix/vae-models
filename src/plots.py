@@ -20,12 +20,10 @@ def _xticks(ls, ticks_rate):
     return labels.astype(int)
 
 # Plotting train and test losses
-def plot_losses(solver):
-    train_loss_history = solver.train_loss_history["train_loss_acc"]
-    test_loss_history = solver.test_loss_history
+def plot_losses(solver, train_loss_history, test_loss_history):
     plt.figure(figsize=(5, 3))
     plt.plot(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train")
-    plt.plot(np.arange(1, len(solver.test_loss_history)+1), test_loss_history, label="Test")
+    plt.plot(np.arange(1, len(test_loss_history)+1), test_loss_history, label="Test")
     ticks_rate = 4 if len(train_loss_history) >= 4 else len(train_loss_history)
     plt.xticks(_xticks(train_loss_history, ticks_rate))
     plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset], solver.z_dim))
@@ -36,17 +34,16 @@ def plot_losses(solver):
     plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
     plt.show()
     if solver.data_loader.directories.make_dirs:
-        plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" + \
-            DATASETS[solver.data_loader.dataset] + "_z=" + str(solver.z_dim) + ".png")
+        plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" +\
+            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
 # TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
 # TODO: test with 5 epochs... and 3 epochs, toally scrwed up...
-def plot_gaussian_distributions(solver):
+def plot_gaussian_distributions(solver, epochs):
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
     idx_y = 0
-    epochs = len(solver.train_loss_history["train_loss_acc"]) # in case run was canceled
     #if epochs % 2 != 0:
     #    plots = np.arange(1, epochs+1, np.ceil(epochs/4)+1).astype(int)
     #    plots[2:] += 1
@@ -105,7 +102,7 @@ def plot_gaussian_distributions(solver):
                 i = idx-1
                 epoch, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i],\
                 solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
-                file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z.item()), 4)))
+                file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z), 4)))
                 file_res.write("\n")
     if epochs <= 3:
         ax = axarr.flatten()[0]
@@ -119,9 +116,7 @@ def plot_gaussian_distributions(solver):
             solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
-def plot_rl_kl(solver):
-    rls = solver.train_loss_history["recon_loss_acc"]
-    kls = solver.train_loss_history["kl_diverg_acc"]
+def plot_rl_kl(solver, rls, kls):
     x = np.arange(1, len(kls)+1)
     plt.figure(figsize=(4.5, 5))
 
