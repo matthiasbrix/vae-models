@@ -1,4 +1,5 @@
 import time
+import pickle
 
 import torch
 import torch.utils.data
@@ -151,7 +152,7 @@ class Solver(object):
         self.z_stats_history["mu_z"].append(metrics.mu_z/num_train_batches)
         self.z_stats_history["std_z"].append(metrics.std_z/num_train_batches)
         self.z_stats_history["varmu_z"].append(metrics.varmu_z/num_train_batches)
-        self.z_stats_history["expected_var_z"].append(metrics.expected_var_z/num_train_batches)
+        self.z_stats_history["expected_var_z"].append((metrics.expected_var_z/num_train_batches).item())
         return train_loss
     
     def _save_test_metrics(self, metrics):
@@ -213,6 +214,22 @@ class Solver(object):
             params += str(self.model)
             param_file.write(params)
 
+    # can be used to load the dumped file and then use the data for plotting
+    def dump_stats_to_log(self):
+        with open(self.data_loader.directories.result_dir + "/logged_metrics.pt", 'wb') as fp:
+            pickle.dump(self.train_loss_history["epochs"], fp)
+            pickle.dump(self.train_loss_history["train_loss_acc"], fp)
+            pickle.dump(self.test_loss_history, fp)
+            pickle.dump(self.train_loss_history["recon_loss_acc"], fp)
+            pickle.dump(self.train_loss_history["kl_diverg_acc"], fp)
+            pickle.dump(self.z_stats_history["mu_z"], fp)
+            pickle.dump(self.z_stats_history["std_z"], fp)
+            pickle.dump(self.z_stats_history["varmu_z"], fp)
+            pickle.dump(self.z_stats_history["expected_var_z"], fp)
+            pickle.dump(self.z_space, fp)
+            pickle.dump(self.y_space, fp)
+            pickle.dump(self.data_labels, fp)
+
     def main(self):
         if self.data_loader.directories.make_dirs:
             print("+++++ START RUN | saved files in {} +++++".format(\
@@ -240,4 +257,5 @@ class Solver(object):
         self.z_space = self.z_space.cpu().detach().numpy()
         self.y_space = self.y_space.cpu().detach().numpy()
         self.data_labels = self.data_labels.cpu().detach().numpy()
+        self.dump_stats_to_log()
         print("+++++ RUN IS FINISHED +++++")
