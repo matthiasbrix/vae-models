@@ -162,7 +162,7 @@ class Solver(object):
 
     # generating samples from only the decoder
     def _sample(self, epoch, num_samples):
-        if self.data_loader.directories.make_dirs:
+        if not self.data_loader.directories.make_dirs:
             return
         with torch.no_grad():
             if self.cvae_mode:
