@@ -162,6 +162,8 @@ class Solver(object):
 
     # generating samples from only the decoder
     def _sample(self, epoch, num_samples):
+        if not self.data_loader.directories.make_dirs:
+            return
         with torch.no_grad():
             if self.cvae_mode:
                 z_sample = torch.randn(num_samples, self.z_dim)
@@ -216,6 +218,8 @@ class Solver(object):
 
     # can be used to load the dumped file and then use the data for plotting
     def dump_stats_to_log(self):
+        if not self.data_loader.directories.make_dirs:
+            return
         with open(self.data_loader.directories.result_dir + "/logged_metrics.pt", 'wb') as fp:
             pickle.dump(self.train_loss_history["epochs"], fp)
             pickle.dump(self.train_loss_history["train_loss_acc"], fp)
@@ -249,8 +253,7 @@ class Solver(object):
                 testing.test(epoch, epoch_metrics)
                 test_loss = self._save_test_metrics(epoch_metrics)
                 print("====> Test set loss avg: {:.4f}".format(test_loss))
-            if self.data_loader.directories.make_dirs:
-                self._sample(epoch, self.num_samples)
+            self._sample(epoch, self.num_samples)
             if self.lr_scheduler:
                 self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))

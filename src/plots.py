@@ -40,6 +40,7 @@ def plot_losses(solver, train_loss_history, test_loss_history):
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
 # TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
 # TODO: test with 5 epochs... and 3 epochs, toally scrwed up...
+# TODO: like here for (0,0)? https://matplotlib.org/3.1.0/gallery/scales/power_norm.html#sphx-glr-gallery-scales-power-norm-py
 def plot_gaussian_distributions(solver, epochs):
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
@@ -330,6 +331,10 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_params_distribution_categories_" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+
+# TODO:
+def plot_prepro_params_distribution2():
+    pass
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
