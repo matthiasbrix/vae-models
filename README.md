@@ -2,4 +2,8 @@ Run first
 ```
 pip3 install -r requirements.txt
 ```
-and then from the jupyter notebook
+or
+```
+conda install --file requirements.txt
+```
+and then run the models and plots from the jupyter notebooks
