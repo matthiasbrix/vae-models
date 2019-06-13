@@ -100,7 +100,7 @@ class DataLoader():
             return transforms.ToTensor()
 
     def _set_data_loader(self, train_set, test_set):
-        kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
+        kwargs = {} # {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
         if self.single_x and self.specific_class:
             self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
                 batch_size=self.batch_size, sampler=ClassSampler(train_set, self.specific_class, True),\
