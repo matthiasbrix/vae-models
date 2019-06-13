@@ -1,6 +1,7 @@
-torch==1.0.1.post2
+pytorch==1.0.1.post2
 torchvision==0.2.2
 matplotlib==3.0.3
 sklearn==0.20.3
 numpy==1.16.2
 python==3.6.8
+scikit-image==0.15.0

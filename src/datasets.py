@@ -2,6 +2,7 @@ from torch.utils.data import Dataset
 from sklearn.datasets import fetch_lfw_people
 import scipy.io
 import torch
+from load import load_all_volumes
 
 class DatasetFF(Dataset):
     def __init__(self, file_path):
@@ -38,5 +39,17 @@ class DatasetLFW(Dataset):
     def __len__(self):
         return len(self.data)
     
+    def __getitem__(self, idx):
+        return self.data[idx]
+
+class DatasetLungScans(Dataset):
+    def __init__(self, file_path, volumes):
+        # prepend root to path
+        volumes = [file_path+volume for volume in volumes]
+        self.data = load_all_volumes(volumes)
+    
+    def __len__(self):
+        return len(self.data)
+
     def __getitem__(self, idx):
         return self.data[idx]

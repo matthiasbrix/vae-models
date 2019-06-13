@@ -2,7 +2,7 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import numpy as np
-from datasets import DatasetFF, DatasetLFW
+from datasets import DatasetFF, DatasetLFW, DatasetLungScans
 from samplers import ClassSampler, SingleDataPointSampler
 from transforms import Rotate, Scale, CustomToPILImage
 
@@ -23,14 +23,12 @@ class DataLoader():
         
         if dataset == "MNIST":
             self.n_classes = 10
-            self.c = 1
-            self.h = 28
-            self.w = 28
-            self.img_dims = (self.c, self.h, self.w)
             if self.thetas or self.scales:
                 self._init_transforms()
             train_set = datasets.MNIST(root=root, train=True, transform=self._get_transform(), download=True)
             test_set = datasets.MNIST(root=root, train=False, transform=self._get_transform(), download=True)
+            self.c, self.h, self.w = (train_set)[0][0][0].shape
+            self.img_dims = (self.c, self.h, self.w)
         elif dataset == "LFW":
             self.c = 1
             data = DatasetLFW(root)
@@ -58,6 +56,26 @@ class DataLoader():
             self.img_dims = (self.c, self.h, self.w)
             train_set = datasets.SVHN(root=root, split="train", transform=transforms.ToTensor(), download=True)
             test_set = datasets.SVHN(root=root, split="test", transform=transforms.ToTensor(), download=True)
+        elif dataset == "LungScans":
+            self.c = 1
+            self.h = 384
+            self.w = 384
+            self.img_dims = (self.c, self.h, self.w)
+            # reading all the sets of images that are specified in the list
+            # TODO make a smarter than hardcoding it?
+            folders = ["/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/",
+                       "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/",
+                       "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
+            data = DatasetLungScans(root, folders)
+            train_size = int(0.8 * len(data))
+            test_size = len(data) - train_size
+            train_set, test_set = torch.utils.data.random_split(data, [train_size, test_size])
+            print(data[0].shape)
+            print(train_set, test_set, len(data), len(train_set), len(test_set))
+            exit(0)
+            #print(volumes)
+            #train_set = datasets.SVHN(root=root, split="train", transform=transforms.ToTensor(), download=True)
+            #test_set = datasets.SVHN(root=root, split="test", transform=transforms.ToTensor(), download=True)
         else:
             raise ValueError("DATASET N/A!")
         self.input_dim = np.prod(self.img_dims)
@@ -100,7 +118,7 @@ class DataLoader():
             return transforms.ToTensor()
 
     def _set_data_loader(self, train_set, test_set):
-        kwargs = {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
+        kwargs = {} # {'num_workers': 1, 'pin_memory': True} if torch.cuda.is_available() else {}
         if self.single_x and self.specific_class:
             self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
                 batch_size=self.batch_size, sampler=ClassSampler(train_set, self.specific_class, True),\

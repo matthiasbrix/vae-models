@@ -5,9 +5,10 @@ import matplotlib.pyplot as plt
 from os import listdir
 from os.path import isfile, join
 
-# TODO: use dcim to get timestamps out of it.
-
-def loadVolume(root):
+# is reading each volumn/set of files and return it as a list of numpy matrices
+# typically a volume has 64 images, each with dimension 384, 384
+# returns matrix (64, 384, 384)
+def load_volume(root):
     sortfunc = lambda f: int(f.split('.')[2].split(' ')[1])
     files = sorted([f for f in listdir(root) if isfile(join(root, f))], key=sortfunc)
     slices = []
@@ -17,20 +18,15 @@ def loadVolume(root):
     volume = np.stack(slices)
     return volume
 
-folders = ['data/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/',
-	    'data/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/',
-	    'data/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/']
-volumes = []
-for f in folders:
-	volumes.append(loadVolume(f))
-# volumes = [loadVolume(f) for f in folders]
+def load_all_volumes(volumes):
+    return [load_volume(f) for f in volumes]
 
-#remaining code is for interactive viewer. you can change the viewing index with e and r keys
+# remaining code is for interactive viewer. you can change the viewing index with e and r keys
 def multi_slice_viewer(volume):
     fig, ax = plt.subplots()
     ax.volume = volume
     ax.index = 32
-    ax.im=0
+    ax.im = 0
     ax.imshow(volume[0][ax.index])
     fig.canvas.mpl_connect('key_press_event', process_key)
     plt.show()
@@ -49,5 +45,11 @@ def process_key(event):
     print(ax.im, ax.index)
     ax.images[0].set_array(ax.volume[ax.im][ax.index])
     fig.canvas.draw()
-    
-multi_slice_viewer(volumes)
+
+if __name__ == "__main__":
+    # reading all the sets of images.
+    folders = ['../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/',
+            '../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/',
+            '../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/']
+    volumes = [load_volume(f) for f in folders]
+    multi_slice_viewer(volumes)

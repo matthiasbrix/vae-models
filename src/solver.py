@@ -212,7 +212,7 @@ class Solver(object):
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
             params += "single image: {}\n".format(self.data_loader.single_x)
             params += "specific class: {}\n".format(self.data_loader.specific_class)
-            params += "\n"
+            params += "model:\n"
             params += str(self.model)
             param_file.write(params)
 
