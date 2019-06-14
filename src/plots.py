@@ -10,7 +10,8 @@ DATASETS = {
     "MNIST": "MNIST",
     "FF": "Frey Faces",
     "LFW": "Labeled Faces in the Wild",
-    "SVHN": "SVHN"
+    "SVHN": "SVHN",
+    "LungScans": "Lung Scans"
 }
 
 def _xticks(ls, ticks_rate):
