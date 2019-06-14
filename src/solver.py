@@ -78,8 +78,10 @@ class Training(object):
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space
                 if self.solver.data_loader.thetas or self.solver.data_loader.scales:
+                    # TODO
                     if self.solver.data_loader.data: # for datasets not called from torchvision.dataset
-                        self.solver.data_loader.data.transform.save_params()
+                        a = self.solver.data_loader.data.transform.transforms
+                        a[1].save_params()
                     elif self.solver.data_loader.train_loader.dataset: # for MNIST (proper way to do it)
                         self.solver.data_loader.train_loader.dataset.transform.save_params()
 

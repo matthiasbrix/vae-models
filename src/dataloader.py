@@ -67,14 +67,22 @@ class DataLoader():
             folders = ["/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
-            self.data = DatasetLungScans(root, folders, self._get_transform())
+            trans = transforms.Compose([
+                transforms.CenterCrop(60),
+                Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
+            ])
+            self.data = DatasetLungScans(root, folders, trans)
             train_size = int(0.8 * len(self.data))
             test_size = len(self.data) - train_size
             train_set, test_set = torch.utils.data.random_split(self.data, [train_size, test_size])
         else:
             raise ValueError("DATASET N/A!")
-        self.input_dim = np.prod(self.img_dims)
-        self.with_labels = dataset != "FF" and dataset != "LungScans"
+        # TODO
+        #self.input_dim = np.prod(self.img_dims)
+        self.img_dims = (self.c, 60, 60)
+        self.input_dim = 60*60
+        #
+        self.with_labels = dataset not in ["FF", "LungScans"]
         self.single_x = single_x
         self.specific_class = specific_class
         self._set_data_loader(train_set, test_set)

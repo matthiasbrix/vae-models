@@ -33,7 +33,6 @@ def plot_losses(solver, train_loss_history, test_loss_history):
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
             fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
-    plt.show()
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" +\
             solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
@@ -137,7 +136,6 @@ def plot_rl_kl(solver, rls, kls):
     plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta))
 
     plt.tight_layout()
-    plt.show()
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_rl_kl_"\
             + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
@@ -273,7 +271,6 @@ def plot_prepro_params_distribution(solver, xticks, param, title, ylabel, data=N
     plt.xticks(np.arange(0, len(counts)), labels=theta_bins, rotation=30)
     plt.title(title)
     plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25)
-    plt.show()
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_plot_prepro_params_distribution_" \
             + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")

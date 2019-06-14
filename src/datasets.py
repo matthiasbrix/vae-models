@@ -56,5 +56,6 @@ class DatasetLungScans(Dataset):
 
     def __getitem__(self, idx):
         if self.transform is not None:
-            return self.transform(transforms.ToPILImage()(self.data[idx]))
+            image = torch.FloatTensor(np.expand_dims(self.data[idx], axis=0))
+            return self.transform(transforms.ToPILImage()(image))
         return self.data[idx]
