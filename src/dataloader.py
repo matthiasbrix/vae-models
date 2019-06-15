@@ -70,11 +70,11 @@ class DataLoader():
             # resizes to 80x80 images - just hardcoded for now
             new_spatial_dims = tuple([80 for x in list(self.img_dims[1:])])
             self.img_dims = (self.c, *new_spatial_dims)
-            self.input_dim = np.prod(self.img_dims)
             train_set, test_set = self._split_dataset(self.data)
         else:
             raise ValueError("DATASET N/A!")
 
+        self.input_dim = np.prod(self.img_dims)
         self.with_labels = dataset not in ["FF", "LungScans"]
         self.single_x = single_x
         self.specific_class = specific_class
