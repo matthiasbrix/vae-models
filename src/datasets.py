@@ -49,6 +49,8 @@ class DatasetLungScans(Dataset):
         # prepend root to path
         volumes = [file_path+volume for volume in volumes]
         self.data = np.concatenate(tuple(load_all_volumes(volumes)), axis=0)
+        # normalize to (0,1)
+        self.data = (self.data - np.min(self.data))/np.ptp(self.data)
         self.transform = transform
     
     def __len__(self):

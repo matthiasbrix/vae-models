@@ -37,18 +37,14 @@ class DataLoader():
             self.w = data.w
             self.img_dims = (self.c, self.h, self.w)
             self.n_classes = data.num_classes
-            train_size = int(0.8 * len(data))
-            test_size = len(data) - train_size
-            train_set, test_set = torch.utils.data.random_split(data, [train_size, test_size])
+            train_set, test_set = self._split_dataset(data)
         elif dataset == "FF":
             self.c = 1
             self.h = 28
             self.w = 20
             self.img_dims = (self.c, self.h, self.w)
             data = DatasetFF(root)
-            train_size = int(0.8 * len(data))
-            test_size = len(data) - train_size
-            train_set, test_set = torch.utils.data.random_split(data, [train_size, test_size])
+            train_set, test_set = self._split_dataset(data)
         elif dataset == "SVHN":
             self.n_classes = 10
             self.c = 3
@@ -63,25 +59,22 @@ class DataLoader():
             self.w = 384
             self.img_dims = (self.c, self.h, self.w)
             # reading all the sets of images that are specified in the list
-            # TODO make a smarter than hardcoding it?
             folders = ["/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
-            trans = transforms.Compose([
-                transforms.CenterCrop(60),
-                Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
-            ])
-            self.data = DatasetLungScans(root, folders, trans)
-            train_size = int(0.8 * len(self.data))
-            test_size = len(self.data) - train_size
-            train_set, test_set = torch.utils.data.random_split(self.data, [train_size, test_size])
+            transform = transforms.Compose([
+                            transforms.Resize((80, 80)),
+                            Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
+                        ])
+            self.data = DatasetLungScans(root, folders, transform)
+            # resizes to 67x67 images - just hardcoded for now
+            new_spatial_dims = tuple([80 for x in list(self.img_dims[1:])])
+            self.img_dims = (self.c, *new_spatial_dims)
+            self.input_dim = np.prod(self.img_dims)
+            train_set, test_set = self._split_dataset(self.data)
         else:
             raise ValueError("DATASET N/A!")
-        # TODO
-        #self.input_dim = np.prod(self.img_dims)
-        self.img_dims = (self.c, 60, 60)
-        self.input_dim = 60*60
-        #
+
         self.with_labels = dataset not in ["FF", "LungScans"]
         self.single_x = single_x
         self.specific_class = specific_class
@@ -144,3 +137,8 @@ class DataLoader():
                 batch_size=self.batch_size, drop_last=True, shuffle=True)
             self.test_loader = torch.utils.data.DataLoader(dataset=test_set,\
                 batch_size=self.batch_size, drop_last=True, shuffle=True)
+
+    def _split_dataset(self, data):
+        train_size = int(0.8 * len(data))
+        test_size = len(data) - train_size
+        return torch.utils.data.random_split(data, [train_size, test_size])
