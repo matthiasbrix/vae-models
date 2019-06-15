@@ -67,7 +67,7 @@ class DataLoader():
                             Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
                         ])
             self.data = DatasetLungScans(root, folders, transform)
-            # resizes to 67x67 images - just hardcoded for now
+            # resizes to 80x80 images - just hardcoded for now
             new_spatial_dims = tuple([80 for x in list(self.img_dims[1:])])
             self.img_dims = (self.c, *new_spatial_dims)
             self.input_dim = np.prod(self.img_dims)
