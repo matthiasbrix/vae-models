@@ -78,7 +78,12 @@ class Training(object):
                 if y_space is not None:
                     self.solver.y_space[start:end, :] = y_space
                 if self.solver.data_loader.thetas or self.solver.data_loader.scales:
-                    self.solver.data_loader.train_loader.dataset.transform.save_params()
+                    if self.solver.data_loader.data: # for datasets not called from torchvision.dataset
+                        self.solver.data_loader.data.transform.transforms[-1].save_params()
+                    elif self.solver.data_loader.train_loader.dataset: # for MNIST (proper way to do it)
+                        self.solver.data_loader.train_loader.dataset.transform.save_params()
+                    else:
+                        raise ValueError("SAVE PARAMS N/A!")
 
 class Testing(object):
     def __init__(self, solver):
@@ -212,7 +217,7 @@ class Solver(object):
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
             params += "single image: {}\n".format(self.data_loader.single_x)
             params += "specific class: {}\n".format(self.data_loader.specific_class)
-            params += "\n"
+            params += "model:\n"
             params += str(self.model)
             param_file.write(params)
 

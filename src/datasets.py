@@ -2,6 +2,9 @@ from torch.utils.data import Dataset
 from sklearn.datasets import fetch_lfw_people
 import scipy.io
 import torch
+import numpy as np
+from load import load_all_volumes
+import torchvision.transforms as transforms
 
 class DatasetFF(Dataset):
     def __init__(self, file_path):
@@ -39,4 +42,22 @@ class DatasetLFW(Dataset):
         return len(self.data)
     
     def __getitem__(self, idx):
+        return self.data[idx]
+
+class DatasetLungScans(Dataset):
+    def __init__(self, file_path, volumes, transform=None):
+        # prepend root to path
+        volumes = [file_path+volume for volume in volumes]
+        self.data = np.concatenate(tuple(load_all_volumes(volumes)), axis=0)
+        # normalize to (0,1)
+        self.data = (self.data - np.min(self.data))/np.ptp(self.data)
+        self.transform = transform
+    
+    def __len__(self):
+        return len(self.data)
+
+    def __getitem__(self, idx):
+        if self.transform is not None:
+            image = torch.FloatTensor(np.expand_dims(self.data[idx], axis=0))
+            return self.transform(transforms.ToPILImage()(image))
         return self.data[idx]

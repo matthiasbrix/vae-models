@@ -14,7 +14,7 @@ class Rotate(object):
         self.theta_1 = 0
         self.theta_2 = 0
 
-    # is called data point wise, hence need to count for batch to apply one 
+    # is called data point wise, hence need to count for batch to apply one
     # set of angles to a batch
     def __call__(self, sample):
         x_t = sample
