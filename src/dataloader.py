@@ -7,7 +7,7 @@ from samplers import ClassSampler, SingleDataPointSampler
 from transforms import Rotate, Scale, CustomToPILImage
 
 class DataLoader():
-    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False, specific_class=None):
+    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False, specific_class=None, resize=None):
         self.directories = directories
         self.n_classes = None
         self.c = None
@@ -62,14 +62,15 @@ class DataLoader():
             folders = ["/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
-            transform = transforms.Compose([
-                            transforms.Resize((80, 80)),
-                            Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
-                        ])
+            if resize:
+                transform = transforms.Compose([
+                                transforms.Resize(*resize),
+                                Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
+                            ])
+            else:
+                transform = None
             self.data = DatasetLungScans(root, folders, transform)
-            # resizes to 80x80 images - just hardcoded for now
-            new_spatial_dims = tuple([80 for x in list(self.img_dims[1:])])
-            self.img_dims = (self.c, *new_spatial_dims)
+            self.img_dims = (self.c, *resize)
             train_set, test_set = self._split_dataset(self.data)
         else:
             raise ValueError("DATASET N/A!")
