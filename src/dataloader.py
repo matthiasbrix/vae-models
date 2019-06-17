@@ -7,8 +7,10 @@ from samplers import ClassSampler, SingleDataPointSampler
 from transforms import Rotate, Scale, CustomToPILImage
 
 class DataLoader():
-    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False, specific_class=None, resize=None):
+    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False,\
+        specific_class=None, resize=None):
         self.directories = directories
+        self.data = None
         self.n_classes = None
         self.c = None
         self.h = None
@@ -64,9 +66,9 @@ class DataLoader():
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
             if resize:
                 transform = transforms.Compose([
-                                transforms.Resize(*resize),
-                                Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
-                            ])
+                    transforms.Resize(*resize),
+                    Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
+                ])
             else:
                 transform = None
             self.data = DatasetLungScans(root, folders, transform)
@@ -81,7 +83,7 @@ class DataLoader():
         self.specific_class = specific_class
         self._set_data_loader(train_set, test_set)
         self.num_train_batches = len(self.train_loader)
-        self.num_train_samples = len(self.train_loader.dataset)
+        self.num_train_samples = self.num_train_batches*self.batch_size
         self.num_test_samples = 0 if self.single_x and not self.specific_class\
                                 else len(self.test_loader.dataset)
 

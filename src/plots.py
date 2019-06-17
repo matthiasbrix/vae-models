@@ -103,7 +103,9 @@ def plot_gaussian_distributions(solver, epochs):
                 i = idx-1
                 epoch, varmu_z, expected_var_z = solver.train_loss_history["epochs"][i],\
                 solver.z_stats_history["varmu_z"][i], solver.z_stats_history["expected_var_z"][i]
-                file_res.write(str(epoch) + "," + str(np.around(np.array(varmu_z), 4)) + "," + str(np.around(np.array(expected_var_z), 4)))
+                file_res.write(str(epoch) + ","\
+                    + str(np.around(np.array(varmu_z), 4)) + ","\
+                    + str(np.around(np.array(expected_var_z), 4)))
                 file_res.write("\n")
     if epochs <= 3:
         ax = axarr.flatten()[0]
@@ -331,7 +333,7 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # TODO:
-def plot_prepro_params_distribution2():
+def plot_prepro_alpha_params_distribution():
     pass
 
 # takes only numpy array in, so mainly for testing puposes

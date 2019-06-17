@@ -68,22 +68,29 @@ class Training(object):
             else:
                 x = data
                 z_space, y_space = self._train_batch(epoch_metrics, x)
-            # saving the z space, and y space if it's available
+                # saving the z space, and y space if it's available
             if epoch == self.solver.epochs:
                 start = batch_idx*self.solver.data_loader.batch_size
                 end = (batch_idx+1)*self.solver.data_loader.batch_size
-                self.solver.z_space[start:end, :] = z_space
                 if self.solver.data_loader.with_labels and y is not None:
                     self.solver.data_labels[start:end] = y
-                if y_space is not None:
-                    self.solver.y_space[start:end, :] = y_space
-                if self.solver.data_loader.thetas or self.solver.data_loader.scales:
-                    if self.solver.data_loader.data: # for datasets not called from torchvision.dataset
-                        self.solver.data_loader.data.transform.transforms[-1].save_params()
-                    elif self.solver.data_loader.train_loader.dataset: # for MNIST (proper way to do it)
-                        self.solver.data_loader.train_loader.dataset.transform.save_params()
-                    else:
-                        raise ValueError("SAVE PARAMS N/A!")
+                self._save_spaces(start, end, 0, z_space, y_space)
+                # loop over num generations time, mainly used for rotation and scaling
+                for gen_idx in range(2, self.solver.num_generations*2, 2):
+                    z_space, y_space = self._train_batch(epoch_metrics, x, y)
+                    self._save_spaces(start, end, gen_idx, z_space, y_space)
+                    
+    def _save_spaces(self, start, end, gen_idx, z_space, y_space):
+        self.solver.z_space[start:end, gen_idx:(gen_idx+2)] = z_space
+        if y_space is not None:
+            self.solver.y_space[start:end, gen_idx:(gen_idx+2)] = y_space
+        if self.solver.data_loader.thetas or self.solver.data_loader.scales:
+            if self.solver.data_loader.data: # for datasets not called from torchvision.dataset and packed in a compose
+                self.solver.data_loader.data.transform.transforms[-1].save_params()
+            elif self.solver.data_loader.train_loader.dataset: # for MNIST (proper way to do it)
+                self.solver.data_loader.train_loader.dataset.transform.save_params()
+            else:
+                raise ValueError("SAVE OF PARAMETERS N/A!")
 
 class Testing(object):
     def __init__(self, solver):
@@ -122,7 +129,7 @@ class Testing(object):
 
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, z_dim, epochs, beta, step_config,\
-            optim_config, lr_scheduler=None, num_samples=100, cvae_mode=False,\
+            optim_config, lr_scheduler=None, num_samples=100, num_generations=1, cvae_mode=False,\
             tdcvae_mode=False):
         self.data_loader = data_loader
         self.model = model
@@ -139,16 +146,18 @@ class Solver(object):
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.z_space = torch.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim), device=self.device)
-        self.y_space = torch.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size, z_dim), device=self.device)
-        self.data_labels = torch.zeros((len(self.data_loader.train_loader)*self.data_loader.batch_size), device=self.device)
+        self.z_space = torch.zeros((self.data_loader.num_train_samples, z_dim*num_generations), device=self.device)
+        self.y_space = torch.zeros((self.data_loader.num_train_samples, z_dim*num_generations), device=self.device)
+        self.data_labels = torch.zeros((self.data_loader.num_train_samples), device=self.device)
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
+        self.num_generations = num_generations
 
     def _save_train_metrics(self, epoch, metrics):
-        num_train_samples = self.data_loader.num_train_samples
-        num_train_batches = self.data_loader.num_train_batches
+        num_generations = 1 if epoch != self.epochs else self.num_generations
+        num_train_samples = self.data_loader.num_train_samples*num_generations
+        num_train_batches = self.data_loader.num_train_batches*num_generations
         train_loss = metrics.train_loss_acc/num_train_samples
         self.train_loss_history["epochs"].append(epoch) # just for debug mode (in case we finish earlier)
         self.train_loss_history["train_loss_acc"].append(train_loss)
@@ -159,7 +168,7 @@ class Solver(object):
         self.z_stats_history["varmu_z"].append(metrics.varmu_z/num_train_batches)
         self.z_stats_history["expected_var_z"].append((metrics.expected_var_z/num_train_batches).item())
         return train_loss
-    
+
     def _save_test_metrics(self, metrics):
         test_loss = metrics.test_loss_acc/self.data_loader.num_test_samples
         self.test_loss_history.append(test_loss)
@@ -221,6 +230,7 @@ class Solver(object):
             params += str(self.model)
             param_file.write(params)
 
+    # TODO: write some procs that actually load the data
     # can be used to load the dumped file and then use the data for plotting
     def dump_stats_to_log(self):
         if not self.data_loader.directories.make_dirs:
