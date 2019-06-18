@@ -21,7 +21,7 @@ class DataLoader():
         self.thetas = thetas
         self.scales = scales
         self.prepro_params = {}
-        root = directories.data_dir_prefix+dataset          
+        root = directories.data_dir_prefix+dataset    
 
         if dataset == "MNIST":
             self.n_classes = 10

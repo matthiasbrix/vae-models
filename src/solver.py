@@ -70,6 +70,7 @@ class Training(object):
                 z_space, y_space = self._train_batch(epoch_metrics, x)
                 # saving the z space, and y space if it's available
             if epoch == self.solver.epochs:
+                # TODO: check it's ok with the indices
                 start = batch_idx*self.solver.data_loader.batch_size
                 end = (batch_idx+1)*self.solver.data_loader.batch_size
                 if self.solver.data_loader.with_labels and y is not None:

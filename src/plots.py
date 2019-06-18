@@ -333,13 +333,14 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
 # TODO: check if it makes sense on a proper model
+# TODO: make the api less vulnerable towards solver
 # Plot of each classes (theta, alpha)
 def plot_prepro_alpha_params_distribution(solver):
     # compute the alphas
     alphas = torch.zeros((solver.y_space.shape[0], solver.num_generations))
     for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
-        alphas[:, idx] = torch.atan2(torch.tensor(solver.y_space[:,gen_idx]-np.mean(solver.y_space[:, gen_idx])),\
-                torch.tensor(solver.y_space[:,gen_idx+1]-np.mean(solver.y_space[:,gen_idx+1])))/(2*np.pi)
+        alphas[:, idx] = torch.atan2(torch.tensor(solver.y_space[:, gen_idx]-np.mean(solver.y_space[:, gen_idx])),\
+                torch.tensor(solver.y_space[:, gen_idx+1]-np.mean(solver.y_space[:, gen_idx+1])))/(2*np.pi)
         # normalizing alpha_{ij} = alpha_{ij} - alpha_{i0}
         if idx > 0:
             alphas[:, idx] -= alphas[:, 0]
@@ -367,7 +368,7 @@ def plot_prepro_alpha_params_distribution(solver):
         counts = np.zeros(len(alpha_bins))
         alphas_indices = alphas[indices]
         for i in range(alphas.shape[1]):
-            for alpha in alphas_indices[:,i]:
+            for alpha in alphas_indices[:, i]:
                 for bin_idx, (x, y) in enumerate(alpha_bins):
                     if x <= alpha and alpha < y:
                         counts[bin_idx] += 1
@@ -386,9 +387,56 @@ def plot_prepro_alpha_params_distribution(solver):
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_alpha_params_distribution" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
+# TODO: check if it makes sense on a proper model
+# TODO: make the api less vulnerable towards solver
+# Plot for each class with (scale, radius) relation
 def plot_prepro_radius_params_distribution(solver):
-    pass
-
+    # compute the radiuses
+    radiuses = torch.zeros((solver.y_space.shape[0], solver.num_generations))
+    center = torch.zeros((solver.y_space.shape[0], 2))
+    # compute the euclidean distance from each point y_{ij} to the center
+    for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
+        radiuses[:, idx] = torch.dist(torch.tensor(solver.y_space[:, gen_idx:gen_idx+2]), center)
+        if idx > 0:
+            radiuses[:, idx] -= radiuses[:, 0]
+    radiuses = np.around(np.array(radiuses), decimals=2)
+    # prepare the scale from each batch, repeat each set of scales to span over num train samples
+    scales = np.zeros((solver.data_loader.num_train_samples, solver.num_generations))
+    for idx in range(solver.num_generations):
+        scales[:, idx] = np.repeat(solver.data_loader.prepro_params["scale_1"][:solver.data_loader.num_train_batches], solver.data_loader.batch_size)
+    # create the alphas bins, corresponding to the same number as theta bins
+    mini = np.min(radiuses)
+    maxi = np.max(radiuses)
+    radius_ranges = np.around(np.linspace(mini, maxi, 5), decimals=2)
+    radius_bins = list(zip(radius_ranges[:-1], radius_ranges[1:]))
+  
+    fig, axes = plt.subplots(nrows=solver.data_loader.n_classes, figsize=(10,60))
+    classes = np.array(solver.data_labels)
+    for ax, label in zip(axes.flat, range(solver.data_loader.n_classes)):
+        indices = np.where(classes == label)[0]
+        ax.set_title("class: {}".format(label))
+        counts = np.zeros(len(radius_bins))
+        radius_indices = radiuses[indices]
+        for i in range(radiuses.shape[1]):
+            for alpha in radius_indices[:, i]:
+                for bin_idx, (x, y) in enumerate(radius_bins):
+                    if x <= alpha and alpha < y:
+                        counts[bin_idx] += 1
+                        break
+        new_counts = np.zeros(np.prod(radius_indices.shape))
+        asd = 0
+        for idx, _ in enumerate(counts):
+            to_fill = counts[idx].repeat(counts[idx])
+            offset = len(to_fill)
+            new_counts[asd:(asd+offset)] = to_fill
+            asd += offset
+        scatter = ax.scatter(scales[indices, :].flatten(), radius_indices.flatten(), c=new_counts, cmap=plt.cm.get_cmap("Paired", 12))
+        fig.colorbar(scatter, ax=ax)
+    # save the fig
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_alpha_params_distribution" \
+                + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+   
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
     c, h, w = solver.data_loader.img_dims
