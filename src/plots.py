@@ -434,7 +434,7 @@ def plot_prepro_radius_params_distribution(solver):
         fig.colorbar(scatter, ax=ax)
     # save the fig
     if solver.data_loader.directories.make_dirs:
-        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_alpha_params_distribution" \
+        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_radius_params_distribution" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
    
 # takes only numpy array in, so mainly for testing puposes
