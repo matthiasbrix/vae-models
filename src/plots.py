@@ -332,8 +332,61 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_params_distribution_categories_" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
-# TODO:
-def plot_prepro_alpha_params_distribution():
+# TODO: check if it makes sense on a proper model
+# Plot of each classes (theta, alpha)
+def plot_prepro_alpha_params_distribution(solver):
+    # compute the alphas
+    alphas = torch.zeros((solver.y_space.shape[0], solver.num_generations))
+    for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
+        alphas[:, idx] = torch.atan2(torch.tensor(solver.y_space[:,gen_idx]-np.mean(solver.y_space[:, gen_idx])),\
+                torch.tensor(solver.y_space[:,gen_idx+1]-np.mean(solver.y_space[:,gen_idx+1])))/(2*np.pi)
+        # normalizing alpha_{ij} = alpha_{ij} - alpha_{i0}
+        if idx > 0:
+            alphas[:, idx] -= alphas[:, 0]
+    alphas = np.around(np.array(alphas), decimals=2)
+    # prepare the thetas from each batch, repeat each set of theta to span over num train samples
+    thetas = np.zeros((solver.data_loader.num_train_samples, solver.num_generations))
+    for gen in range(solver.num_generations):
+        thetas[:, gen] = np.repeat(solver.data_loader.prepro_params["theta_1"][:solver.data_loader.num_train_batches], solver.data_loader.batch_size)
+
+    # create the alphas bins, corresponding to the same number as theta bins
+    mini = np.min(alphas)
+    maxi = np.max(alphas)
+    alpha_ranges = np.around(np.linspace(mini, maxi, 13), decimals=2)
+    alpha_bins = list(zip(alpha_ranges[:-1], alpha_ranges[1:])) # alpha bins
+
+    #paired_cmap = plt.cm.get_cmap("Paired", 12)
+    #rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
+    alpha_ranges = alpha_ranges[:-1]
+    #norm = (alpha_ranges - np.min(alpha_ranges))/np.ptp(alpha_ranges)
+    fig, axes = plt.subplots(nrows=solver.data_loader.n_classes, figsize=(10,60))
+    classes = np.array(solver.data_labels)
+    for ax, label in zip(axes.flat, range(solver.data_loader.n_classes)):
+        indices = np.where(classes == label)[0]
+        ax.set_title("class: {}".format(label))
+        counts = np.zeros(len(alpha_bins))
+        alphas_indices = alphas[indices]
+        for i in range(alphas.shape[1]):
+            for alpha in alphas_indices[:,i]:
+                for bin_idx, (x, y) in enumerate(alpha_bins):
+                    if x <= alpha and alpha < y:
+                        counts[bin_idx] += 1
+                        break
+        new_counts = np.zeros(np.prod(alphas_indices.shape))
+        asd = 0
+        for idx, _ in enumerate(counts):
+            to_fill = counts[idx].repeat(counts[idx])
+            offset = len(to_fill)
+            new_counts[asd:(asd+offset)] = to_fill
+            asd += offset
+        scatter = ax.scatter(thetas[indices, :].flatten(), alphas_indices.flatten(), c=new_counts, cmap=plt.cm.get_cmap("Paired", 12))
+        fig.colorbar(scatter, ax=ax)
+    # save the fig
+    if solver.data_loader.directories.make_dirs:
+        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_alpha_params_distribution" \
+                + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+
+def plot_prepro_radius_params_distribution(solver):
     pass
 
 # takes only numpy array in, so mainly for testing puposes
