@@ -70,16 +70,16 @@ class Training(object):
                 z_space, y_space = self._train_batch(epoch_metrics, x)
                 # saving the z space, and y space if it's available
             if epoch == self.solver.epochs:
-                # TODO: check it's ok with the indices
                 start = batch_idx*self.solver.data_loader.batch_size
                 end = (batch_idx+1)*self.solver.data_loader.batch_size
                 if self.solver.data_loader.with_labels and y is not None:
                     self.solver.data_labels[start:end] = y
-                self._save_spaces(start, end, 0, z_space, y_space)
-                # loop over num generations time, mainly used for rotation and scaling
-                for gen_idx in range(2, self.solver.num_generations*2, 2):
-                    z_space, y_space = self._train_batch(epoch_metrics, x, y)
-                    self._save_spaces(start, end, gen_idx, z_space, y_space)
+                if self.solver.z_dim == 2:
+                    self._save_spaces(start, end, 0, z_space, y_space)
+                    # loop over num generations time, mainly used for rotation and scaling
+                    for gen_idx in range(2, self.solver.num_generations*2, 2):
+                        z_space, y_space = self._train_batch(epoch_metrics, x, y)
+                        self._save_spaces(start, end, gen_idx, z_space, y_space)
                     
     def _save_spaces(self, start, end, gen_idx, z_space, y_space):
         self.solver.z_space[start:end, gen_idx:(gen_idx+2)] = z_space

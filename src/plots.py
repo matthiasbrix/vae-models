@@ -33,6 +33,7 @@ def plot_losses(solver, train_loss_history, test_loss_history):
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
             fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
+    plt.grid(True, linestyle='-.')
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" +\
             solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
@@ -93,6 +94,7 @@ def plot_gaussian_distributions(solver, epochs):
         maxnorm = max(stats.norm.pdf(x, 0, 1))
         ax.set_ylim([0, max(maxys, maxnorm)+0.05])
         ax.set(xlabel='x', ylabel='y')
+        ax.grid(True, linestyle='-.')
 
     # writing stats results of z to file
     if solver.data_loader.directories.make_dirs:
@@ -130,6 +132,7 @@ def plot_rl_kl(solver, rls, kls):
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.title("Reconstruction loss in (training)") # marginal log likelihood
+    plt.grid(True, linestyle='-.')
 
     plt.subplot(2, 1, 2)
     plt.plot(x, kls) # KL div
@@ -138,6 +141,7 @@ def plot_rl_kl(solver, rls, kls):
     plt.ylabel("KL divergence")
     plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta))
 
+    plt.grid(True, linestyle='-.')
     plt.tight_layout()
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_rl_kl_"\
@@ -390,15 +394,25 @@ def plot_prepro_alpha_params_distribution(solver):
 # TODO: check if it makes sense on a proper model
 # TODO: make the api less vulnerable towards solver
 # Plot for each class with (scale, radius) relation
+# TODO: compute center of y_shape
 def plot_prepro_radius_params_distribution(solver):
     # compute the radiuses
     radiuses = torch.zeros((solver.y_space.shape[0], solver.num_generations))
-    center = torch.zeros((solver.y_space.shape[0], 2))
+    # center = torch.zeros((solver.y_space.shape[0], 2))
     # compute the euclidean distance from each point y_{ij} to the center
+    # TODO: compute center y_shape first. - should be shape N x 2
+    centor = np.mean(solver.y_space[:, :2], axis=0)
+    center = np.zeros((solver.y_space.shape[0], 2))
+    for i in range(center.shape[0]):
+        center[i, :] = centor
+    print(centor)
+    print(center)
+    print(solver.y_space[:, 0:2])
     for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
-        radiuses[:, idx] = torch.dist(torch.tensor(solver.y_space[:, gen_idx:gen_idx+2]), center)
-        if idx > 0:
-            radiuses[:, idx] -= radiuses[:, 0]
+        radiuses[:, idx] = torch.tensor(np.linalg.norm(solver.y_space[:, gen_idx:gen_idx+2] - center)) #torch.dist(torch.tensor(solver.y_space[:, gen_idx:gen_idx+2]), center) # otherwise, try np.lingalg.norm(solver.y_space[:, gen_idx:gen_idx+2] - center)
+        #if idx > 0:
+        #    radiuses[:, idx] -= radiuses[:, 0]
+    
     radiuses = np.around(np.array(radiuses), decimals=2)
     # prepare the scale from each batch, repeat each set of scales to span over num train samples
     scales = np.zeros((solver.data_loader.num_train_samples, solver.num_generations))
@@ -409,7 +423,8 @@ def plot_prepro_radius_params_distribution(solver):
     maxi = np.max(radiuses)
     radius_ranges = np.around(np.linspace(mini, maxi, 5), decimals=2)
     radius_bins = list(zip(radius_ranges[:-1], radius_ranges[1:]))
-  
+    #print(radiuses.shape, scales.shape, solver.data_loader.prepro_params["scale_1"], radiuses)
+    '''
     fig, axes = plt.subplots(nrows=solver.data_loader.n_classes, figsize=(10,60))
     classes = np.array(solver.data_labels)
     for ax, label in zip(axes.flat, range(solver.data_loader.n_classes)):
@@ -436,6 +451,7 @@ def plot_prepro_radius_params_distribution(solver):
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_radius_params_distribution" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+    '''
    
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
