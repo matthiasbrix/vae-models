@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import scipy.stats as stats
+import scipy.spatial.distance as bla
+
 
 DATASETS = {
     "MNIST": "MNIST",
@@ -394,25 +396,16 @@ def plot_prepro_alpha_params_distribution(solver):
 # TODO: check if it makes sense on a proper model
 # TODO: make the api less vulnerable towards solver
 # Plot for each class with (scale, radius) relation
-# TODO: compute center of y_shape
 def plot_prepro_radius_params_distribution(solver):
-    # compute the radiuses
-    radiuses = torch.zeros((solver.y_space.shape[0], solver.num_generations))
-    # center = torch.zeros((solver.y_space.shape[0], 2))
-    # compute the euclidean distance from each point y_{ij} to the center
-    # TODO: compute center y_shape first. - should be shape N x 2
+    #radiuses = np.zeros((solver.y_space.shape[0], solver.num_generations))
     centor = np.mean(solver.y_space[:, :2], axis=0)
-    center = np.zeros((solver.y_space.shape[0], 2))
-    for i in range(center.shape[0]):
-        center[i, :] = centor
-    print(centor)
-    print(center)
-    print(solver.y_space[:, 0:2])
-    for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
-        radiuses[:, idx] = torch.tensor(np.linalg.norm(solver.y_space[:, gen_idx:gen_idx+2] - center)) #torch.dist(torch.tensor(solver.y_space[:, gen_idx:gen_idx+2]), center) # otherwise, try np.lingalg.norm(solver.y_space[:, gen_idx:gen_idx+2] - center)
-        #if idx > 0:
-        #    radiuses[:, idx] -= radiuses[:, 0]
+    # compute the euclidean distance from each point y_{ij} to the center, so the radiuses
+    #for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
+    #    radiuses[:, idx] = (bla.cdist(solver.y_space[:, gen_idx:gen_idx+2], np.atleast_2d(centor)).ravel()) # torch.tensor(np.linalg.norm(solver.y_space[:, gen_idx:gen_idx+2] - center)) #torch.dist(torch.tensor(solver.y_space[:, gen_idx:gen_idx+2]), center) # otherwise, try np.lingalg.norm(solver.y_space[:, gen_idx:gen_idx+2] - center)
+    #    if idx > 0:
+    #        radiuses[:, idx] -= radiuses[:, 0]
     
+    radiuses = (bla.cdist(solver.y_space[:, 0:2], np.atleast_2d(centor)))
     radiuses = np.around(np.array(radiuses), decimals=2)
     # prepare the scale from each batch, repeat each set of scales to span over num train samples
     scales = np.zeros((solver.data_loader.num_train_samples, solver.num_generations))
@@ -421,11 +414,12 @@ def plot_prepro_radius_params_distribution(solver):
     # create the alphas bins, corresponding to the same number as theta bins
     mini = np.min(radiuses)
     maxi = np.max(radiuses)
-    radius_ranges = np.around(np.linspace(mini, maxi, 5), decimals=2)
+    radius_ranges = np.around(np.linspace(mini, maxi, 10), decimals=2)
     radius_bins = list(zip(radius_ranges[:-1], radius_ranges[1:]))
+    print(radius_bins)
     #print(radiuses.shape, scales.shape, solver.data_loader.prepro_params["scale_1"], radiuses)
-    '''
-    fig, axes = plt.subplots(nrows=solver.data_loader.n_classes, figsize=(10,60))
+    print(radiuses.shape)
+    fig, axes = plt.subplots(nrows=solver.data_loader.n_classes, figsize=(10, 60))
     classes = np.array(solver.data_labels)
     for ax, label in zip(axes.flat, range(solver.data_loader.n_classes)):
         indices = np.where(classes == label)[0]
@@ -445,13 +439,13 @@ def plot_prepro_radius_params_distribution(solver):
             offset = len(to_fill)
             new_counts[asd:(asd+offset)] = to_fill
             asd += offset
-        scatter = ax.scatter(scales[indices, :].flatten(), radius_indices.flatten(), c=new_counts, cmap=plt.cm.get_cmap("Paired", 12))
+        scatter = ax.scatter(scales[indices, 0].flatten(), radius_indices.flatten(), c=new_counts, cmap=plt.cm.get_cmap("Paired", 12))
         fig.colorbar(scatter, ax=ax)
     # save the fig
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_radius_params_distribution" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
-    '''
+    
    
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
