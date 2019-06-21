@@ -230,10 +230,11 @@ class Solver(object):
             params += "model:\n"
             params += str(self.model)
             param_file.write(params)
+        return params
 
     # TODO: write some procs that actually load the data
     # can be used to load the dumped file and then use the data for plotting
-    def dump_stats_to_log(self):
+    def dump_stats_to_log(self, params):
         if not self.data_loader.directories.make_dirs:
             return
         with open(self.data_loader.directories.result_dir + "/logged_metrics.pt", 'wb') as fp:
@@ -249,6 +250,7 @@ class Solver(object):
             pickle.dump(self.z_space, fp)
             pickle.dump(self.y_space, fp)
             pickle.dump(self.data_labels, fp)
+            pickle.dump(params, fp)
 
     def main(self):
         if self.data_loader.directories.make_dirs:
@@ -256,7 +258,7 @@ class Solver(object):
                 self.data_loader.directories.result_dir_no_prefix))
         else:
             print("+++++ START RUN +++++ | no save mode")
-        self._save_model_params_to_file()
+        params = self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
         for epoch in range(1, self.epochs+1):
@@ -276,5 +278,5 @@ class Solver(object):
         self.z_space = self.z_space.cpu().detach().numpy()
         self.y_space = self.y_space.cpu().detach().numpy()
         self.data_labels = self.data_labels.cpu().detach().numpy()
-        self.dump_stats_to_log()
+        self.dump_stats_to_log(params)
         print("+++++ RUN IS FINISHED +++++")

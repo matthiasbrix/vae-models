@@ -50,12 +50,11 @@ class TD_Cvae(nn.Module):
         eps = torch.randn_like(sigma_t)
         return mu_x_t + sigma_t*eps
 
-    # z_t = (y_t - y_{t-1}) \sim N(\mu(x_t)-\mu(x_t), \Sigma(x_t)+\Sigma(x_{t-1}))
+    # z_{t+1} = (y_{t+1} - y_t) \sim N(\mu(x_{t+1})-\mu(x_t), \Sigma(x_{t+1})+\Sigma(x_t))
     def _zrepresentation(self, y_next, y_t):
         return y_next - y_t
 
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
-    # compute here D_{KL}[N(\mu(x), \Sigma(x))||N(0,1)]
     def loss_function(self, fx, X, logsigma, mu, beta):
         loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)
