@@ -21,7 +21,7 @@ class DataLoader():
         self.thetas = thetas
         self.scales = scales
         self.prepro_params = {}
-        root = directories.data_dir_prefix+dataset    
+        root = directories.data_dir_prefix+dataset 
 
         if dataset == "MNIST":
             self.n_classes = 10
@@ -39,11 +39,11 @@ class DataLoader():
             self.n_classes = data.num_classes
             train_set, test_set = self._split_dataset(data)
         elif dataset == "FF":
+            data = DatasetFF(root)
             self.c = 1
             self.h = 28
             self.w = 20
             self.img_dims = (self.c, self.h, self.w)
-            data = DatasetFF(root)
             train_set, test_set = self._split_dataset(data)
         elif dataset == "SVHN":
             self.n_classes = 10
@@ -66,7 +66,7 @@ class DataLoader():
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
             if resize:
                 transform = transforms.Compose([
-                    transforms.Resize(*resize),
+                    transforms.Resize(resize),
                     self._get_transform()
                 ])
             else:

@@ -54,7 +54,7 @@ class Cvae(nn.Module):
         self.y_size = y_size
 
     def onehot_encoding(self, y):
-        y = y.view(y.size(0), 1).type(torch.LongTensor)
+        y = y.view(y.size(0), 1).type(torch.LongTensor).to(DEVICE)
         onehot = torch.zeros(y.size(0), self.y_size, dtype=torch.float, device=DEVICE) # batch_size x y_size
         onehot.scatter_(1, y, 1)
         return onehot

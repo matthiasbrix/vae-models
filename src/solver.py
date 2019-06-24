@@ -78,18 +78,27 @@ class Training(object):
                     self._save_spaces(start, end, 0, z_space, y_space)
                     # loop over num generations time, mainly used for rotation and scaling
                     for gen_idx in range(2, self.solver.num_generations*2, 2):
-                        z_space, y_space = self._train_batch(epoch_metrics, x, y)
+                        if self.solver.data_loader.with_labels and y is not None:
+                            z_space, y_space = self._train_batch(epoch_metrics, x, y)
+                        else:
+                            z_space, y_space = self._train_batch(epoch_metrics, x)
                         self._save_spaces(start, end, gen_idx, z_space, y_space)
-                    
+                  
     def _save_spaces(self, start, end, gen_idx, z_space, y_space):
         self.solver.z_space[start:end, gen_idx:(gen_idx+2)] = z_space
         if y_space is not None:
             self.solver.y_space[start:end, gen_idx:(gen_idx+2)] = y_space
         if self.solver.data_loader.thetas or self.solver.data_loader.scales:
-            if self.solver.data_loader.data: # for datasets not called from torchvision.dataset and packed in a compose
+            # for datasets not called from torchvision.dataset and packed in a compose (LungScans)
+            if self.solver.data_loader.data:
                 self.solver.data_loader.data.transform.transforms[-1].save_params()
-            elif self.solver.data_loader.train_loader.dataset: # for MNIST (proper way to do it)
-                self.solver.data_loader.train_loader.dataset.transform.save_params()
+            elif self.solver.data_loader.dataset == "MNIST":
+                if self.solver.data_loader.thetas and self.solver.data_loader.scales:
+                    # save for thetas and scales that are in a Compose object
+                    self.solver.data_loader.train_loader.dataset.transform.transforms[0].save_params()
+                    self.solver.data_loader.train_loader.dataset.transform.transforms[-1].save_params()
+                else:
+                    self.solver.data_loader.train_loader.dataset.transform.save_params() # either scales or thetas
             else:
                 raise ValueError("SAVE OF PARAMETERS N/A!")
 

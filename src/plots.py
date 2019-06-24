@@ -238,10 +238,10 @@ def plot_with_fixed_z(solver, cm, fig_size=(6, 6)):
             figure[:, i*h:(i+1)*h, 0:w] = x.view(*solver.data_loader.img_dims) # the test image in leftmost column
             # decode an image for each class (looping over the columns basically)
             for label in range(solver.data_loader.n_classes):
-                onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size))
+                onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size)).to(solver.device)
                 onehot.zero_()
                 onehot[:, label] = 1.
-                z_new = torch.cat((z, onehot), dim=-1)
+                z_new = torch.cat((z, onehot), dim=-1).to(solver.device)
                 decoded = solver.model.decoder(z_new).view(*solver.data_loader.img_dims)
                 figure[:, i*h:(i+1)*h, (label+1)*w: (label+2)*w] = decoded
     grid_img = torchvision.utils.make_grid(figure)
