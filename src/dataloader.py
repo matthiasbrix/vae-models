@@ -21,7 +21,7 @@ class DataLoader():
         self.thetas = thetas
         self.scales = scales
         self.prepro_params = {}
-        root = directories.data_dir_prefix+dataset 
+        root = directories.data_dir_prefix+dataset
 
         if dataset == "MNIST":
             self.n_classes = 10
@@ -106,12 +106,12 @@ class DataLoader():
 
     def _get_transform(self):
         if self.thetas and not self.scales:
-            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
+            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2,)
         if self.scales and not self.thetas:
-            return Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.prepro_params)
+            return Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
-            scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.prepro_params)
-            rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.prepro_params)
+            scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
+            rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2)
             return transforms.Compose([scale_obj, CustomToPILImage(), rotate_obj])
         else:
             return transforms.ToTensor()

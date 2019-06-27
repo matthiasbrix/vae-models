@@ -91,14 +91,15 @@ class Training(object):
         if self.solver.data_loader.thetas or self.solver.data_loader.scales:
             # for datasets not called from torchvision.dataset and packed in a compose (LungScans)
             if self.solver.data_loader.data:
-                self.solver.data_loader.data.transform.transforms[-1].save_params()
+                self.solver.data_loader.data.transform.transforms[-1].save_params(self.solver.data_loader.prepro_params)
             elif self.solver.data_loader.dataset == "MNIST":
                 if self.solver.data_loader.thetas and self.solver.data_loader.scales:
                     # save for thetas and scales that are in a Compose object
-                    self.solver.data_loader.train_loader.dataset.transform.transforms[0].save_params()
-                    self.solver.data_loader.train_loader.dataset.transform.transforms[-1].save_params()
+                    self.solver.data_loader.train_loader.dataset.transform.transforms[0].save_params(self.solver.data_loader.prepro_params)
+                    self.solver.data_loader.train_loader.dataset.transform.transforms[-1].save_params(self.solver.data_loader.prepro_params)
                 else:
-                    self.solver.data_loader.train_loader.dataset.transform.save_params() # either scales or thetas
+                    # either scales or thetas
+                    self.solver.data_loader.train_loader.dataset.transform.save_params(self.solver.data_loader.prepro_params)
             else:
                 raise ValueError("SAVE OF PARAMETERS N/A!")
 

@@ -5,10 +5,9 @@ import torch.nn.functional as F
 import numpy as np
 
 class Rotate(object):
-    def __init__(self, batch_size, theta_range_1, theta_range_2, prepro_params=None):
+    def __init__(self, batch_size, theta_range_1, theta_range_2):
         self.count = 0
         self.batch_size = batch_size
-        self.prepro_params = prepro_params
         self.theta_range_1 = theta_range_1
         self.theta_range_2 = theta_range_2
         self.theta_1 = 0
@@ -34,16 +33,15 @@ class Rotate(object):
         theta_2 = theta_1 + np.random.randint(*self.theta_range_2)
         return theta_1, theta_2
 
-    def save_params(self):
+    def save_params(self, prepro_params):
         theta_diff = self.theta_2 - self.theta_1
-        self.prepro_params["theta_diff"].append(theta_diff)
-        self.prepro_params["theta_1"].append(self.theta_1)
+        prepro_params["theta_diff"].append(theta_diff)
+        prepro_params["theta_1"].append(self.theta_1)
 
 class Scale(object):
-    def __init__(self, batch_size, img_dims, scale_range_1, scale_range_2, prepro_params=None):
+    def __init__(self, batch_size, img_dims, scale_range_1, scale_range_2):
         self.count = 0
         self.batch_size = batch_size
-        self.prepro_params = prepro_params
         self.scale_range_1 = scale_range_1
         self.scale_range_2 = scale_range_2
         self.scale_1 = 0.0
@@ -75,10 +73,10 @@ class Scale(object):
             scaled_sample = F.pad(scaled_sample, (x, 0, y, 0))
         return scaled_sample
     
-    def save_params(self):
+    def save_params(self, prepro_params):
         scale_diff = self.scale_2 - self.scale_1
-        self.prepro_params["scale_diff"].append(scale_diff)
-        self.prepro_params["scale_1"].append(self.scale_1)
+        prepro_params["scale_diff"].append(scale_diff)
+        prepro_params["scale_1"].append(self.scale_1)
 
 class CustomToPILImage(object):
     def __call__(self, sample_pair):
