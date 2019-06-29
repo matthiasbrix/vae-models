@@ -145,7 +145,7 @@ class Solver(object):
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
-        optim_config["weight_decay"] = float(self.data_loader.num_train_batches)/float(self.data_loader.num_train_samples)
+        optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples)) # batch wise regularization
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
 
