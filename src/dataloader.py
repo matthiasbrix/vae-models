@@ -7,8 +7,8 @@ from samplers import ClassSampler, SingleDataPointSampler
 from transforms import Rotate, Scale, CustomToPILImage
 
 class DataLoader():
-    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False,\
-        specific_class=None, resize=None):
+    def __init__(self, directories, batch_size, dataset, num_generations=1, thetas=None, scales=None, single_x=False,\
+        specific_class=None, resize=None, fixed_thetas=None):
         self.directories = directories
         self.data = None
         self.n_classes = None
@@ -20,6 +20,7 @@ class DataLoader():
         self.dataset = dataset
         self.thetas = thetas
         self.scales = scales
+        self.fixed_thetas = np.linspace(-180, 180, num_generations) if fixed_thetas else None
         self.prepro_params = {}
         root = directories.data_dir_prefix+dataset
 
@@ -87,13 +88,18 @@ class DataLoader():
         self.num_test_samples = 0 if self.single_x and not self.specific_class\
                                 else len(self.test_loader.dataset)
 
+        if self.thetas:
+            self.prepro_params["theta_1"] = np.zeros((num_generations, self.num_train_batches))
+            self.prepro_params["theta_diff"] = np.zeros((num_generations, self.num_train_batches))
+        if self.scales:
+            self.prepro_params["scale_1"] = np.zeros((num_generations, self.num_train_batches))
+            self.prepro_params["scale_diff"] = np.zeros((num_generations, self.num_train_batches))
+
     def _init_transforms(self):
         if self.thetas:
             self.theta_range_1, self.theta_range_2 = [v for _, v in self.thetas.items()]
             self.theta_range_1[1] += 1
             self.theta_range_2[1] += 1
-            self.prepro_params["theta_1"] = []
-            self.prepro_params["theta_diff"] = []
         if self.scales:
             # find the max possible scale and set img dims to be that
             self.scale_range_1, self.scale_range_2 = self.scales["scale_1"], self.scales["scale_2"]
@@ -101,17 +107,15 @@ class DataLoader():
             new_spatial_dims = tuple([int(max_scale*x) for x in list(self.img_dims[1:])])
             self.img_dims = (self.c, *new_spatial_dims)
             self.input_dim = np.prod(self.img_dims)
-            self.prepro_params["scale_1"] = []
-            self.prepro_params["scale_diff"] = []
 
     def _get_transform(self):
         if self.thetas and not self.scales:
-            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2,)
+            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.fixed_thetas)
         if self.scales and not self.thetas:
             return Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
             scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
-            rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2)
+            rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.fixed_thetas)
             return transforms.Compose([scale_obj, CustomToPILImage(), rotate_obj])
         else:
             return transforms.ToTensor()

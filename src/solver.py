@@ -5,6 +5,9 @@ import torch
 import torch.utils.data
 import torchvision.utils
 
+# TODO: test..
+from datasets import DatasetSingleBatch
+
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class EpochMetrics():
@@ -70,36 +73,45 @@ class Training(object):
                 z_space, y_space = self._train_batch(epoch_metrics, x)
                 # saving the z space, and y space if it's available
             if epoch == self.solver.epochs:
-                start = batch_idx*self.solver.data_loader.batch_size
-                end = (batch_idx+1)*self.solver.data_loader.batch_size
+                batch_start_idx = batch_idx*self.solver.data_loader.batch_size
+                batch_end_idx = (batch_idx+1)*self.solver.data_loader.batch_size
                 if self.solver.data_loader.with_labels and y is not None:
-                    self.solver.data_labels[start:end] = y
+                    self.solver.data_labels[batch_start_idx:batch_end_idx] = y
                 if self.solver.z_dim == 2:
-                    self._save_spaces(start, end, 0, z_space, y_space)
+                    self._save_spaces(0, batch_start_idx, batch_end_idx, z_space, y_space)
+                    self._save_prepro_params(0, batch_start_idx, batch_end_idx)
                     # loop over num generations time, mainly used for rotation and scaling
-                    for gen_idx in range(2, self.solver.num_generations*2, 2):
-                        if self.solver.data_loader.with_labels and y is not None:
-                            z_space, y_space = self._train_batch(epoch_metrics, x, y)
+                    for gen_idx in range(1, self.solver.num_generations):
+                        x_t, _ = next(iter(torch.utils.data.DataLoader(dataset=DatasetSingleBatch(x[0],\
+                            self.solver.data_loader.train_loader.dataset.transform), batch_size=self.solver.data_loader.batch_size)))
+                        x = x_t, x[1]
+                        z_space, y_space = self._train_batch(epoch_metrics, x)
+                        self._save_spaces(gen_idx, batch_start_idx, batch_end_idx, z_space, y_space)
+                        if gen_idx == self.solver.num_generations:
+                            self._save_prepro_params(-1, batch_start_idx, batch_end_idx)
                         else:
-                            z_space, y_space = self._train_batch(epoch_metrics, x)
-                        self._save_spaces(start, end, gen_idx, z_space, y_space)
+                            self._save_prepro_params(gen_idx, batch_start_idx, batch_end_idx)
+                else:
+                    self._save_prepro_params(gen_idx, batch_start_idx, batch_end_idx)
                   
-    def _save_spaces(self, start, end, gen_idx, z_space, y_space):
-        self.solver.z_space[start:end, gen_idx:(gen_idx+2)] = z_space
+    def _save_spaces(self, gen_idx, batch_start_idx, batch_end_idx, z_space, y_space):
+        self.solver.z_space[gen_idx, batch_start_idx:batch_end_idx, :] = z_space
         if y_space is not None:
-            self.solver.y_space[start:end, gen_idx:(gen_idx+2)] = y_space
+            self.solver.y_space[gen_idx, batch_start_idx:batch_end_idx, :] = y_space
+
+    def _save_prepro_params(self, gen_idx, batch_start_idx, batch_end_idx):
         if self.solver.data_loader.thetas or self.solver.data_loader.scales:
             # for datasets not called from torchvision.dataset and packed in a compose (LungScans)
             if self.solver.data_loader.data:
-                self.solver.data_loader.data.transform.transforms[-1].save_params(self.solver.data_loader.prepro_params)
+                self.solver.data_loader.data.transform.transforms[-1].save_params(self.solver.data_loader.prepro_params, gen_idx, batch_start_idx, batch_end_idx)
             elif self.solver.data_loader.dataset == "MNIST":
                 if self.solver.data_loader.thetas and self.solver.data_loader.scales:
                     # save for thetas and scales that are in a Compose object
-                    self.solver.data_loader.train_loader.dataset.transform.transforms[0].save_params(self.solver.data_loader.prepro_params)
-                    self.solver.data_loader.train_loader.dataset.transform.transforms[-1].save_params(self.solver.data_loader.prepro_params)
+                    self.solver.data_loader.train_loader.dataset.transform.transforms[0].save_params(self.solver.data_loader.prepro_params, gen_idx, batch_start_idx, batch_end_idx)
+                    self.solver.data_loader.train_loader.dataset.transform.transforms[-1].save_params(self.solver.data_loader.prepro_params, gen_idx, batch_start_idx, batch_end_idx)
                 else:
                     # either scales or thetas
-                    self.solver.data_loader.train_loader.dataset.transform.save_params(self.solver.data_loader.prepro_params)
+                    self.solver.data_loader.train_loader.dataset.transform.save_params(self.solver.data_loader.prepro_params, gen_idx, batch_start_idx, batch_end_idx)
             else:
                 raise ValueError("SAVE OF PARAMETERS N/A!")
 
@@ -157,8 +169,8 @@ class Solver(object):
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.z_space = torch.zeros((self.data_loader.num_train_samples, z_dim*num_generations), device=self.device)
-        self.y_space = torch.zeros((self.data_loader.num_train_samples, z_dim*num_generations), device=self.device)
+        self.z_space = torch.zeros((num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
+        self.y_space = torch.zeros((num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
         self.data_labels = torch.zeros((self.data_loader.num_train_samples), device=self.device)
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
