@@ -62,6 +62,9 @@ class DatasetLungScans(Dataset):
             return self.transform(transforms.ToPILImage()(image))
         return self.data[idx]
 
+# In order to loop over a single batch in the "pytorch way"
+# we need this auxiliary dataset object. This also yield the transformations
+# in transforms
 class DatasetSingleBatch(Dataset):
     def __init__(self, data, transform):
         self.data = data
@@ -71,6 +74,5 @@ class DatasetSingleBatch(Dataset):
         return len(self.data)
 
     def __getitem__(self, idx):
-        print("AAAAAAAAAAA", idx, self.data[idx].shape)
         return self.transform(transforms.ToPILImage()(self.data[idx]))
     
