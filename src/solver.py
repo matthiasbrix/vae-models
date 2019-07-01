@@ -72,19 +72,17 @@ class Training(object):
             else:
                 x = data
                 z_space, y_space = self._train_batch(epoch_metrics, x)
-                # saving the z space, and y space if it's available
             if epoch == self.solver.epochs:
                 batch_start_idx = batch_idx*self.solver.data_loader.batch_size
                 batch_end_idx = (batch_idx+1)*self.solver.data_loader.batch_size
+                self.solver.data_loader.save_prepro_params(batch_start_idx, batch_end_idx)
                 if self.solver.data_loader.with_labels and y is not None:
                     self.solver.data_labels[batch_start_idx:batch_end_idx] = y
                 if self.solver.z_dim == 2:
                     self._save_spaces(0, batch_start_idx, batch_end_idx, z_space, y_space)
-                    self.solver.data_loader.save_prepro_params(batch_start_idx, batch_end_idx)
                     self._generate_ys(x, epoch_metrics, batch_start_idx, batch_end_idx)
-                else:
-                    self.solver.data_loader.save_prepro_params(batch_start_idx, batch_end_idx)
 
+    # saving the z space, and y space if it's available
     def _save_spaces(self, gen_idx, batch_start_idx, batch_end_idx, z_space, y_space):
         self.solver.z_space[gen_idx, batch_start_idx:batch_end_idx, :] = z_space
         if y_space is not None:
@@ -93,7 +91,7 @@ class Training(object):
     # loop over num generations time, mainly used for rotation and scaling
     # only looped when num_generations > 1
     def _generate_ys(self, x, epoch_metrics, batch_start_idx, batch_end_idx):
-        for gen_idx in range(1, self.solver.num_generations):
+        for gen_idx in range(1, self.solver.data_loader.num_generations):
             # we have to re-iterate over the batch to yield the rotations/scaling by the transform
             x_t, _ = next(iter(torch.utils.data.DataLoader(dataset=DatasetSingleBatch(x[0],\
             self.solver.data_loader.get_current_transform()), batch_size=self.solver.data_loader.batch_size)))
@@ -139,13 +137,13 @@ class Testing(object):
                     self._test_batch(epoch_metrics, batch_idx, epoch, data)
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, z_dim, epochs, beta, step_config,\
-            optim_config, lr_scheduler=None, num_samples=100, num_generations=1, cvae_mode=False,\
+    def __init__(self, model, data_loader, optimizer, z_dim, epochs, beta, optim_config,\
+            step_config=None, lr_scheduler=None, num_samples=100, cvae_mode=False,\
             tdcvae_mode=False):
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
-        optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples)) # batch wise regularization
+        optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples)) if optim_config["weight_decay"] is None else optim_config["weight_decay"] # batch wise regularization
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
 
@@ -157,16 +155,15 @@ class Solver(object):
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.z_space = torch.zeros((num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
-        self.y_space = torch.zeros((num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
+        self.z_space = torch.zeros((self.data_loader.num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
+        self.y_space = torch.zeros((self.data_loader.num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
         self.data_labels = torch.zeros((self.data_loader.num_train_samples), device=self.device)
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
-        self.num_generations = num_generations
 
     def _save_train_metrics(self, epoch, metrics):
-        num_generations = 1 if epoch != self.epochs else self.num_generations
+        num_generations = 1 if epoch != self.epochs else self.data_loader.num_generations
         num_train_samples = self.data_loader.num_train_samples*num_generations
         num_train_batches = self.data_loader.num_train_batches*num_generations
         train_loss = metrics.train_loss_acc/num_train_samples
@@ -227,6 +224,10 @@ class Solver(object):
                     self.data_loader.batch_size, self.lr_scheduler,\
                     self.step_config)
             params += "dataset: {}\n".format(self.data_loader.dataset)
+            params += "num_generations: {}\n".format(self.data_loader.num_generations)
+            params += "CVAE mode: {}\n".format(self.cvae_mode)
+            params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
+            params += "Fixed theta range: {}\n".format(self.data_loader.fixed_thetas)
             if self.data_loader.thetas:
                 self.data_loader.theta_range_1[1] -= 1
                 self.data_loader.theta_range_2[1] -= 1
@@ -237,6 +238,7 @@ class Solver(object):
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
             params += "single image: {}\n".format(self.data_loader.single_x)
             params += "specific class: {}\n".format(self.data_loader.specific_class)
+            params += "number of samples: {}\n".format(self.num_samples)
             params += "model:\n"
             params += str(self.model)
             param_file.write(params)

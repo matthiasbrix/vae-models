@@ -31,15 +31,19 @@ class Rotate(object):
         return transforms.ToTensor()(x_t), transforms.ToTensor()(x_next)
 
     def _generate_angles(self):
-        if isinstance(self.fixed_thetas, np.ndarray) and self.num_generations > 1 and self.gen_idx >= 0:
+        if self.gen_idx % self.num_generations == 0:
+            print(self.gen_idx)
+            self.theta_1 = 0
+            self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
+        elif isinstance(self.fixed_thetas, np.ndarray) and self.num_generations > 1 and self.gen_idx >= 1:
             #print("gen angles here", self.gen_idx)
             self.theta_1 = self.fixed_thetas[self.gen_idx % self.num_generations]
+            if self.count % self.batch_size == 0:
+                print("new theta2", self.count)
+                self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
         else:
-            #print("new theta1!", self.count)
+            print("new theta1 and theta2!", self.count)
             self.theta_1 = np.random.randint(*self.theta_range_1)
-            self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
-        if self.count % self.batch_size == 0:
-            #print("new theta2", self.count)
             self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
 
     def save_params(self, prepro_params, batch_start_idx, batch_end_idx):

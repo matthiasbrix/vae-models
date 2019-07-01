@@ -163,7 +163,7 @@ class DataLoader():
                 # either scales or thetas
                 return self.train_loader.dataset.transform
         else:
-            raise ValueError("TRANSFORM N/A!")
+            raise ValueError("TRANSFORM OBJ N/A!")
 
     def save_prepro_params(self, batch_start_idx, batch_end_idx):
         if self.data:
