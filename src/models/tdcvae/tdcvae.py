@@ -15,7 +15,7 @@ class Encoder(nn.Module):
         self.linear22 = nn.Linear(H, Dout) # \Sigma(x)
         self.relu = nn.ReLU()
 
-    # compute \mu(x_t), \sigma(x_t), so p(y_t|x_t)
+    # compute \mu(x_t), \sigma(x_t), so q(y_t|x_t)
     def forward(self, x):
         x = self.linear1(x)
         x = self.relu(x)

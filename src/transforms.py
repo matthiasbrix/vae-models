@@ -63,7 +63,7 @@ class Rotate(object):
         self.gen_idx = 0
 
 class Scale(object):
-    def __init__(self, batch_size, img_dims, scale_range_1, scale_range_2):
+    def __init__(self, batch_size, img_dims, scale_range_1, scale_range_2, fixed_scales, num_generations):
         self.count = 0
         self.batch_size = batch_size
         self.scale_range_1 = scale_range_1
@@ -71,6 +71,9 @@ class Scale(object):
         self.scale_1 = 0.0
         self.scale_2 = 0.0
         self.img_dims = img_dims
+        self.fixed_scales = fixed_scales
+        self.num_generations = num_generations
+        self.gen_idx = -1
 
     def __call__(self, sample):
         if self.count % self.batch_size == 0:
@@ -81,8 +84,16 @@ class Scale(object):
         return x_t, x_next
 
     def _generate_scales(self):
-        self.scale_1 = round(uniform(*self.scale_range_1), 2)
-        self.scale_2 = round(self.scale_1 + uniform(*self.scale_range_2), 2)
+        if self.gen_idx % self.num_generations == 0:
+            self.scale_1 = 0.7
+            self.scale_2 = round(self.scale_1 + uniform(*self.scale_range_2), 2)
+        elif isinstance(self.fixed_scales, np.ndarray) and self.num_generations > 1 and self.gen_idx >= 1:
+            self.scale_1 = self.fixed_scales[self.gen_idx % self.num_generations]
+            if self.count % self.batch_size == 0:
+                self.scale_2 = self.scale_1 + np.random.randint(*self.scale_range_2)
+        else:
+            self.scale_1 = round(uniform(*self.scale_range_1), 2)
+            self.scale_2 = round(self.scale_1 + uniform(*self.scale_range_2), 2)
         if self.scale_1 <= 0 or self.scale_2 <= 0:
             raise ValueError("One of the scales is <= 0!")
     

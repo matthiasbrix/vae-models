@@ -8,7 +8,7 @@ from transforms import Rotate, Scale, CustomToPILImage
 
 class DataLoader():
     def __init__(self, directories, batch_size, dataset, num_generations=1, thetas=None, scales=None, single_x=False,\
-        specific_class=None, resize=None, fixed_thetas=None):
+        specific_class=None, resize=None, fixed_thetas=None, fixed_scales=None):
         self.directories = directories
         self.data = None
         self.n_classes = None
@@ -21,7 +21,8 @@ class DataLoader():
         self.thetas = thetas
         self.scales = scales
         self.num_generations = num_generations
-        self.fixed_thetas = np.linspace(-180, 180, self.num_generations) if fixed_thetas else None
+        self.fixed_thetas = np.linspace(0, 360, self.num_generations) if fixed_thetas else None
+        self.fixed_scales = 0.7 + np.linspace(0, 1, self.num_generations) * 0.6 if fixed_scales else None
         self.prepro_params = {}
         root = directories.data_dir_prefix+dataset
 
@@ -113,9 +114,9 @@ class DataLoader():
         if self.thetas and not self.scales:
             return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.fixed_thetas, self.num_generations)
         if self.scales and not self.thetas:
-            return Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
+            return Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.fixed_scales, self.num_generations)
         if self.scales and self.thetas:
-            scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
+            scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2, self.fixed_scales, self.num_generations)
             rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2, self.fixed_thetas, self.num_generations)
             return transforms.Compose([scale_obj, CustomToPILImage(), rotate_obj])
         else:

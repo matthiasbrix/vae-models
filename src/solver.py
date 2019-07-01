@@ -87,7 +87,7 @@ class Training(object):
         self.solver.z_space[gen_idx, batch_start_idx:batch_end_idx, :] = z_space
         if y_space is not None:
             self.solver.y_space[gen_idx, batch_start_idx:batch_end_idx, :] = y_space
-
+ # M, N, 2
     # loop over num generations time, mainly used for rotation and scaling
     # only looped when num_generations > 1
     def _generate_ys(self, x, epoch_metrics, batch_start_idx, batch_end_idx):
@@ -227,7 +227,7 @@ class Solver(object):
             params += "num_generations: {}\n".format(self.data_loader.num_generations)
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
-            params += "Fixed theta range: {}\n".format(self.data_loader.fixed_thetas)
+            params += "fixed theta range: {}\n".format(self.data_loader.fixed_thetas)
             if self.data_loader.thetas:
                 self.data_loader.theta_range_1[1] -= 1
                 self.data_loader.theta_range_2[1] -= 1
