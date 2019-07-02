@@ -41,12 +41,12 @@ def get_latent_spaces(solver, transformation=None):
                     x = transformation.preprocess_batch(x, batch_start_idx, batch_end_idx)
                 y_batch_space, z_batch_space = _get_batch_spaces(solver, x)
             data_labels[batch_start_idx:batch_end_idx] = targets
-            z_space[batch_start_idx:batch_end_idx, :] = z_batch_space
+            z_space[batch_start_idx:batch_end_idx, :] = z_batch_space.cpu().numpy()
             if y_batch_space is not None:
-                y_space[batch_start_idx:batch_end_idx, :] = y_batch_space
+                y_space[batch_start_idx:batch_end_idx, :] = y_batch_space.cpu().numpy()
     return z_space, y_space, data_labels
 
-# transforming images to prodcue alphas/radiuses
+# transforming images to produce alphas/radiuses
 def transform_images(solver, preprocessing, test_loader, ys):
     with torch.no_grad():
         data_labels = np.zeros((solver.data_loader.num_test_samples))
@@ -65,6 +65,6 @@ def transform_images(solver, preprocessing, test_loader, ys):
                     theta = preprocessing.thetas[j]
                     x_t_transformed = preprocessing.preprocess_batch(x_t, scale, theta)
                     y_batch_space, _ = _get_batch_spaces(solver, x_t_transformed)
-                    ys[i, j, batch_start_idx:batch_end_idx, :] = y_batch_space
+                    ys[i, j, batch_start_idx:batch_end_idx, :] = y_batch_space.cpu().numpy()
 
 

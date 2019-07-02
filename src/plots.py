@@ -149,15 +149,15 @@ def plot_rl_kl(solver, rls, kls):
             + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # Plot the latent space as scatter plot with and without labels
-def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None):
+def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None, colors=None):
     plt.figure(figsize=(9, 7))
     if labels is not None and title:
         if var == "z" and ticks is not None:
-            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap=plt.cm.get_cmap("Paired", 6))
+            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap=plt.cm.get_cmap("Paired", colors))
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
         elif var == "y" and ticks is not None:
-            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap="Paired") #plt.cm.get_cmap("Paired", 12)
+            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap="Paired")
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
         else:
