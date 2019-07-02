@@ -7,7 +7,6 @@ import matplotlib.patches as mpatches
 import scipy.stats as stats
 import scipy.spatial.distance as bla
 
-
 DATASETS = {
     "MNIST": "MNIST",
     "FF": "Frey Faces",
@@ -29,7 +28,7 @@ def plot_losses(solver, train_loss_history, test_loss_history):
     plt.plot(np.arange(1, len(test_loss_history)+1), test_loss_history, label="Test")
     ticks_rate = 4 if len(train_loss_history) >= 4 else len(train_loss_history)
     plt.xticks(_xticks(train_loss_history, ticks_rate))
-    plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset], solver.z_dim))
+    plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset], solver.model.z_dim))
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
@@ -38,7 +37,7 @@ def plot_losses(solver, train_loss_history, test_loss_history):
     plt.grid(True, linestyle='-.')
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" +\
-            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+            solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
 # TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
@@ -101,7 +100,7 @@ def plot_gaussian_distributions(solver, epochs):
     # writing stats results of z to file
     if solver.data_loader.directories.make_dirs:
         with open(solver.data_loader.directories.result_dir + "/result_stats_" +\
-            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
+            solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".txt", 'w') as file_res:
             file_res.write("epoch,var(mu(z)),E[var(q(z|x))]\n")
             for idx in plots:
                 i = idx-1
@@ -120,7 +119,7 @@ def plot_gaussian_distributions(solver, epochs):
             fancybox=True, shadow=True, ncol=5)
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_gaussian_" +\
-            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+            solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # Plot the reconstruction loss and KL divergence in two separate plots
 def plot_rl_kl(solver, rls, kls):
@@ -141,28 +140,28 @@ def plot_rl_kl(solver, rls, kls):
     plt.xticks(_xticks(kls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("KL divergence")
-    plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.beta))
+    plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.model.beta))
 
     plt.grid(True, linestyle='-.')
     plt.tight_layout()
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_rl_kl_"\
-            + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+            + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # Plot the latent space as scatter plot with and without labels
 def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None):
     plt.figure(figsize=(9, 7))
-    if solver.data_loader.with_labels:
-        if var == "z" and ticks:
-            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", 6))
+    if labels is not None and title:
+        if var == "z" and ticks is not None:
+            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap=plt.cm.get_cmap("Paired", 6))
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
-        elif var == "y" and ticks:
-            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels.tolist(), cmap="Paired") #plt.cm.get_cmap("Paired", 12)
+        elif var == "y" and ticks is not None:
+            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap="Paired") #plt.cm.get_cmap("Paired", 12)
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
         else:
-            plt.scatter(space[:, 0], space[:, 1], s=10, c=labels.tolist(), cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
+            plt.scatter(space[:, 0], space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
             clb = plt.colorbar()
             clb.ax.set_title(title)
     else:
@@ -172,7 +171,7 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
     plt.title("Latent space q({}) on data set {} after {} epochs".format(var, DATASETS[solver.data_loader.dataset], solver.epochs))
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
-            + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+            + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
@@ -185,7 +184,7 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
         for i, xi in enumerate(grid_x):
             for j, yj in enumerate(grid_y):
                 z_sample = np.array([xi, yj])
-                z_sample = np.tile(z_sample, 1).reshape(1, solver.z_dim)
+                z_sample = np.tile(z_sample, 1).reshape(1, solver.model.z_dim)
                 z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
                 if solver.cvae_mode:
                     idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
@@ -337,6 +336,61 @@ def plot_prepro_params_distribution_categories(solver, xticks, param, title, yti
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_params_distribution_categories_" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
 
+# takes only numpy array in, so mainly for testing puposes
+def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
+    c, h, w = solver.data_loader.img_dims
+    n_rows = int(np.ceil(n / float(n_cols)))
+    figure = torch.zeros((c, h*n_rows, w*n_cols))
+    data = torch.zeros(n, *solver.data_loader.img_dims)
+    remain = n
+    offset = 0
+    # filling out the tensor with data from the batch
+    for _, batch in enumerate(solver.data_loader.train_loader):
+        batch = batch[0] if solver.data_loader.with_labels else batch
+        if remain is not 0:
+            extract = min(batch.shape[0], remain)
+            data[offset:(offset+extract)] = batch[:extract]
+            remain -= extract
+            offset += extract
+    # iterate over the batch and insert to figure tensor
+    for k, x in enumerate(data):
+        row = k // n_cols
+        col = k % n_cols
+        figure[:, row*h:(row+1)*h, col*w:(col+1)*w] =\
+            x.view(*solver.data_loader.img_dims)
+    grid_img = torchvision.utils.make_grid(figure)
+    plt.figure(figsize=fig_size)
+    plt.axis("off")
+    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
+    plt.show()
+    if solver.data_loader.directories.make_dirs:
+        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+            "/plot_faces_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
+
+# plot sampled faces in a grid and saves to file
+def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
+    c, h, w = solver.data_loader.img_dims
+    n_rows = int(np.ceil(n/float(n_cols)))
+    figure = torch.zeros((c, h*n_rows, w*n_cols))
+    samples = torch.randn(n, solver.z_dim).to(solver.device)
+    solver.model.eval()
+    with torch.no_grad():
+        # decode the n samples and iterate over them and insert to figure tensor
+        samples = solver.model.decoder(samples)
+        for k, x in enumerate(samples):
+            row = k // n_cols
+            col = k % n_cols
+            figure[:, row*h:(row+1)*h, col*w:(col+1)*w] =\
+                x.view(*solver.data_loader.img_dims)
+    grid_img = torchvision.utils.make_grid(figure)
+    plt.figure(figsize=fig_size)
+    plt.axis("off")
+    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
+    plt.show()
+    if solver.data_loader.directories.make_dirs:
+        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+            "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
+
 # TODO: check if it makes sense on a proper model
 # TODO: make the api less vulnerable towards solver
 # Plot of each classes (theta, alpha)
@@ -442,59 +496,3 @@ def plot_prepro_radius_params_distribution(solver):
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_radius_params_distribution" \
                 + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
-    
-   
-# takes only numpy array in, so mainly for testing puposes
-def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
-    c, h, w = solver.data_loader.img_dims
-    n_rows = int(np.ceil(n / float(n_cols)))
-    figure = torch.zeros((c, h*n_rows, w*n_cols))
-    data = torch.zeros(n, *solver.data_loader.img_dims)
-    remain = n
-    offset = 0
-    # filling out the tensor with data from the batch
-    for _, batch in enumerate(solver.data_loader.train_loader):
-        batch = batch[0] if solver.data_loader.with_labels else batch
-        if remain is not 0:
-            extract = min(batch.shape[0], remain)
-            data[offset:(offset+extract)] = batch[:extract]
-            remain -= extract
-            offset += extract
-    # iterate over the batch and insert to figure tensor
-    for k, x in enumerate(data):
-        row = k // n_cols
-        col = k % n_cols
-        figure[:, row*h:(row+1)*h, col*w:(col+1)*w] =\
-            x.view(*solver.data_loader.img_dims)
-    grid_img = torchvision.utils.make_grid(figure)
-    plt.figure(figsize=fig_size)
-    plt.axis("off")
-    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
-    plt.show()
-    if solver.data_loader.directories.make_dirs:
-        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-            "/plot_faces_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
-
-# plot sampled faces in a grid and saves to file
-def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
-    c, h, w = solver.data_loader.img_dims
-    n_rows = int(np.ceil(n/float(n_cols)))
-    figure = torch.zeros((c, h*n_rows, w*n_cols))
-    samples = torch.randn(n, solver.z_dim).to(solver.device)
-    solver.model.eval()
-    with torch.no_grad():
-        # decode the n samples and iterate over them and insert to figure tensor
-        samples = solver.model.decoder(samples)
-        for k, x in enumerate(samples):
-            row = k // n_cols
-            col = k % n_cols
-            figure[:, row*h:(row+1)*h, col*w:(col+1)*w] =\
-                x.view(*solver.data_loader.img_dims)
-    grid_img = torchvision.utils.make_grid(figure)
-    plt.figure(figsize=fig_size)
-    plt.axis("off")
-    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
-    plt.show()
-    if solver.data_loader.directories.make_dirs:
-        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-            "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")

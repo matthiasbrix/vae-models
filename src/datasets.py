@@ -61,18 +61,3 @@ class DatasetLungScans(Dataset):
             image = torch.FloatTensor(np.expand_dims(self.data[idx], axis=0))
             return self.transform(transforms.ToPILImage()(image))
         return self.data[idx]
-
-# In order to loop over a single batch in the "pytorch way"
-# we need this auxiliary dataset object. This also yield the transformations
-# in transforms
-class DatasetSingleBatch(Dataset):
-    def __init__(self, data, transform):
-        self.data = data
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        return self.transform(transforms.ToPILImage()(self.data[idx]))
-    

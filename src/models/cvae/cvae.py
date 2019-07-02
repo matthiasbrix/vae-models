@@ -46,12 +46,13 @@ class Decoder(nn.Module):
         return self.sigmoid(x)
 
 class Cvae(nn.Module):
-    def __init__(self, input_dim, hidden_dim, z_dim, y_size, batch_norm_flag):
+    def __init__(self, input_dim, hidden_dim, z_dim, beta, y_size, batch_norm_flag):
         super(Cvae, self).__init__()
-        self.input_dim = input_dim
         self.encoder = Encoder(input_dim+y_size, hidden_dim, z_dim, batch_norm_flag)
         self.decoder = Decoder(z_dim+y_size, hidden_dim, input_dim, batch_norm_flag)
         self.y_size = y_size
+        self.z_dim = z_dim
+        self.beta = beta
 
     def onehot_encoding(self, y):
         y = y.view(y.size(0), 1).type(torch.LongTensor).to(DEVICE)
@@ -64,10 +65,10 @@ class Cvae(nn.Module):
         eps = torch.randn_like(sigma)
         return mu_x + sigma*eps
 
-    def loss_function(self, fx, X, logsigma, mu, beta):
+    def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)
-        return loss_reconstruction + beta*kl_divergence, loss_reconstruction, beta*kl_divergence
+        return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, self.beta*kl_divergence
 
     def forward(self, x, y=None):
         y_one_hot = self.onehot_encoding(y) # batch_size x y_size

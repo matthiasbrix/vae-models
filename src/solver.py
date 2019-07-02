@@ -5,8 +5,6 @@ import torch
 import torch.utils.data
 import torchvision.utils
 
-from datasets import DatasetSingleBatch
-
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class EpochMetrics():
@@ -39,7 +37,6 @@ class Training(object):
         self.solver = solver
 
     def _train_batch(self, epoch_metrics, x, y=None):
-        y_space = None
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
@@ -49,57 +46,26 @@ class Training(object):
             x_t, x_next = x
             x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(self.solver.device),\
                 x_next.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
-            decoded, x, mu_x, logvar_x, z_space, y_space = self.solver.model(x_t, x_next)
+            decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x) # vae
         loss, reconstruction_loss, kl_divergence = \
-            self.solver.model.loss_function(decoded, x, logvar_x, mu_x, self.solver.beta)
+            self.solver.model.loss_function(decoded, x, logvar_x, mu_x)
         loss.backward() # compute gradients
         self.solver.optimizer.step()
         epoch_metrics.compute_batch_train_metrics(loss.item(), reconstruction_loss,\
             kl_divergence, z_space, mu_x, logvar_x)
-        return z_space, y_space
 
-    def train(self, epoch, epoch_metrics):
-        if epoch == self.solver.epochs:
-            self.solver.data_loader.signal_transform_last_epoch()
+    def train(self, epoch_metrics):
         self.solver.model.train()
-        for batch_idx, data in enumerate(self.solver.data_loader.train_loader):
+        for _, data in enumerate(self.solver.data_loader.train_loader):
             if self.solver.data_loader.with_labels:
                 x, y = data[0], data[1]
-                z_space, y_space = self._train_batch(epoch_metrics, x, y)
+                self._train_batch(epoch_metrics, x, y)
             else:
                 x = data
-                z_space, y_space = self._train_batch(epoch_metrics, x)
-            if epoch == self.solver.epochs:
-                batch_start_idx = batch_idx*self.solver.data_loader.batch_size
-                batch_end_idx = (batch_idx+1)*self.solver.data_loader.batch_size
-                self.solver.data_loader.save_prepro_params(batch_start_idx, batch_end_idx)
-                if self.solver.data_loader.with_labels and y is not None:
-                    self.solver.data_labels[batch_start_idx:batch_end_idx] = y
-                if self.solver.z_dim == 2:
-                    self._save_spaces(0, batch_start_idx, batch_end_idx, z_space, y_space)
-                    self._generate_ys(x, epoch_metrics, batch_start_idx, batch_end_idx)
-
-    # saving the z space, and y space if it's available
-    def _save_spaces(self, gen_idx, batch_start_idx, batch_end_idx, z_space, y_space):
-        self.solver.z_space[gen_idx, batch_start_idx:batch_end_idx, :] = z_space
-        if y_space is not None:
-            self.solver.y_space[gen_idx, batch_start_idx:batch_end_idx, :] = y_space
- # M, N, 2
-    # loop over num generations time, mainly used for rotation and scaling
-    # only looped when num_generations > 1
-    def _generate_ys(self, x, epoch_metrics, batch_start_idx, batch_end_idx):
-        for gen_idx in range(1, self.solver.data_loader.num_generations):
-            # we have to re-iterate over the batch to yield the rotations/scaling by the transform
-            x_t, _ = next(iter(torch.utils.data.DataLoader(dataset=DatasetSingleBatch(x[0],\
-            self.solver.data_loader.get_current_transform()), batch_size=self.solver.data_loader.batch_size)))
-            x = x_t, x[1]
-            z_space, y_space = self._train_batch(epoch_metrics, x)
-            self._save_spaces(gen_idx, batch_start_idx, batch_end_idx, z_space, y_space)
-            if self.solver.data_loader.thetas or self.solver.data_loader.scales:
-                self.solver.data_loader.save_prepro_params(batch_start_idx, batch_end_idx)
+                self._train_batch(epoch_metrics, x)
 
 class Testing(object):
     def __init__(self, solver):
@@ -108,6 +74,7 @@ class Testing(object):
     def _test_batch(self, epoch_metrics, batch_idx, epoch, x, y=None):
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
+            y = y.to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
             x_t, x_next = x
@@ -117,14 +84,14 @@ class Testing(object):
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(self.solver.device)
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
-        loss, _, _ = self.solver.model.loss_function(decoded, x, mu_x, logvar_x, self.solver.beta)
+        loss, _, _ = self.solver.model.loss_function(decoded, x, mu_x, logvar_x)
         epoch_metrics.compute_batch_test_metrics(loss.item())
         if batch_idx == 0 and self.solver.data_loader.directories.make_dirs: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
             comparison = torch.cat([x.view(x.size(0), *self.solver.data_loader.img_dims)[:n],\
                 decoded.view(x.size(0), *self.solver.data_loader.img_dims)[:n]])
             torchvision.utils.save_image(comparison.cpu(), self.solver.data_loader.directories.result_dir \
-                + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.z_dim) + ".png", nrow=n)
+                + "/test_reconstruction_" + str(epoch) + "_z=" + str(self.solver.model.z_dim) + ".png", nrow=n)
 
     def test(self, epoch, epoch_metrics):
         self.solver.model.eval()
@@ -137,35 +104,30 @@ class Testing(object):
                     self._test_batch(epoch_metrics, batch_idx, epoch, data)
 
 class Solver(object):
-    def __init__(self, model, data_loader, optimizer, z_dim, epochs, beta, optim_config,\
+    def __init__(self, model, data_loader, optimizer, epochs, optim_config,\
             step_config=None, lr_scheduler=None, num_samples=100, cvae_mode=False,\
             tdcvae_mode=False):
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
-        optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples)) if optim_config["weight_decay"] is None else optim_config["weight_decay"] # batch wise regularization
+        optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples))\
+            if optim_config["weight_decay"] is None else optim_config["weight_decay"] # batch wise regularization, so M/N in all
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.device = DEVICE
 
-        self.z_dim = z_dim
         self.epochs = epochs
-        self.beta = beta
         self.step_config = step_config
         self.lr_scheduler = lr_scheduler(self.optimizer, **step_config) if lr_scheduler else lr_scheduler
         self.train_loss_history = {x: [] for x in ["epochs", "train_loss_acc", "recon_loss_acc", "kl_diverg_acc"]}
         self.test_loss_history = []
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
-        self.z_space = torch.zeros((self.data_loader.num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
-        self.y_space = torch.zeros((self.data_loader.num_generations, self.data_loader.num_train_samples, z_dim), device=self.device)
-        self.data_labels = torch.zeros((self.data_loader.num_train_samples), device=self.device)
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
 
     def _save_train_metrics(self, epoch, metrics):
-        num_generations = 1 if epoch != self.epochs else self.data_loader.num_generations
-        num_train_samples = self.data_loader.num_train_samples*num_generations
-        num_train_batches = self.data_loader.num_train_batches*num_generations
+        num_train_samples = self.data_loader.num_train_samples
+        num_train_batches = self.data_loader.num_train_batches
         train_loss = metrics.train_loss_acc/num_train_samples
         self.train_loss_history["epochs"].append(epoch) # just for debug mode (in case we finish earlier)
         self.train_loss_history["train_loss_acc"].append(train_loss)
@@ -188,7 +150,7 @@ class Solver(object):
             return
         with torch.no_grad():
             if self.cvae_mode:
-                z_sample = torch.randn(num_samples, self.z_dim)
+                z_sample = torch.randn(num_samples, self.model.z_dim)
                 idx = torch.randint(0, self.data_loader.n_classes, (1,)).item()
                 y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), self.data_loader.n_classes)) # num_samples x num_classes
                 y_sample[:, idx] = 1.
@@ -197,22 +159,22 @@ class Solver(object):
                 x_t = iter(self.data_loader.train_loader).next()[0][0]
                 num_samples = min(num_samples, x_t.size(0))
                 x_t = x_t[:num_samples]
-                z_sample = torch.randn(x_t.size(0), self.z_dim)
+                z_sample = torch.randn(x_t.size(0), self.model.z_dim)
                 x_t = x_t.view(-1, self.data_loader.input_dim)
                 sample = torch.cat((x_t, z_sample), dim=-1).to(self.device)
             else:
-                sample = torch.randn(num_samples, self.z_dim).to(self.device)
+                sample = torch.randn(num_samples, self.model.z_dim).to(self.device)
             sample = self.model.decoder(sample)
             num_samples = min(num_samples, sample.size(0))
             torchvision.utils.save_image(sample.view(num_samples, *self.data_loader.img_dims),\
                     self.data_loader.directories.result_dir + "/generated_sample_" + str(epoch)\
-                    + "_z=" + str(self.z_dim) + ".png", nrow=10)
+                    + "_z=" + str(self.model.z_dim) + ".png", nrow=10)
 
     def _save_model_params_to_file(self):
         if not self.data_loader.directories.make_dirs:
             return
         with open(self.data_loader.directories.result_dir + "/model_params_" +\
-            self.data_loader.dataset + "_z=" + str(self.z_dim) + ".txt", 'w') as param_file:
+            self.data_loader.dataset + "_z=" + str(self.model.z_dim) + ".txt", 'w') as param_file:
             params = "epochs: {}\n"\
                 "optimizer: {}\n"\
                 "beta: {}\n"\
@@ -220,11 +182,10 @@ class Solver(object):
                 "batch_size: {}\n"\
                 "lr_scheduler: {}\n"\
                 "step_config: {}\n"\
-                .format(self.epochs, self.optimizer, self.beta, self.z_dim,\
+                .format(self.epochs, self.optimizer, self.model.beta, self.model.z_dim,\
                     self.data_loader.batch_size, self.lr_scheduler,\
                     self.step_config)
             params += "dataset: {}\n".format(self.data_loader.dataset)
-            params += "num_generations: {}\n".format(self.data_loader.num_generations)
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
             params += "fixed theta range: {}\n".format(self.data_loader.fixed_thetas)
@@ -259,9 +220,6 @@ class Solver(object):
             pickle.dump(self.z_stats_history["std_z"], fp)
             pickle.dump(self.z_stats_history["varmu_z"], fp)
             pickle.dump(self.z_stats_history["expected_var_z"], fp)
-            pickle.dump(self.z_space, fp)
-            pickle.dump(self.y_space, fp)
-            pickle.dump(self.data_labels, fp)
             pickle.dump(params, fp)
 
     def main(self):
@@ -276,7 +234,7 @@ class Solver(object):
         for epoch in range(1, self.epochs+1):
             epoch_watch = time.time()
             epoch_metrics = EpochMetrics()
-            training.train(epoch, epoch_metrics)
+            training.train(epoch_metrics)
             train_loss = self._save_train_metrics(epoch, epoch_metrics)
             print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss))
             if self.data_loader.single_x is False:
@@ -287,8 +245,5 @@ class Solver(object):
             if self.lr_scheduler:
                 self.lr_scheduler.step()
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
-        self.z_space = self.z_space.cpu().detach().numpy()
-        self.y_space = self.y_space.cpu().detach().numpy()
-        self.data_labels = self.data_labels.cpu().detach().numpy()
         self.dump_stats_to_log(params)
         print("+++++ RUN IS FINISHED +++++")

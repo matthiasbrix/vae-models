@@ -37,12 +37,12 @@ class Decoder(nn.Module):
         return self.sigmoid(x)
 
 class TD_Cvae(nn.Module):
-    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, z_dim):
+    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, z_dim, beta):
         super(TD_Cvae, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim_enc, z_dim)
         self.decoder = Decoder(z_dim+input_dim, hidden_dim_dec, input_dim)
-        self.input_dim = input_dim
         self.z_dim = z_dim
+        self.beta = beta
 
     # y_t \sim N(\mu(x_t), \sigma(x_t))
     def _reparameterization_trick(self, mu_x_t, logvar_x_t):
@@ -55,10 +55,10 @@ class TD_Cvae(nn.Module):
         return y_next - y_t
 
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
-    def loss_function(self, fx, X, logsigma, mu, beta):
+    def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)
-        return loss_reconstruction + beta*kl_divergence, loss_reconstruction, beta*kl_divergence
+        return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, self.beta*kl_divergence
 
     # inputs: x_t, x_{t+1}
     def forward(self, x_t, x_next):
