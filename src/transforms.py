@@ -45,10 +45,12 @@ class Scale(object):
         self.img_dims = img_dims
 
     def __call__(self, sample):
+        x_t = sample
+        x_next = sample
         if self.count % self.batch_size == 0:
             self._generate_scales()
-        x_t = self._scale_sample(self.scale_1, sample)
-        x_next = self._scale_sample(self.scale_2, sample)
+        x_t = self._scale_sample(self.scale_1, x_t)
+        x_next = self._scale_sample(self.scale_2, x_next)
         self.count += 1
         return x_t, x_next
 
