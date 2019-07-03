@@ -5,7 +5,7 @@ import torch.nn.functional as F
 import numpy as np
 
 class Rotate(object):
-    def __init__(self, batch_size, theta_range_1, theta_range_2, time_agnostic):
+    def __init__(self, batch_size, theta_range_1, theta_range_2, time_agnostic=False):
         self.count = 0
         self.batch_size = batch_size
         self.theta_range_1 = theta_range_1
@@ -31,8 +31,12 @@ class Rotate(object):
         return transforms.ToTensor()(x_t), transforms.ToTensor()(x_next)
 
     def _generate_angles(self):
-        self.theta_1 = np.random.randint(*self.theta_range_1)
-        self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
+        if self.time_agnostic:
+            self.theta_1 = np.random.randint(*self.theta_range_1)
+            self.theta_2 = np.random.randint(*self.theta_range_2)
+        else:
+            self.theta_1 = np.random.randint(*self.theta_range_1)
+            self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
 
 class Scale(object):
     def __init__(self, batch_size, img_dims, scale_range_1, scale_range_2):

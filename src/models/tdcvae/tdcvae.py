@@ -37,12 +37,16 @@ class Decoder(nn.Module):
         return self.sigmoid(x)
 
 class TD_Cvae(nn.Module):
-    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, z_dim, beta):
+    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, z_dim, beta, time_agnostic=False):
         super(TD_Cvae, self).__init__()
         self.encoder = Encoder(input_dim, hidden_dim_enc, z_dim)
-        self.decoder = Decoder(z_dim+input_dim, hidden_dim_dec, input_dim)
+        if time_agnostic:
+            self.decoder = Decoder(z_dim, hidden_dim_dec, input_dim)
+        else:
+            self.decoder = Decoder(z_dim+input_dim, hidden_dim_dec, input_dim)
         self.z_dim = z_dim
         self.beta = beta
+        self.time_agnostic = time_agnostic
 
     # y_t \sim N(\mu(x_t), \sigma(x_t))
     def _reparameterization_trick(self, mu_x_t, logvar_x_t):
@@ -67,8 +71,7 @@ class TD_Cvae(nn.Module):
         y_t = self._reparameterization_trick(mu_x_t, logvar_x_t)
         y_next = self._reparameterization_trick(mu_x_next, logvar_x_next)
         z_t = self._zrepresentation(y_next, y_t)
-        # If z_t = 0 then we skip the decoding and just return the input
-        xz_t = torch.cat((x_t, z_t), dim=-1)
+        xz_t = z_t if self.time_agnostic else torch.cat((x_t, z_t), dim=-1)
         x_dec = self.decoder(xz_t) # x_{t+1}
         return x_dec, x_next, mu_x_t-mu_x_next, torch.log(torch.exp(logvar_x_t)+torch.exp(logvar_x_t)), z_t, y_t
         
