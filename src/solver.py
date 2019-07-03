@@ -106,15 +106,15 @@ class Testing(object):
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, epochs, optim_config,\
             step_config=None, lr_scheduler=None, num_samples=100, cvae_mode=False,\
-            tdcvae_mode=False):
+            tdcvae_mode=False, save_model_state=False):
+        self.device = DEVICE
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
         optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples))\
             if optim_config["weight_decay"] is None else optim_config["weight_decay"] # batch wise regularization, so M/N in all
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
-        self.device = DEVICE
-
+        self.epoch = 0
         self.epochs = epochs
         self.step_config = step_config
         self.lr_scheduler = lr_scheduler(self.optimizer, **step_config) if lr_scheduler else lr_scheduler
@@ -124,6 +124,10 @@ class Solver(object):
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
         self.num_samples = num_samples
+
+        if save_model_state and not self.data_loader.directories.make_dirs:
+            raise ValueError("Can't save state if no folder is assigned to this run!")
+        self.save_model_state = save_model_state
 
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
@@ -206,7 +210,7 @@ class Solver(object):
 
     # TODO: write some procs that actually load the data
     # can be used to load the dumped file and then use the data for plotting
-    def dump_stats_to_log(self, params):
+    def _dump_stats_to_log(self, params):
         if not self.data_loader.directories.make_dirs:
             return
         with open(self.data_loader.directories.result_dir + "/logged_metrics.pt", 'wb') as fp:
@@ -230,7 +234,8 @@ class Solver(object):
         params = self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
-        for epoch in range(1, self.epochs+1):
+        start = self.epoch if self.epoch else 1
+        for epoch in range(start, self.epochs+1):
             epoch_watch = time.time()
             epoch_metrics = EpochMetrics()
             training.train(epoch_metrics)
@@ -243,6 +248,9 @@ class Solver(object):
             self._sample(epoch, self.num_samples)
             if self.lr_scheduler:
                 self.lr_scheduler.step()
+            if self.save_model_state:
+                self.epoch = epoch+1 # signifying to continue from epoch+1 on.
+                torch.save(self, self.data_loader.directories.result_dir + "/model_state.pt")
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
-        self.dump_stats_to_log(params)
+        self._dump_stats_to_log(params)
         print("+++++ RUN IS FINISHED +++++")
