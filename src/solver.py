@@ -188,7 +188,6 @@ class Solver(object):
             params += "dataset: {}\n".format(self.data_loader.dataset)
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
-            params += "fixed theta range: {}\n".format(self.data_loader.fixed_thetas)
             if self.data_loader.thetas:
                 self.data_loader.theta_range_1[1] -= 1
                 self.data_loader.theta_range_2[1] -= 1
