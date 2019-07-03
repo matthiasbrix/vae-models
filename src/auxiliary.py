@@ -59,8 +59,8 @@ def transform_images(solver, preprocessing, test_loader, ys):
             batch_end_idx = (batch_idx+1)*solver.data_loader.batch_size
             data_labels[batch_start_idx:batch_end_idx] = targets
             # do transformations for each scale and then over all thetas
-            for i in range(preprocessing.scales.shape[0]):
-                for j in range(preprocessing.thetas.shape[0]):
+            for i in range(ys.shape[0]):
+                for j in range(ys.shape[1]):
                     scale = np.around(preprocessing.scales[i], decimals=2)
                     theta = preprocessing.thetas[j]
                     x_t_transformed = preprocessing.preprocess_batch(x_t, scale, theta)

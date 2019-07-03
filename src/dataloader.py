@@ -45,14 +45,6 @@ class DataLoader():
             self.w = 20
             self.img_dims = (self.c, self.h, self.w)
             train_set, test_set = self._split_dataset(self.data)
-        elif dataset == "SVHN":
-            self.n_classes = 10
-            self.c = 3
-            self.h = 32
-            self.w = 32
-            self.img_dims = (self.c, self.h, self.w)
-            train_set = datasets.SVHN(root=root, split="train", transform=transforms.ToTensor(), download=True)
-            test_set = datasets.SVHN(root=root, split="test", transform=transforms.ToTensor(), download=True)
         elif dataset == "LungScans":
             self.c = 1
             self.h = 384

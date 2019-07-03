@@ -208,11 +208,11 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
     if solver.data_loader.directories.make_dirs:
         # save stats of the grid (x,y ranges as defined in the notebook)
         with open(solver.data_loader.directories.result_dir + "/plot_learned_data_manifold_grids_" +\
-            solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".txt", 'w') as file_res:
+            solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".txt", 'w') as file_res:
             file_res.write("grid_x: {}\n".format(grid_x))
             file_res.write("grid_y: {}\n".format(grid_y))
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-            "/plot_learned_data_manifold_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
+            "/plot_learned_data_manifold_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
 # Replicating the handstyle image example from Kingma et. al in Semisupervised VAE paper
 # Take a single test set image (first from each batch), encode it, use that fixed z,
@@ -250,91 +250,7 @@ def plot_with_fixed_z(solver, cm, fig_size=(6, 6)):
     plt.show()
     if solver.data_loader.directories.make_dirs:
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-            "/plot_fixed_z_all_labels_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
-
-# make a bar chart with x being preprocessing group (scale/rotate), y the number of occurences
-# of each bin
-def plot_prepro_params_distribution(solver, xticks, param, title, ylabel, data=None):
-    theta_bins = list(zip(xticks[:-1], xticks[1:]))
-    counts = np.zeros(len(theta_bins))
-    if data is not None:
-        theta_alpha, alpha_bins = data
-        for theta, alpha in theta_alpha:
-            for bin_idx, (x, y) in enumerate(alpha_bins):
-                if alpha >= x and alpha < y:
-                    counts[bin_idx] += 1
-    else:
-        for theta in solver.data_loader.prepro_params[param]:
-            for bin_idx, (x, y) in enumerate(theta_bins):
-                if theta >= x and theta < y:
-                    counts[bin_idx] += 1
-    plt.figure(figsize=(5, 4))
-    paired_cmap = plt.cm.get_cmap("Paired", 12)
-    rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
-    xticks = xticks[:-1]
-    norm = (xticks - np.min(xticks))/np.ptp(xticks)
-    plt.bar(np.arange(0, len(counts)), counts, color=rvb(norm))
-    plt.xlabel(param)
-    plt.ylabel(ylabel)
-    plt.xticks(np.arange(0, len(counts)), labels=theta_bins, rotation=30)
-    plt.title(title)
-    plt.subplots_adjust(left=0.15, right=0.9, top=0.9, bottom=0.25)
-    if solver.data_loader.directories.make_dirs:
-        plt.savefig(solver.data_loader.directories.result_dir + "/plot_plot_prepro_params_distribution_" \
-            + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
-
-# stacked bar graph, x being the theta groups, y the count, the colors the different classes.
-def plot_prepro_params_distribution_categories(solver, xticks, param, title, ytitle, data=None):
-    theta_bins = list(zip(xticks[:-1], xticks[1:]))
-    classes_bins = np.zeros((len(theta_bins), solver.data_loader.n_classes))
-    if data is not None:
-        theta_alpha_label, alpha_bins = data
-        for theta, alpha, label in theta_alpha_label:
-            for bin_idx, (x, y) in enumerate(alpha_bins):
-                if alpha >= x and alpha < y:
-                    classes_bins[bin_idx][int(label)] += 1
-    else:
-        for batch_idx, theta in enumerate(solver.data_loader.prepro_params[param]): # theta=some degree from the list of theta_1
-            start = batch_idx*solver.data_loader.batch_size
-            end = (batch_idx+1)*solver.data_loader.batch_size
-            for bin_idx, (x, y) in enumerate(theta_bins):
-                if theta >= x and theta < y:
-                    for label in solver.data_labels[start:end]:
-                        classes_bins[bin_idx][int(label)] += 1
-    # preparation of chart
-    plt.figure(figsize=(8, 8))
-    width = 0.35
-    categories = np.arange(solver.data_loader.n_classes)
-    bottoms = np.cumsum(classes_bins, axis=0) # for correct shifting of bar
-    # colouring here
-    xticks = xticks[:-1]
-    paired_cmap = plt.cm.get_cmap("Paired", 12)
-    rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
-    norm = (xticks - np.min(xticks))/np.ptp(xticks)
-    for bin_idx in range(len(theta_bins)):
-        distr = classes_bins[bin_idx]
-        if bin_idx == 0:
-            plt.bar(categories, distr, width, color=rvb(norm[bin_idx]))
-        else:
-            plt.bar(categories, distr, width, color=rvb(norm[bin_idx]), bottom=bottoms[bin_idx-1])
-    # labels, legends, ticks and save plot
-    plt.xlabel("Labels")
-    plt.ylabel(ytitle)
-    plt.title(title)
-    plt.xticks(categories)
-    maxy = np.max(np.sum(classes_bins, axis=0))
-    steps = 2000 if solver.data_loader.single_x else 500
-    yticks = np.arange(0, np.around(int(maxy), decimals=-3)+1, steps)
-    plt.yticks(yticks)
-    handles = []
-    for bin_idx, bucket in enumerate(theta_bins):
-        handles.append(mpatches.Patch(color=rvb(norm[bin_idx]), label=bucket))
-    plt.legend(handles=handles, loc='lower center', bbox_to_anchor=(0.5, -0.175),
-            fancybox=True, shadow=True, ncol=6)
-    plt.subplots_adjust(left=0.1, right=0.9, top=0.9, bottom=0.15)
-    if solver.data_loader.directories.make_dirs:
-        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_params_distribution_categories_" \
-                + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+            "/plot_fixed_z_all_labels_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
 # takes only numpy array in, so mainly for testing puposes
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
@@ -372,7 +288,7 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     c, h, w = solver.data_loader.img_dims
     n_rows = int(np.ceil(n/float(n_cols)))
     figure = torch.zeros((c, h*n_rows, w*n_cols))
-    samples = torch.randn(n, solver.z_dim).to(solver.device)
+    samples = torch.randn(n, solver.model.z_dim).to(solver.device)
     solver.model.eval()
     with torch.no_grad():
         # decode the n samples and iterate over them and insert to figure tensor
@@ -389,7 +305,7 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     plt.show()
     if solver.data_loader.directories.make_dirs:
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-            "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.z_dim)+".png")
+            "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
 # TODO: check if it makes sense on a proper model
 # TODO: make the api less vulnerable towards solver
@@ -444,7 +360,7 @@ def plot_prepro_alpha_params_distribution(solver):
     # save the fig
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_alpha_params_distribution" \
-                + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+                + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # TODO: check if it makes sense on a proper model
 # TODO: make the api less vulnerable towards solver
@@ -495,4 +411,4 @@ def plot_prepro_radius_params_distribution(solver):
     # save the fig
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_radius_params_distribution" \
-                + solver.data_loader.dataset + "_z=" + str(solver.z_dim) + ".png")
+                + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")

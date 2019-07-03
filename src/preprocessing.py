@@ -93,6 +93,8 @@ class DeterministicPreprocessing():
         self.num_test_samples = num_test_samples
         self.img_dims = img_dims
         self.prepro_params = {}
+        if num_scales <= 0 or num_rotations <= 0:
+            raise ValueError("Det. prepro failed because rotations and/or scales should be > 0")
         if num_rotations > 0:
             self.thetas = np.linspace(0, 360, num_rotations)
             # check range is >= [0] and <= [1]

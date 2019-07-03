@@ -16,11 +16,12 @@ class Rotate(object):
     # is called data point wise, hence need to count for batch to apply one
     # set of angles to a batch
     def __call__(self, sample):
-        x_t = sample
-        x_next = sample
-        # for scale + rotate mode (because we used CustomToPILImage to pack x_t, x_next into a tuple again)
+        # for scale + rotate mode (because we used CustomToPILImage to pack x_t, x_next into a tuple)
         if isinstance(sample, tuple):
             x_t, x_next = sample
+        else:
+            x_t = sample
+            x_next = sample
         if self.count % self.batch_size == 0:
             self._generate_angles()
         x_t = TF.rotate(x_t, self.theta_1)
