@@ -5,13 +5,14 @@ import torch.nn.functional as F
 import numpy as np
 
 class Rotate(object):
-    def __init__(self, batch_size, theta_range_1, theta_range_2):
+    def __init__(self, batch_size, theta_range_1, theta_range_2, time_agnostic):
         self.count = 0
         self.batch_size = batch_size
         self.theta_range_1 = theta_range_1
         self.theta_range_2 = theta_range_2
         self.theta_1 = 0
         self.theta_2 = 0
+        self.time_agnostic = time_agnostic
 
     # is called data point wise, hence need to count for batch to apply one
     # set of angles to a batch
