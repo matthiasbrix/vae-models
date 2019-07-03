@@ -168,7 +168,7 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
         plt.scatter(space[:, 0], space[:, 1], s=10, cmap="Paired")
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
-    plt.title("Latent space q({}) on data set {} after {} epochs".format(var, DATASETS[solver.data_loader.dataset], solver.epochs))
+    plt.title("Latent space q({}) on data set {}".format(var, DATASETS[solver.data_loader.dataset]))
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
             + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
