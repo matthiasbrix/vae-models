@@ -34,10 +34,9 @@ class Rotate(object):
         self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
 
 class Scale(object):
-    def __init__(self, batch_size, img_dims, scale_range_1, scale_range_2, prepro_params=None):
+    def __init__(self, batch_size, img_dims, scale_range_1, scale_range_2):
         self.count = 0
         self.batch_size = batch_size
-        self.prepro_params = prepro_params
         self.scale_range_1 = scale_range_1
         self.scale_range_2 = scale_range_2
         self.scale_1 = 0.0
