@@ -23,8 +23,8 @@ class Rotate(object):
             x_next = sample
         if self.count % self.batch_size == 0:
             self._generate_angles()
-        x_t = preprocess_sample(x_t, theta=self.theta_1)
-        x_next = preprocess_sample(x_next, theta=self.theta_2)
+        x_t = preprocess_sample(transforms.ToTensor()(x_t), theta=self.theta_1)
+        x_next = preprocess_sample(transforms.ToTensor()(x_next), theta=self.theta_2)
         self.count += 1
         return x_t, x_next
 
@@ -46,8 +46,8 @@ class Scale(object):
         x_next = sample
         if self.count % self.batch_size == 0:
             self._generate_scales()
-        x_t = preprocess_sample(x_t, scale=(self.scale_1, self.scale_1))
-        x_next = preprocess_sample(x_next, scale=(self.scale_2, self.scale_2))
+        x_t = preprocess_sample(transforms.ToTensor()(x_t), scale=(self.scale_1, self.scale_1))
+        x_next = preprocess_sample(transforms.ToTensor()(x_next), scale=(self.scale_2, self.scale_2))
         self.count += 1
         return x_t, x_next
 
@@ -55,7 +55,34 @@ class Scale(object):
         self.scale_1 = np.around(uniform(*self.scale_range_1), decimals=2)
         self.scale_2 = np.around(self.scale_1 + uniform(*self.scale_range_2), decimals=2)
 
-class CustomToPILImage(object):
-    def __call__(self, sample_pair):
-        x_t, x_next = sample_pair
-        return transforms.ToPILImage()(x_t), transforms.ToPILImage()(x_next)
+class ScaleRotate(object):
+    def __init__(self, batch_size, scale_range_1, scale_range_2, theta_range_1, theta_range_2):
+        self.count = 0
+        self.batch_size = batch_size
+        self.scale_range_1 = scale_range_1
+        self.scale_range_2 = scale_range_2
+        self.scale_1 = 0.0
+        self.scale_2 = 0.0
+        self.theta_range_1 = theta_range_1
+        self.theta_range_2 = theta_range_2
+        self.theta_1 = 0
+        self.theta_2 = 0
+
+    def __call__(self, sample):
+        x_t = sample
+        x_next = sample
+        if self.count % self.batch_size == 0:
+            self._generate_scales()
+            self._generate_angles()
+        x_t = preprocess_sample(transforms.ToTensor()(x_t), theta=self.theta_1, scale=(self.scale_1, self.scale_1))
+        x_next = preprocess_sample(transforms.ToTensor()(x_next), theta=self.theta_2, scale=(self.scale_2, self.scale_2))
+        self.count += 1
+        return x_t, x_next
+
+    def _generate_scales(self):
+        self.scale_1 = np.around(uniform(*self.scale_range_1), decimals=2)
+        self.scale_2 = np.around(self.scale_1 + uniform(*self.scale_range_2), decimals=2)
+    
+    def _generate_angles(self):
+        self.theta_1 = np.random.randint(*self.theta_range_1)
+        self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)

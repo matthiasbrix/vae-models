@@ -1,5 +1,6 @@
 import numpy as np
 import torch
+from preprocessing import preprocess_sample
 
 # produces the z/y spaces for a single batch
 def _get_batch_spaces(solver, x, y=None):
@@ -48,9 +49,10 @@ def get_latent_spaces(solver, transformation=None):
 
 # transforming images to produce alphas/radiuses
 def transform_images(solver, preprocessing, test_loader, ys):
+    solver.model.eval()
     with torch.no_grad():
         data_labels = np.zeros((solver.data_loader.num_test_samples))
-        for batch_idx, data in enumerate(test_loader):
+        for _, data in enumerate(test_loader):
             if solver.data_loader.with_labels:
                 x_t, targets = data[0], data[1]
             else:
@@ -64,8 +66,7 @@ def transform_images(solver, preprocessing, test_loader, ys):
                     for j in range(ys.shape[1]):
                         scale = np.around(preprocessing.scales[i], decimals=2)
                         theta = np.around(preprocessing.thetas[j], decimals=2)
-                        print(sample_idx, scale, theta)
-                        x_transformed = preprocessing.preprocess_batch(x_t, scale, theta)
-                        y_batch_space, _ = _get_batch_spaces(solver, x_transformed)
+                        x_transformed = preprocess_sample(x_t[sample_idx], theta=theta, scale=(scale, scale)).view(-1, solver.data_loader.input_dim).to(solver.device)
+                        _, _, _, _, _, y_batch_space = solver.model(x_transformed, None)
                         ys[i, j, sample_idx, :] = y_batch_space[0].cpu().numpy()
             return

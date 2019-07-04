@@ -2,18 +2,20 @@ import numpy as np
 import torch
 from random import uniform
 import skimage as ski
-import torchvision.transforms as transforms
 
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
+# expecting a tensor (C, H, W)
 def preprocess_sample(x, theta=None, scale=None):
-    x = x.numpy()
-    shift_y, shift_x = x.shape[-2:]/2.
+    x = x[0].numpy()
+    shift_y, shift_x = np.array(x.shape[-2:])/2.
     center_shift = ski.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
     center_shift_inv = ski.transform.SimilarityTransform(translation=[shift_x, shift_y])
     center_transform = ski.transform.AffineTransform(scale=scale, rotation=theta)
     transformation = center_shift + (center_transform + center_shift_inv)
-    return transforms.ToTensor()(ski.transform.warp(x, transformation.inverse, output_shape=(x.shape[-2], x.shape[-1]), preserve_range=True))
+    return torch.FloatTensor(ski.transform.warp(x, transformation.inverse, output_shape=(x.shape[-2], x.shape[-1]), preserve_range=True)).to(DEVICE)
 
-# This is for the latent spaces which just need random transformations
+# This is for the latent spaces which just need random transformations and want to save the prepro params
 class RandomPreprocessing():
     def __init__(self, num_test_samples, img_dims, theta_range_1=None, theta_range_2=None, scale_range_1=None, scale_range_2=None):
         self.prepro_params = {}
@@ -68,12 +70,12 @@ class RandomPreprocessing():
         if self.rotations and self.scaling:
             self._generate_angles()
             self._generate_scales()
-            x_t = self._apply_transformation(x, theta=self.theta_1, scale=self.scale_1)
-            x_next = self._apply_transformation(x, theta=self.theta_2, scale=self.scale_2)
+            x_t = self._apply_transformation(x, theta=self.theta_1, scale=(self.scale_1, self.scale_1))
+            x_next = self._apply_transformation(x, theta=self.theta_2, scale=(self.scale_2, self.scale_2))
         elif self.scaling:
             self._generate_scales()
-            x_t = self._apply_transformation(x, scale=self.scale_1)
-            x_next = self._apply_transformation(x, scale=self.scale_2)
+            x_t = self._apply_transformation(x, scale=(self.scale_1, self.scale_1))
+            x_next = self._apply_transformation(x, scale=(self.scale_2, self.scale_2))
         elif self.rotations:
             self._generate_angles()
             x_t = self._apply_transformation(x, theta=self.theta_1)
@@ -111,9 +113,9 @@ class DeterministicPreprocessing():
         x_transformed = torch.zeros_like(x)
         for i in range(x.shape[0]):
             if scale is not None and theta is not None:
-                x_transformed[i] = preprocess_sample(x[i], theta=theta, scale=scale)
+                x_transformed[i] = preprocess_sample(x[i], theta=theta, scale=(scale, scale))
             elif scale is not None:
-                x_transformed[i] = preprocess_sample(x[i], scale=scale)
+                x_transformed[i] = preprocess_sample(x[i], scale=(scale, scale))
             elif theta is not None:
                 x_transformed[i] = preprocess_sample(x[i], theta=theta)
         return x_transformed

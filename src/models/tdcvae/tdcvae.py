@@ -61,10 +61,12 @@ class TD_Cvae(nn.Module):
         return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, self.beta*kl_divergence
 
     # inputs: x_t, x_{t+1}
-    def forward(self, x_t, x_next):
+    def forward(self, x_t, x_next=None):
         mu_x_t, logvar_x_t = self.encoder(x_t)
-        mu_x_next, logvar_x_next = self.encoder(x_next)
         y_t = self._reparameterization_trick(mu_x_t, logvar_x_t)
+        if x_next is None:
+            return None, None, None, None, None, y_t
+        mu_x_next, logvar_x_next = self.encoder(x_next)
         y_next = self._reparameterization_trick(mu_x_next, logvar_x_next)
         z_t = self._zrepresentation(y_next, y_t)
         # If z_t = 0 then we skip the decoding and just return the input
