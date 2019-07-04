@@ -1,4 +1,6 @@
-data
+data/LFW
+data/LungScans
+data/MNIST
 results
 **/.ipynb_checkpoints
 **/__pycache__
