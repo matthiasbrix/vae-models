@@ -55,16 +55,17 @@ def transform_images(solver, preprocessing, test_loader, ys):
                 x_t, targets = data[0], data[1]
             else:
                 x_t = data
-            batch_start_idx = batch_idx*solver.data_loader.batch_size
-            batch_end_idx = (batch_idx+1)*solver.data_loader.batch_size
-            data_labels[batch_start_idx:batch_end_idx] = targets
-            # do transformations for each scale and then over all thetas
-            for i in range(ys.shape[0]):
-                for j in range(ys.shape[1]):
-                    scale = np.around(preprocessing.scales[i], decimals=2)
-                    theta = preprocessing.thetas[j]
-                    x_t_transformed = preprocessing.preprocess_batch(x_t, scale, theta)
-                    y_batch_space, _ = _get_batch_spaces(solver, x_t_transformed)
-                    ys[i, j, batch_start_idx:batch_end_idx, :] = y_batch_space.cpu().numpy()
-
-
+            num_samples = ys.shape[2]
+            data_labels[:num_samples] = targets[:num_samples]
+            sample_idx = 0
+            # do transformation on each sample for each scale and then over all thetas
+            for sample_idx in range(num_samples):
+                for i in range(ys.shape[0]):
+                    for j in range(ys.shape[1]):
+                        scale = np.around(preprocessing.scales[i], decimals=2)
+                        theta = np.around(preprocessing.thetas[j], decimals=2)
+                        print(sample_idx, scale, theta)
+                        x_transformed = preprocessing.preprocess_batch(x_t, scale, theta)
+                        y_batch_space, _ = _get_batch_spaces(solver, x_transformed)
+                        ys[i, j, sample_idx, :] = y_batch_space[0].cpu().numpy()
+            return
