@@ -92,6 +92,8 @@ class DataLoader():
             # find the max possible scale and set img dims to be that which enables padding if not scaled
             # to max img dimensions.
             self.scale_range_1, self.scale_range_2 = self.scales["scale_1"], self.scales["scale_2"]
+            if sum(x <= 0 for x in self.scale_range_1) > 0 or sum(x <= 0 for x in self.scale_range_2) > 0:
+                raise ValueError("One of the scales is <= 0!")
             max_scale = round(self.scale_range_1[1] + self.scale_range_2[1], 1)
             new_spatial_dims = tuple([int(max_scale*x) for x in list(self.img_dims[1:])])
             self.img_dims = (self.c, *new_spatial_dims)
@@ -101,9 +103,9 @@ class DataLoader():
         if self.thetas and not self.scales:
             return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2)
         if self.scales and not self.thetas:
-            return Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
+            return Scale(self.batch_size, self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
-            scale_obj = Scale(self.batch_size, self.img_dims, self.scale_range_1, self.scale_range_2)
+            scale_obj = Scale(self.batch_size, self.scale_range_1, self.scale_range_2)
             rotate_obj = Rotate(self.batch_size, self.theta_range_1, self.theta_range_2)
             return transforms.Compose([scale_obj, CustomToPILImage(), rotate_obj])
         else:

@@ -1,9 +1,17 @@
 import numpy as np
 import torch
-import torchvision.transforms.functional as TF
-import torch.nn.functional as F
-import torchvision.transforms as transforms
 from random import uniform
+import skimage as ski
+import torchvision.transforms as transforms
+
+def preprocess_sample(x, theta=None, scale=None):
+    x = x.numpy()
+    shift_y, shift_x = x.shape[-2:]/2.
+    center_shift = ski.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
+    center_shift_inv = ski.transform.SimilarityTransform(translation=[shift_x, shift_y])
+    center_transform = ski.transform.AffineTransform(scale=scale, rotation=theta)
+    transformation = center_shift + (center_transform + center_shift_inv)
+    return transforms.ToTensor()(ski.transform.warp(x, transformation.inverse, output_shape=(x.shape[-2], x.shape[-1]), preserve_range=True))
 
 # This is for the latent spaces which just need random transformations
 class RandomPreprocessing():
@@ -45,49 +53,38 @@ class RandomPreprocessing():
         self.theta_1 = np.random.randint(*self.theta_range_1)
         self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
 
-    # check if how much scaled shape will be <= self.data_loader.img_dims and then pad accordingliy
-    def _scale_batch(self, batch, scale):
-        reshaped_dims = tuple([int(scale*x) for x in list((batch.size(2), batch.size(3)))])
-        scaled = torch.zeros((batch.size(0), batch.size(1), *reshaped_dims))
-        for i in range(batch.size(0)):
-            img = TF.resize(transforms.ToPILImage()(batch[i]), reshaped_dims)
-            scaled[i] = transforms.ToTensor()(img)
-        if reshaped_dims < self.img_dims[1:]:
-            x, y = tuple([(x-x2) for (x, x2) in zip(self.img_dims[1:], reshaped_dims)])
-            scaled = F.pad(scaled, (x, 0, y, 0))
-        return scaled
-
-    def _rotate_batch(self, batch, theta):
-        rotated = torch.zeros_like(batch)
-        for i in range(batch.size(0)):
-            img = TF.rotate(transforms.ToPILImage()(batch[i]), theta)
-            rotated[i] = transforms.ToTensor()(img)
-        return rotated
-
-    def _scale_rotate_batch(self, batch, scale, theta):
-        scaled_batch = self._scale_batch(batch, scale)
-        return self._rotate_batch(scaled_batch, theta)
+    def _apply_transformation(self, x, theta=None, scale=None):
+        x_transformed = torch.zeros_like(x)
+        for i in range(x.shape[0]):
+            if self.rotations and self.scaling:
+                x_transformed[i] = preprocess_sample(x[i], theta=theta, scale=scale)
+            elif self.scaling:
+                x_transformed[i] = preprocess_sample(x[i], scale=scale)
+            elif self.rotations:
+                x_transformed[i] = preprocess_sample(x[i], theta=theta)
+        return x_transformed
 
     def preprocess_batch(self, x, batch_start_idx=None, batch_end_idx=None):
         if self.rotations and self.scaling:
             self._generate_angles()
             self._generate_scales()
-            x_t = self._scale_rotate_batch(x, self.scale_1, self.theta_1)
-            x_next = self._scale_rotate_batch(x, self.scale_2, self.theta_2)
+            x_t = self._apply_transformation(x, theta=self.theta_1, scale=self.scale_1)
+            x_next = self._apply_transformation(x, theta=self.theta_2, scale=self.scale_2)
         elif self.scaling:
             self._generate_scales()
-            x_t = self._scale_batch(x, self.scale_1)
-            x_next = self._scale_batch(x, self.scale_2)
+            x_t = self._apply_transformation(x, scale=self.scale_1)
+            x_next = self._apply_transformation(x, scale=self.scale_2)
         elif self.rotations:
             self._generate_angles()
-            x_t = self._rotate_batch(x, self.theta_1)
-            x_next = self._rotate_batch(x, self.theta_2)
+            x_t = self._apply_transformation(x, theta=self.theta_1)
+            x_next = self._apply_transformation(x, theta=self.theta_2)
         else:
             raise ValueError("Prepro of batch failed")
         if batch_start_idx is not None and batch_end_idx is not None:
             self._save_params(batch_start_idx, batch_end_idx)
         return x_t, x_next
 
+# For producing y spaces...
 class DeterministicPreprocessing():
     def __init__(self, num_test_samples, img_dims, num_rotations, num_scales, theta_range, scale_range):
         self.num_test_samples = num_test_samples
@@ -97,7 +94,6 @@ class DeterministicPreprocessing():
             raise ValueError("Det. prepro failed because rotations and/or scales should be > 0")
         if num_rotations > 0:
             self.thetas = np.linspace(0, 360, num_rotations)
-            # check range is >= [0] and <= [1]
             if not self.thetas[0] >= theta_range[0] or not self.thetas[1] <= theta_range[1]:
                 raise ValueError("Theta range does not match the trained range. Trained: {}, Prepro: {}".format(theta_range, self.thetas))
             self.theta_1, self.theta_2 = 0, 0
@@ -111,30 +107,13 @@ class DeterministicPreprocessing():
             self.prepro_params["scale_1"] = np.zeros((num_scales, num_test_samples))
             self.prepro_params["scale_diff"] = np.zeros((num_scales, num_test_samples))
 
-    # check if how much scaled shape will be <= self.data_loader.img_dims and then pad accordingliy
-    def _scale_batch(self, batch, scale):
-        reshaped_dims = tuple([int(scale*x) for x in list((batch.size(2), batch.size(3)))])
-        scaled = torch.zeros((batch.size(0), batch.size(1), *reshaped_dims))
-        for i in range(batch.size(0)):
-            img = TF.resize(transforms.ToPILImage()(batch[i]), reshaped_dims)
-            scaled[i] = transforms.ToTensor()(img)
-        if reshaped_dims < self.img_dims[1:]:
-            x, y = tuple([(x-x2) for (x, x2) in zip(self.img_dims[1:], reshaped_dims)])
-            scaled = F.pad(scaled, (x, 0, y, 0))
-        return scaled
-
-    def _rotate_batch(self, batch, theta):
-        rotated = torch.zeros_like(batch)
-        for i in range(batch.size(0)):
-            img = TF.rotate(transforms.ToPILImage()(batch[i]), theta)
-            rotated[i] = transforms.ToTensor()(img)
-        return rotated
-
-    def _scale_rotate_batch(self, batch, scale, theta):
-        scaled_batch = self._scale_batch(batch, scale)
-        return self._rotate_batch(scaled_batch, theta)
-
-    def preprocess_batch(self, x, scale, theta):
-        x_t = self._scale_rotate_batch(x, scale, theta)
-        x_next = self._scale_rotate_batch(x, scale, theta)
-        return x_t, x_next
+    def preprocess_batch(self, x, scale=None, theta=None):
+        x_transformed = torch.zeros_like(x)
+        for i in range(x.shape[0]):
+            if scale is not None and theta is not None:
+                x_transformed[i] = preprocess_sample(x[i], theta=theta, scale=scale)
+            elif scale is not None:
+                x_transformed[i] = preprocess_sample(x[i], scale=scale)
+            elif theta is not None:
+                x_transformed[i] = preprocess_sample(x[i], theta=theta)
+        return x_transformed
