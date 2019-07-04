@@ -193,10 +193,10 @@ class Solver(object):
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
             if self.data_loader.thetas:
-                self.data_loader.theta_range_1[1] -= 1
-                self.data_loader.theta_range_2[1] -= 1
+                theta_range_1 = self.data_loader.theta_range_1[1] - 1
+                theta_range_2 = self.data_loader.theta_range_2[1] - 1
                 params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
-                    .format(self.data_loader.theta_range_1, self.data_loader.theta_range_2)
+                    .format(theta_range_1, theta_range_2)
             if self.data_loader.scales:
                 params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
