@@ -163,7 +163,7 @@ class Solver(object):
                 x_t = iter(self.data_loader.train_loader).next()[0][0]
                 num_samples = min(num_samples, x_t.size(0))
                 x_t = x_t[:num_samples]
-                z_sample = torch.randn(x_t.size(0), self.model.z_dim)
+                z_sample = torch.randn(x_t.size(0), self.model.z_dim).to(self.device)
                 x_t = x_t.view(-1, self.data_loader.input_dim)
                 sample = torch.cat((x_t, z_sample), dim=-1).to(self.device)
             else:

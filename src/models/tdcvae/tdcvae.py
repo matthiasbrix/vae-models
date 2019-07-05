@@ -44,13 +44,13 @@ class TD_Cvae(nn.Module):
         self.z_dim = z_dim
         self.beta = beta
 
-    # y_t \sim N(\mu(x_t), \sigma(x_t))
-    def _reparameterization_trick(self, mu_x_t, logvar_x_t):
-        sigma_t = torch.exp(1/2*logvar_x_t)
-        eps = torch.randn_like(sigma_t)
-        return mu_x_t + sigma_t*eps
+    # y \sim N(\mu(x), \sigma(x))
+    def _reparameterization_trick(self, mu_x, logvar_x):
+        sigma = torch.exp(1/2*logvar_x)
+        eps = torch.randn_like(sigma)
+        return mu_x + sigma*eps
 
-    # z_{t+1} = (y_{t+1} - y_t) \sim N(\mu(x_{t+1})-\mu(x_t), \Sigma(x_{t+1})+\Sigma(x_t))
+    # z_t = (y_{t+1} - y_t) \sim N(\mu(x_{t+1})-\mu(x_t), \Sigma(x_{t+1})+\Sigma(x_t))
     def _zrepresentation(self, y_next, y_t):
         return y_next - y_t
 
@@ -72,5 +72,5 @@ class TD_Cvae(nn.Module):
         # If z_t = 0 then we skip the decoding and just return the input
         xz_t = torch.cat((x_t, z_t), dim=-1)
         x_dec = self.decoder(xz_t) # x_{t+1}
-        return x_dec, x_next, mu_x_t-mu_x_next, torch.log(torch.exp(logvar_x_t)+torch.exp(logvar_x_t)), z_t, y_t
+        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, y_t
         
