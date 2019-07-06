@@ -44,7 +44,7 @@ class TD_Cvae(nn.Module):
         self.z_dim = z_dim
         self.beta = beta
 
-    # y \sim N(\mu(x), \sigma(x))
+    # y \sim N(\mu(x), \Sigma(x))
     def _reparameterization_trick(self, mu_x, logvar_x):
         sigma = torch.exp(1/2*logvar_x)
         eps = torch.randn_like(sigma)

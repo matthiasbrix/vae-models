@@ -86,7 +86,7 @@ class RandomPreprocessing():
             self._save_params(batch_start_idx, batch_end_idx)
         return x_t, x_next
 
-# For producing y spaces...
+# For producing y spaces with deterministic deltas (scales/thetas)
 class DeterministicPreprocessing():
     def __init__(self, num_test_samples, img_dims, num_rotations, num_scales, theta_range, scale_range):
         self.num_test_samples = num_test_samples
