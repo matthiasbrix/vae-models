@@ -7,6 +7,7 @@ import matplotlib.patches as mpatches
 import scipy.stats as stats
 import scipy.spatial.distance as bla
 import skimage as ski
+from preprocessing import preprocess_sample
 
 DATASETS = {
     "MNIST": "MNIST",
@@ -313,16 +314,11 @@ def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, th
     with torch.no_grad():
         for batch_idx, data in enumerate(test_loader):
             data, y = data
-            data = data[:num_samples].numpy()
+            data = data[:num_samples]
             N, _, H, W = data.shape
             transformed_data = np.zeros((num_samples, H, W))
             for i in range(num_samples):
-                shift_y, shift_x = np.array((H, W)) / 2.
-                center_shift = ski.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
-                center_shift_inv = ski.transform.SimilarityTransform(translation=[shift_x, shift_y])
-                center_transform = ski.transform.AffineTransform(scale=(scale, scale), rotation=theta)
-                transformation = center_shift + (center_transform + center_shift_inv)
-                transformed_data[i] = ski.transform.warp(data[i][0], transformation.inverse, output_shape=(transformed_data.shape[1], transformed_data.shape[2]), preserve_range=True)
+                transformed_data[i] = preprocess_sample(data[i], theta=theta ,scale=(scale, scale))
             transformed_data_tensor = torch.tensor(transformed_data)
             transformed_data_tensor.unsqueeze_(1)
             grid_img = torchvision.utils.make_grid(transformed_data_tensor, nrow=5)
@@ -330,9 +326,9 @@ def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, th
             plt.imshow(grid_img.permute(1, 2, 0))
             break
     if save_image and file_name is not None:
-        plt.savefig(file_name)
+        torchvision.utils.save_image(grid_img, file_name)
 
-def plot_y_space_thetas(ys, ticks, labels, save_image, file_name):
+def plot_y_space_thetas(ys, ticks, labels, save_image, file_name, dataset):
     S, T, N, _ = ys.shape
     plt.figure(figsize=(20, 10))
     for t in range(T):
@@ -341,10 +337,11 @@ def plot_y_space_thetas(ys, ticks, labels, save_image, file_name):
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("theta")
+    plt.title("Latent space q(y) on data set {} with fixed thetas".format(DATASETS[dataset]))
     if save_image and file_name:
         plt.savefig(file_name)
 
-def plot_y_space_scales(ys, ticks, labels, save_image, file_name):
+def plot_y_space_scales(ys, ticks, labels, save_image, file_name, dataset):
     S, T, N, _ = ys.shape
     plt.figure(figsize=(20, 10))
     for s in range(S):
@@ -353,6 +350,7 @@ def plot_y_space_scales(ys, ticks, labels, save_image, file_name):
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("scale")
+    plt.title("Latent space q(y) on data set {} with fixed scales".format(DATASETS[dataset]))
     if save_image and file_name:
         plt.savefig(file_name)
 
