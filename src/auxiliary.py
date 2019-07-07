@@ -36,12 +36,12 @@ def get_latent_spaces(solver, transformation=None):
                 if transformation is not None:
                     x = transformation.preprocess_batch(x, batch_start_idx, batch_end_idx)
                 y_batch_space, z_batch_space = _get_batch_spaces(solver, x, targets)
+                data_labels[batch_start_idx:batch_end_idx] = targets
             else:
                 x = data
                 if transformation is not None:
                     x = transformation.preprocess_batch(x, batch_start_idx, batch_end_idx)
                 y_batch_space, z_batch_space = _get_batch_spaces(solver, x)
-            data_labels[batch_start_idx:batch_end_idx] = targets
             z_space[batch_start_idx:batch_end_idx, :] = z_batch_space.cpu().numpy()
             if y_batch_space is not None:
                 y_space[batch_start_idx:batch_end_idx, :] = y_batch_space.cpu().numpy()
