@@ -1,5 +1,4 @@
 import time
-import pickle
 
 import torch
 import torch.utils.data
@@ -207,23 +206,6 @@ class Solver(object):
             params += str(self.model)
             param_file.write(params)
         return params
-
-    # TODO: write some procs that actually load the data
-    # can be used to load the dumped file and then use the data for plotting
-    def _dump_stats_to_log(self, params):
-        if not self.data_loader.directories.make_dirs:
-            return
-        with open(self.data_loader.directories.result_dir + "/logged_metrics.pt", 'wb') as fp:
-            pickle.dump(self.train_loss_history["epochs"], fp)
-            pickle.dump(self.train_loss_history["train_loss_acc"], fp)
-            pickle.dump(self.test_loss_history, fp)
-            pickle.dump(self.train_loss_history["recon_loss_acc"], fp)
-            pickle.dump(self.train_loss_history["kl_diverg_acc"], fp)
-            pickle.dump(self.z_stats_history["mu_z"], fp)
-            pickle.dump(self.z_stats_history["std_z"], fp)
-            pickle.dump(self.z_stats_history["varmu_z"], fp)
-            pickle.dump(self.z_stats_history["expected_var_z"], fp)
-            pickle.dump(params, fp)
 
     def main(self):
         if self.data_loader.directories.make_dirs:
