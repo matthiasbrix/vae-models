@@ -205,7 +205,6 @@ class Solver(object):
             params += "model:\n"
             params += str(self.model)
             param_file.write(params)
-        return params
 
     def main(self):
         if self.data_loader.directories.make_dirs:
@@ -213,7 +212,7 @@ class Solver(object):
                 self.data_loader.directories.result_dir_no_prefix))
         else:
             print("+++++ START RUN +++++ | no save mode")
-        params = self._save_model_params_to_file()
+        self._save_model_params_to_file()
         training = Training(self)
         testing = Testing(self)
         start = self.epoch if self.epoch else 1
@@ -234,5 +233,18 @@ class Solver(object):
                 self.epoch = epoch+1 # signifying to continue from epoch+1 on.
                 torch.save(self, self.data_loader.directories.result_dir + "/model_state.pt")
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
-        self._dump_stats_to_log(params)
         print("+++++ RUN IS FINISHED +++++")
+
+if __name__ == "__main__":
+    from models.tdcvae.tdcvae import TD_Cvae, MODEL_NAME
+    from models.tdcvae.model_params import get_data_model
+    from directories import Directories
+    from dataloader import DataLoader
+    dataset = "MNIST"
+    data = get_data_model(dataset)
+    directories = Directories(MODEL_NAME, dataset, data["z_dim"], False)
+    data_loader = DataLoader(directories, data["batch_size"], dataset, scales=data["scales"], thetas=data["thetas"])
+    model = TD_Cvae(data_loader.input_dim, data["hidden_dim"], data_loader.input_dim, data["z_dim"], data["beta"])
+    solver = Solver(model, data_loader, data["optimizer"], data["epochs"], data["optim_config"], step_config=data["step_config"],\
+        lr_scheduler=data["lr_scheduler"], tdcvae_mode=True, save_model_state=False)
+    solver.main()
