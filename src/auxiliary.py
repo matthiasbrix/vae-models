@@ -2,20 +2,23 @@ import numpy as np
 import torch
 from preprocessing import preprocess_sample
 
+# in case we have loaded a model to CPU but trained on GPU
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 # produces the z/y spaces for a single batch
 def _get_batch_spaces(solver, x, y=None):
     y_space = None
     if solver.cvae_mode:
-        x = x.view(-1, solver.data_loader.input_dim).to(solver.device)
-        y = y.to(solver.device)
+        x = x.view(-1, solver.data_loader.input_dim).to(DEVICE)
+        y = y.to(DEVICE)
         _, _, _, z_space = solver.model(x, y)
     elif solver.tdcvae_mode:
         x_t, x_next = x
-        x_t, x_next = x_t.view(-1, solver.data_loader.input_dim).to(solver.device),\
-        x_next.view(-1, solver.data_loader.input_dim).to(solver.device)
+        x_t, x_next = x_t.view(-1, solver.data_loader.input_dim).to(DEVICE),\
+        x_next.view(-1, solver.data_loader.input_dim).to(DEVICE)
         _, _, _, _, z_space, y_space = solver.model(x_t, x_next)
     else:
-        x = x.view(-1, solver.data_loader.input_dim).to(solver.device)
+        x = x.view(-1, solver.data_loader.input_dim).to(DEVICE)
         _, _, _, z_space = solver.model(x) # vae
     return y_space, z_space
 
@@ -62,11 +65,11 @@ def transform_images(solver, preprocessing, test_loader, ys):
             sample_idx = 0
             # do transformation on each sample for each scale and then over all thetas
             for sample_idx in range(num_samples):
-                for i in range(ys.shape[0]):
-                    for j in range(ys.shape[1]):
-                        scale = np.around(preprocessing.scales[i], decimals=2)
-                        theta = np.around(preprocessing.thetas[j], decimals=2)
-                        x_transformed = preprocess_sample(x_t[sample_idx], theta=theta, scale=(scale, scale)).view(-1, solver.data_loader.input_dim).to(solver.device)
+                for s in range(ys.shape[0]):
+                    for t in range(ys.shape[1]):
+                        scale = np.around(preprocessing.scales[s], decimals=2)
+                        theta = np.around(preprocessing.thetas[t], decimals=2)
+                        x_transformed = preprocess_sample(x_t[sample_idx], theta=theta, scale=(scale, scale)).view(-1, solver.data_loader.input_dim).to(DEVICE)
                         _, _, _, _, _, y_batch_space = solver.model(x_transformed, None)
-                        ys[i, j, sample_idx, :] = y_batch_space[0].cpu().numpy()
+                        ys[s, t, sample_idx, :] = y_batch_space[0].cpu().numpy()
             return

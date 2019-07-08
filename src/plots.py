@@ -9,6 +9,8 @@ import scipy.spatial.distance as bla
 import skimage as ski
 from preprocessing import preprocess_sample
 
+DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+
 DATASETS = {
     "MNIST": "MNIST",
     "FF": "Frey Faces",
@@ -187,14 +189,14 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
             for j, yj in enumerate(grid_y):
                 z_sample = np.array([xi, yj])
                 z_sample = np.tile(z_sample, 1).reshape(1, solver.model.z_dim)
-                z_sample = torch.from_numpy(z_sample).float().to(solver.device) # transform to tensor
+                z_sample = torch.from_numpy(z_sample).float().to(DEVICE) # transform to tensor
                 if solver.cvae_mode:
                     idx = torch.randint(0, solver.data_loader.n_classes, (1,)).item()
-                    y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes)).to(solver.device)
+                    y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), solver.data_loader.n_classes)).to(DEVICE)
                     y_sample[:, idx] = 1.
                     sample = torch.cat((z_sample, y_sample), dim=-1)
                 elif solver.tdcvae_mode:
-                    x_t = x_t.to(solver.device)
+                    x_t = x_t.to(DEVICE)
                     sample = torch.cat((x_t, z_sample), dim=-1)
                 else:
                     sample = z_sample
@@ -229,7 +231,7 @@ def plot_with_fixed_z(solver, cm, fig_size=(6, 6)):
             if i == n_rows:
                 break
             # encode a single image from the test set
-            x, y = data.to(solver.device)[0], target.to(solver.device)[0]
+            x, y = data.to(DEVICE)[0], target.to(DEVICE)[0]
             y = y.view(1, 1)
             onehot = solver.model.onehot_encoding(y)
             x = x.view(-1, solver.data_loader.input_dim)
@@ -239,10 +241,10 @@ def plot_with_fixed_z(solver, cm, fig_size=(6, 6)):
             figure[:, i*h:(i+1)*h, 0:w] = x.view(*solver.data_loader.img_dims) # the test image in leftmost column
             # decode an image for each class (looping over the columns basically)
             for label in range(solver.data_loader.n_classes):
-                onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size)).to(solver.device)
+                onehot = torch.FloatTensor(torch.zeros(y.size(0), solver.model.y_size)).to(DEVICE)
                 onehot.zero_()
                 onehot[:, label] = 1.
-                z_new = torch.cat((z, onehot), dim=-1).to(solver.device)
+                z_new = torch.cat((z, onehot), dim=-1).to(DEVICE)
                 decoded = solver.model.decoder(z_new).view(*solver.data_loader.img_dims)
                 figure[:, i*h:(i+1)*h, (label+1)*w: (label+2)*w] = decoded
     grid_img = torchvision.utils.make_grid(figure)
@@ -290,7 +292,7 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     c, h, w = solver.data_loader.img_dims
     n_rows = int(np.ceil(n/float(n_cols)))
     figure = torch.zeros((c, h*n_rows, w*n_cols))
-    samples = torch.randn(n, solver.model.z_dim).to(solver.device)
+    samples = torch.randn(n, solver.model.z_dim).to(DEVICE)
     solver.model.eval()
     with torch.no_grad():
         # decode the n samples and iterate over them and insert to figure tensor
