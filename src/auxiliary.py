@@ -23,7 +23,7 @@ def _get_batch_spaces(solver, x, y=None):
     return y_space, z_space
 
 # Used for retrieving the latent spaces available (z and y)
-# transformation is only set when using rotation or scaling.
+# transformation is only set when using rotation and/or scaling.
 def get_latent_spaces(solver, transformation=None):
     z_space = np.zeros((solver.data_loader.num_test_samples, solver.model.z_dim))
     y_space = np.zeros((solver.data_loader.num_test_samples, solver.model.z_dim))

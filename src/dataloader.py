@@ -133,6 +133,8 @@ class DataLoader():
         test_size = len(data) - train_size
         return torch.utils.data.random_split(data, [train_size, test_size])
 
+    # Even though we use tdcvae as model, we don't apply the transform as we do this explicitly in preprocessing
+    # to save the parameters.
     def get_new_test_data_loader(self):
         if self.dataset == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
