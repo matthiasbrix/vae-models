@@ -310,7 +310,8 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
             "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
-def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, theta=90, scale=1.5, save_image=False, file_name=None):
+def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, theta=None, scale=None,\
+    save_image=False, file_name=None):
     num_samples = min(num_samples, batch_size)
     with torch.no_grad():
         for batch_idx, data in enumerate(test_loader):

@@ -139,8 +139,8 @@ class DataLoader():
         if self.dataset == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
         elif self.dataset == "lungscans":
-            # TODO: probably need to do something here...
             _, test_set = self._split_dataset(self.data)
         else:
             _, test_set = self._split_dataset(self.data)
         return torch.utils.data.DataLoader(dataset=test_set, batch_size=self.batch_size, drop_last=True, shuffle=True)
+
