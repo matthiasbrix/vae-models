@@ -12,11 +12,10 @@ from preprocessing import preprocess_sample
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 DATASETS = {
-    "MNIST": "MNIST",
-    "FF": "Frey Faces",
-    "LFW": "Labeled Faces in the Wild",
-    "SVHN": "SVHN",
-    "LungScans": "Lung Scans"
+    "mnist": "MNIST",
+    "ff": "Frey Faces",
+    "lfw": "Labeled Faces in the Wild",
+    "lungscans": "Lung Scans"
 }
 
 def _xticks(ls, ticks_rate):

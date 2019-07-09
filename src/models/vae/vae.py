@@ -5,8 +5,6 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
-MODEL_NAME = str(Path(__file__).parent.absolute()).split('/')[-1]
-
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout, batch_norm_flag):
         super(Encoder, self).__init__()

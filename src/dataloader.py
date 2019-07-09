@@ -23,14 +23,14 @@ class DataLoader():
 
         root = directories.data_dir_prefix+dataset
 
-        if dataset == "MNIST":
+        if dataset.lower() == "mnist":
             self.n_classes = 10
             self.img_dims = (self.c, self.h, self.w) = (1, 28, 28)
             if self.thetas or self.scales:
                 self._prepare_transforms()
             train_set = datasets.MNIST(root=root, train=True, transform=self._init_transform(), download=True)
             test_set = datasets.MNIST(root=root, train=False, transform=self._init_transform(), download=True)
-        elif dataset == "LFW":
+        elif dataset == "lfw":
             self.data = DatasetLFW(root)
             self.c = 1
             self.h = self.data.h
@@ -38,14 +38,14 @@ class DataLoader():
             self.img_dims = (self.c, self.h, self.w)
             self.n_classes = self.data.num_classes
             train_set, test_set = self._split_dataset(self.data)
-        elif dataset == "FF":
+        elif dataset == "ff":
             self.data = DatasetFF(root)
             self.c = 1
             self.h = 28
             self.w = 20
             self.img_dims = (self.c, self.h, self.w)
             train_set, test_set = self._split_dataset(self.data)
-        elif dataset == "LungScans":
+        elif dataset == "lungscans":
             self.c = 1
             self.h = 384
             self.w = 384
@@ -70,7 +70,7 @@ class DataLoader():
             raise ValueError("DATASET N/A!")
 
         self.input_dim = np.prod(self.img_dims)
-        self.with_labels = dataset not in ["FF", "LungScans"]
+        self.with_labels = dataset not in ["ff", "lungscans"]
         self.single_x = single_x
         self.specific_class = specific_class
         self._set_data_loader(train_set, test_set)
@@ -134,9 +134,10 @@ class DataLoader():
         return torch.utils.data.random_split(data, [train_size, test_size])
 
     def get_new_test_data_loader(self):
-        if self.dataset == "MNIST":
+        if self.dataset == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
-        elif self.dataset == "LungScans":
+        elif self.dataset == "lungscans":
+            # TODO: probably need to do something here...
             _, test_set = self._split_dataset(self.data)
         else:
             _, test_set = self._split_dataset(self.data)
