@@ -212,6 +212,7 @@ class Solver(object):
             params += "model:\n"
             params += str(self.model)
             param_file.write(params)
+            print("params used: ", params)
 
     def main(self):
         if self.data_loader.directories.make_dirs:
@@ -243,11 +244,13 @@ class Solver(object):
         print("+++++ RUN IS FINISHED +++++")
 
 if __name__ == "__main__":  
-    parser = argparse.ArgumentParser(description="The script for training a model (VAE/CVAE/TDCVAE")
-    parser.add_argument("--model", help="Set model to VAE/CVAE/TDCVAE (REQUIRED)", required=True)
-    parser.add_argument("--dataset", help="Set dataset to MNIST/LFW/FF/LungScans accordingly (REQUIRED)", required=True)
-    parser.add_argument("--save_files", help="Determine if files (samples etc.) should be saved (required: False, default: False)", required=False, action='store_true')
-    parser.add_argument("--save_model_state", help="Determine if state of model should be saved during training (require: False, default: False)", required=False, action='store_true')
+    parser = argparse.ArgumentParser(description="The script for training a model (VAE/CVAE/TDCVAE)")
+    parser.add_argument("--model", help="Set model to VAE/CVAE/TDCVAE (required)", required=True)
+    parser.add_argument("--dataset", help="Set dataset to MNIST/LFW/FF/LungScans accordingly (required)", required=True)
+    parser.add_argument("--save_files", help="Determine if files (samples etc.) should be saved (optional, default: False)", required=False, action='store_true')
+    parser.add_argument("--save_model_state", help="Determine if state of model should be saved during training (optional, default: False)", required=False, action='store_true')
+    parser.add_argument('--scales', help="Enables scaling of the model as specified in model_params", default=None, action='store_true')
+    parser.add_argument('--thetas', help="Enables rotations of the model as specified in model_params", default=None, action='store_true')
     args = vars(parser.parse_args())
     model_arg = args["model"]
     dataset_arg = args["dataset"]
@@ -278,7 +281,11 @@ if __name__ == "__main__":
                 save_model_state=save_model_state)
         solver.main()
     elif model_arg.lower() == "tdcvae":
+        if args["scales"] is None and args["thetas"] is None:
+            raise ValueError("At least scales or thetas have to be specified!")
         data = get_model_data_tdcvae(dataset_arg)
+        scales = data["scales"] if args["scales"] is not None else None
+        thetas = data["thetas"] if args["thetas"] is not None else None
         directories = Directories(model_arg.lower(), dataset_arg, data["z_dim"],\
             make_dirs=save_files)
         data_loader = DataLoader(directories, data["batch_size"], dataset_arg,\

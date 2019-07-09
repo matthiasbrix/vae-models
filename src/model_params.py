@@ -60,7 +60,6 @@ def get_model_data_vae(dataset):
         }
     else:
         raise ValueError("Dataset not known!")
-    print("params for {}:".format(dataset.lower()), params)
     return params
 
 def get_model_data_cvae(dataset):
@@ -85,7 +84,6 @@ def get_model_data_cvae(dataset):
         }
     else:
         raise ValueError("Dataset not known!")
-    print("params for {}:".format(dataset.lower()), params)
     return params
 
 def get_model_data_tdcvae(dataset):
@@ -144,5 +142,4 @@ def get_model_data_tdcvae(dataset):
         }
     else:
         raise ValueError("Dataset not known!")
-    print("params for {}:".format(dataset.lower()), params)
     return params
