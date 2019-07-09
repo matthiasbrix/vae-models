@@ -319,7 +319,7 @@ def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, th
             N, _, H, W = data.shape
             transformed_data = np.zeros((num_samples, H, W))
             for i in range(num_samples):
-                transformed_data[i] = preprocess_sample(data[i], theta=theta ,scale=(scale, scale))
+                transformed_data[i] = preprocess_sample(data[i], theta=theta, scale=(scale, scale)).cpu().numpy()
             transformed_data_tensor = torch.tensor(transformed_data)
             transformed_data_tensor.unsqueeze_(1)
             grid_img = torchvision.utils.make_grid(transformed_data_tensor, nrow=5)
