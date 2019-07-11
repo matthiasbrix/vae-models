@@ -44,12 +44,18 @@ class Training(object):
         self.solver = solver
 
     def _train_batch(self, epoch_metrics, x, y=None):
+        print(x.shape)
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             y = y.to(DEVICE)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
+            x_t, x_next = x
+            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
+                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
+        elif self.solver.tdhcvae_mode:
             x_t, x_next = x
             x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
                 x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
@@ -88,6 +94,11 @@ class Testing(object):
             x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
                 x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
+        elif self.solver.tdhcvae_mode:
+            x_t, x_next = x
+            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
+                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
@@ -113,7 +124,7 @@ class Testing(object):
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, epochs, optim_config,\
             step_config=None, lr_scheduler=None, num_samples=100, cvae_mode=False,\
-            tdcvae_mode=False, save_model_state=False):
+            tdcvae_mode=False, tdhcvae_mode=False, save_model_state=False):
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
@@ -129,6 +140,7 @@ class Solver(object):
         self.z_stats_history = {x: [] for x in ["mu_z", "std_z", "varmu_z", "expected_var_z"]}
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
+        self.tdhcvae_mode = tdhcvae_mode
         self.num_samples = num_samples
 
         if save_model_state and not self.data_loader.directories.make_dirs:
@@ -172,6 +184,8 @@ class Solver(object):
                 z_sample = torch.randn(x_t.size(0), self.model.z_dim).to(DEVICE)
                 x_t = x_t.view(-1, self.data_loader.input_dim)
                 sample = torch.cat((x_t, z_sample), dim=-1).to(DEVICE)
+            elif self.tdhcvae_mode:
+                pass # TODO
             else:
                 sample = torch.randn(num_samples, self.model.z_dim).to(DEVICE)
             sample = self.model.decoder(sample)
@@ -198,11 +212,12 @@ class Solver(object):
             params += "dataset: {}\n".format(self.data_loader.dataset)
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
+            params += "TDHCVAE mode: {}\n".format(self.tdhcvae_mode)
             if self.data_loader.thetas:
-                theta_range_1 = self.data_loader.theta_range_1[1] - 1
-                theta_range_2 = self.data_loader.theta_range_2[1] - 1
+                theta_range_1 = (self.data_loader.theta_range_1[0], self.data_loader.theta_range_1[1] - 1)
+                theta_range_2 = (self.data_loader.theta_range_2[0], self.data_loader.theta_range_2[1] - 1)
                 params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
-                    .format(theta_range_1, theta_range_2)
+                    .format((theta_range_1, theta_range_2))
             if self.data_loader.scales:
                 params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
@@ -296,4 +311,5 @@ if __name__ == "__main__":
             data["optim_config"], step_config=data["step_config"],\
                 lr_scheduler=data["lr_scheduler"], tdcvae_mode=True,\
                 save_model_state=save_model_state)
+    # TODO: tdhcvae settings from here
     solver.main()

@@ -86,3 +86,26 @@ class ScaleRotate(object):
     def _generate_angles(self):
         self.theta_1 = np.random.randint(*self.theta_range_1)
         self.theta_2 = self.theta_1 + np.random.randint(*self.theta_range_2)
+
+class Translation(object):
+    def __init__(self, batch_size, translation_range_1, translation_range_2):
+        self.count = 0
+        self.batch_size = batch_size
+        self.translation_range_1 = translation_range_1
+        self.translation_range_2 = translation_range_2
+        self.translation_1 = None
+        self.translation_2 = None
+
+    def __call__(self, sample):
+        x_t = sample
+        x_next = sample
+        if self.count % self.batch_size == 0:
+            self._generate_translations()
+        x_t = preprocess_sample(transforms.ToTensor()(x_t), translation=(self.translation_1, self.translation_1))
+        x_next = preprocess_sample(transforms.ToTensor()(x_next), translation=(self.translation_2, self.translation_2))
+        self.count += 1
+        return x_t, x_next
+    
+    def _generate_translations(self):
+        self.translation_1 = np.random.randint(*self.translation_range_1)
+        self.translation_2 = self.translation_1 + np.random.randint(*self.translation_range_2)

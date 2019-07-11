@@ -13,6 +13,7 @@ def load_volume(root):
     files = sorted([f for f in listdir(root) if isfile(join(root, f))], key=sortfunc)
     slices = []
     for f in files:
+        print(root+f)
         data = skimage.img_as_float32(skimage.io.imread(root+f))
         slices.append(data)
     volume = np.stack(slices)
@@ -48,8 +49,8 @@ def process_key(event):
 
 if __name__ == "__main__":
     # reading all the sets of images.
-    folders = ['../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/',
-            '../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/',
-            '../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/']
+    folders = ['../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/',
+            '../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/',
+            '../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/']
     volumes = [load_volume(f) for f in folders]
     multi_slice_viewer(volumes)
