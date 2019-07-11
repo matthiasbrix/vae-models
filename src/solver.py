@@ -214,6 +214,10 @@ class Solver(object):
             param_file.write(params)
             print("params used: ", params)
 
+    # TODO: instead of from jn's
+    def _save_model_(self):
+        pass
+
     def main(self):
         if self.data_loader.directories.make_dirs:
             print("+++++ START RUN | saved files in {} +++++".format(\
@@ -297,3 +301,4 @@ if __name__ == "__main__":
                 lr_scheduler=data["lr_scheduler"], tdcvae_mode=True,\
                 save_model_state=save_model_state)
     solver.main()
+    # torch.save() TODO: call save model proc that has all model savings from each jn

@@ -8,8 +8,8 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 # expecting a tensor (C, H, W)
 def preprocess_sample(x, theta=None, scale=None):
     x = x[0].numpy()
-    print(theta, scale)
     theta = np.radians(theta) if theta is not None else 0
+    print(theta)
     scale = (1.0, 1.0) if scale is None or not all(scale) else scale
     shift_y, shift_x = np.array(x.shape[-2:])/2.
     center_shift = ski.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
@@ -92,26 +92,17 @@ class RandomPreprocessing():
 
 # For producing y spaces with deterministic deltas (scales/thetas)
 class DeterministicPreprocessing():
-    def __init__(self, num_test_samples, img_dims, num_rotations, num_scales, theta_range, scale_range):
+    def __init__(self, num_test_samples, img_dims, num_rotations, num_scales):
         self.num_test_samples = num_test_samples
         self.img_dims = img_dims
-        self.prepro_params = {}
         if num_scales <= 0 or num_rotations <= 0:
             raise ValueError("Det. prepro failed because rotations and/or scales should be > 0")
         if num_rotations > 0:
             self.thetas = np.linspace(0, 360, num_rotations)
-            if not self.thetas[0] >= theta_range[0] or not self.thetas[1] <= theta_range[1]:
-                raise ValueError("Theta range does not match the trained range. Trained: {}, Prepro: {}".format(theta_range, self.thetas))
             self.theta_1, self.theta_2 = 0, 0
-            self.prepro_params["theta_1"] = np.zeros((num_rotations, num_test_samples))
-            self.prepro_params["theta_diff"] = np.zeros((num_rotations, num_test_samples))
         if num_scales > 0:
             self.scales = 0.7 + np.linspace(0, 1, num_scales) * 0.6
-            if not self.scales[0] >= scale_range[0] or not self.scales[1] <= scale_range[1]:
-                raise ValueError("Scale range does not match the trained range. Trained: {}, Prepro: {}".format(scale_range, self.scales))
             self.scale_1, self.scale_2 = 0.0, 0.0
-            self.prepro_params["scale_1"] = np.zeros((num_scales, num_test_samples))
-            self.prepro_params["scale_diff"] = np.zeros((num_scales, num_test_samples))
 
     def preprocess_batch(self, x, scale=None, theta=None):
         x_transformed = torch.zeros_like(x)
