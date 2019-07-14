@@ -20,6 +20,7 @@ class Encoder(nn.Module):
         x = self.linear2(x)
         x = self.relu(x)
         x = self.linear3(x)
+        x = self.relu(x)
         return self.mean(x), self.logsigma(x)
 
 class Decoder(nn.Module):
