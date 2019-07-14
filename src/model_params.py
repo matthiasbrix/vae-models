@@ -110,34 +110,7 @@ def get_model_data_tdcvae(dataset):
             },
             "scales": {
                 "scale_1": [0.7, 1.3],
-                "scale_2": [0.2, 0.5]
-            }
-        }
-    elif dataset.lower() == "lungscans":
-        params = {
-            "optimizer": torch.optim.Adam,
-            "batch_size": 4,
-            "epochs": 1,
-            "hidden_dim": 1000,
-            "z_dim": 2,
-            "beta": 1,
-            "resize": (80, 80),
-            "lr_scheduler": torch.optim.lr_scheduler.StepLR,
-            "step_config": {
-                "step_size" : 100,
-                "gamma" : 0.75
-            },
-            "optim_config": {
-                "lr": 1e-4,
-                "weight_decay": None
-            },
-            "thetas": {
-                "theta_1": [-45, 45],
-                "theta_2": [-10, 10]
-            },
-            "scales": {
-                "scale_1": [1.0, 1.3],
-                "scale_2": [0.2, 0.5]
+                "scale_2": [0.1, 0.4]
             }
         }
     else:

@@ -307,7 +307,7 @@ if __name__ == "__main__":
         data = get_model_data_tdcvae(dataset_arg)
         scales = data["scales"] if args["scales"] is not None else None
         thetas = data["thetas"] if args["thetas"] is not None else None
-        rotations = if theta is not None
+        rotations = thetas is not None
         directories = Directories(model_arg.lower(), dataset_arg, data["z_dim"],\
             make_dirs=save_files)
         data_loader = DataLoader(directories, data["batch_size"], dataset_arg,\
