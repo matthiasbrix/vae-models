@@ -9,7 +9,6 @@ DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 def preprocess_sample(x, theta=None, scale=None):
     x = x[0].numpy()
     theta = np.radians(theta) if theta is not None else 0
-    print(theta)
     scale = (1.0, 1.0) if scale is None or not all(scale) else scale
     shift_y, shift_x = np.array(x.shape[-2:])/2.
     center_shift = ski.transform.SimilarityTransform(translation=[-shift_x, -shift_y])

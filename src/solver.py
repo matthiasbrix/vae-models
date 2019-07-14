@@ -199,8 +199,8 @@ class Solver(object):
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
             if self.data_loader.thetas:
-                theta_range_1 = self.data_loader.theta_range_1[1] - 1
-                theta_range_2 = self.data_loader.theta_range_2[1] - 1
+                theta_range_1 = (self.data_loader.theta_range_1[0], self.data_loader.theta_range_1[1] - 1)
+                theta_range_2 = (self.data_loader.theta_range_2[0], self.data_loader.theta_range_2[1] - 1)
                 params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
                     .format(theta_range_1, theta_range_2)
             if self.data_loader.scales:
@@ -208,15 +208,30 @@ class Solver(object):
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
             params += "single image: {}\n".format(self.data_loader.single_x)
             params += "specific class: {}\n".format(self.data_loader.specific_class)
-            params += "number of samples: {}\n".format(self.num_samples)
+            params += "number of samples for sampling: {}\n".format(self.num_samples)
             params += "model:\n"
             params += str(self.model)
             param_file.write(params)
-            print("params used: ", params)
+            print("params used:", params)
 
-    # TODO: instead of from jn's
-    def _save_model_(self):
-        pass
+    def _save_final_model(self):
+        name = self.data_loader.directories.result_dir + "/model_"
+        if self.tdcvae_mode:
+            name += "TD_CVAE_"
+            if solver.data_loader.thetas and solver.data_loader.scales:
+                name += "SCALES_THETAS_"
+            elif solver.data_loader.thetas:
+                name += "THETAS_"
+            elif solver.data_loader.scales:
+                name += "SCALES_"
+        if solver.data_loader.directories.make_dirs:
+            name += "VAE_"
+        if solver.data_loader.directories.make_dirs:
+            name += "CVAE_"
+        last_train_loss = solver.train_loss_history["train_loss_acc"][-1]
+        name += solver.data_loader.dataset + "_train_loss=" + "{0:.2f}".format(last_train_loss)\
+            + "_z=" + str(solver.model.z_dim) + ".pt"
+        torch.save(solver, name)
 
     def main(self):
         if self.data_loader.directories.make_dirs:
@@ -245,6 +260,8 @@ class Solver(object):
                 self.epoch = epoch+1 # signifying to continue from epoch+1 on.
                 torch.save(self, self.data_loader.directories.result_dir + "/model_state.pt")
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
+        if solver.data_loader.directories.make_dirs:
+            self._save_final_model()
         print("+++++ RUN IS FINISHED +++++")
 
 if __name__ == "__main__":  

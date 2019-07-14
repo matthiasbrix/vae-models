@@ -98,7 +98,7 @@ def get_model_data_tdcvae(dataset):
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,
             "step_config": {
                 "step_size" : 100,
-                "gamma" : 0.75 # or 0.1
+                "gamma" : 0.75
             },
             "optim_config": {
                 "lr": 1e-3,

@@ -79,6 +79,7 @@ def transform_images(solver, preprocessing, test_loader, ys):
             return
 
 
+'''
 #data preprocessing for rotation learning
 def transform_batch(x, theta, s):
     batch_size = x.shape[0]
@@ -111,3 +112,4 @@ def transform_images2(solver, preprocessing, test_loader, ys, theta, s):
                     x0trans= torch.FloatTensor(np.reshape(x0trans,(theta.shape[0], 784)))
                     _, _, _, _, _, y_batch_space = solver.model(x0trans) # outputs 30, 784; ys[sample,i,:,:].shape is 30, 2
                     ys[sample,i,:,:] = y_batch_space.numpy()
+'''
