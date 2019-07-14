@@ -9,6 +9,7 @@ class Encoder(nn.Module):
         self.linear1 = nn.Linear(Din, H)
         self.linear2 = nn.Linear(H, H)
         self.linear3 = nn.Linear(H, H)
+        self.linear4 = nn.Linear(H, H)
         self.mean = nn.Linear(H, Dout)
         self.logsigma = nn.Linear(H, Dout)
         self.relu = nn.ReLU()
@@ -20,6 +21,8 @@ class Encoder(nn.Module):
         x = self.linear2(x)
         x = self.relu(x)
         x = self.linear3(x)
+        x = self.relu(x)
+        x = self.linear4(x)
         x = self.relu(x)
         return self.mean(x), self.logsigma(x)
 
