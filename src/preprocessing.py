@@ -98,10 +98,8 @@ class DeterministicPreprocessing():
             raise ValueError("Det. prepro failed because rotations and/or scales should be > 0")
         if num_rotations > 0:
             self.thetas = np.linspace(0, 360, num_rotations)
-            self.theta_1, self.theta_2 = 0, 0
         if num_scales > 0:
             self.scales = 0.7 + np.linspace(0, 1, num_scales) * 0.6
-            self.scale_1, self.scale_2 = 0.0, 0.0
 
     def preprocess_batch(self, x, scale=None, theta=None):
         x_transformed = torch.zeros_like(x)

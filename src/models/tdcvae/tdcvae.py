@@ -7,11 +7,12 @@ class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
         super(Encoder, self).__init__()
         self.linear1 = nn.Linear(Din, H)
-        self.linear2 = nn.Linear(H, H)
-        self.linear3 = nn.Linear(H, H)
-        self.linear4 = nn.Linear(H, H)
-        self.mean = nn.Linear(H, Dout)
-        self.logsigma = nn.Linear(H, Dout)
+        self.linear2 = nn.Linear(H, 200)
+        self.linear3 = nn.Linear(200, 100)
+        self.linear4 = nn.Linear(100, 10)
+        self.linear5 = nn.Linear(10, 10)
+        self.mean = nn.Linear(10, Dout)
+        self.logsigma = nn.Linear(10, Dout)
         self.relu = nn.ReLU()
 
     # compute \mu(x_t), \sigma(x_t), so q(y_t|x_t)
@@ -23,6 +24,8 @@ class Encoder(nn.Module):
         x = self.linear3(x)
         x = self.relu(x)
         x = self.linear4(x)
+        x = self.relu(x)
+        x = self.linear5(x)
         x = self.relu(x)
         return self.mean(x), self.logsigma(x)
 
@@ -72,13 +75,12 @@ class TD_Cvae(nn.Module):
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)
         return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, self.beta*kl_divergence
 
-    # TODO: do z_t like Oswin, compute the things below (differences, and then do reparam trikc on it)
     # inputs: x_t, x_{t+1}
     # we allow x_next to be None in case we want to infer ys for x_t in test time
     def forward(self, x_t, x_next=None):
         mu_x_t, logvar_x_t = self.encoder(x_t)
+        y_t = self._reparameterization_trick(mu_x_t, logvar_x_t)
         if x_next is None:
-            y_t = self._reparameterization_trick(mu_x_t, logvar_x_t)
             return None, None, None, None, None, y_t
         mu_x_next, logvar_x_next = self.encoder(x_next)
         z_t = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)

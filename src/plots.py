@@ -163,6 +163,10 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
             scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap="Paired")
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
+        elif ticks is not None:
+            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, c=labels, cmap="Paired")
+            clb = plt.colorbar(scatter, ticks=ticks)
+            clb.ax.set_title(title)
         else:
             plt.scatter(space[:, 0], space[:, 1], s=10, c=labels, cmap=plt.cm.get_cmap("Paired", solver.data_loader.n_classes))
             clb = plt.colorbar()

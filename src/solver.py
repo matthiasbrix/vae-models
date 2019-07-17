@@ -31,7 +31,7 @@ class EpochMetrics():
         self.std_z += torch.std(z_space).item()
         # Var(mu(x))
         muzdim = torch.mean(mu_x, 0, True)
-        muzdim = torch.mean(muzdim.pow(2)) # is E[\mu(x)^2]
+        muzdim = torch.mean(muzdim).pow(2) # is E[\mu(x)]^2
         varmu = torch.mean(mu_x.pow(2)) # is \bar{\mu}^T\bar{\mu}
         self.varmu_z += (varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
         self.expected_var_z += torch.mean(torch.exp(logvar_x)) # E[var(q(z|x))]
