@@ -2,12 +2,13 @@ import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import numpy as np
+import skimage
 from datasets import DatasetFF, DatasetLFW, DatasetLungScans
 from samplers import ClassSampler, SingleDataPointSampler
-from transforms import Rotate, Scale, ScaleRotate, Translation
+from transforms import Rotate, Scale, ScaleRotate
 
 class DataLoader():
-    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, translation=None, single_x=False,\
+    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False,\
         specific_class=None, resize=None):
         self.directories = directories
         self.data = None
@@ -20,7 +21,6 @@ class DataLoader():
         self.dataset = dataset
         self.thetas = thetas
         self.scales = scales
-        self.translation = translation
 
         root = directories.data_dir_prefix+dataset
 
@@ -51,19 +51,12 @@ class DataLoader():
             self.h = 384
             self.w = 384
             self.img_dims = (self.c, self.h, self.w)
-            self._prepare_transforms()
             # reading all the sets of images that are specified in the list
             folders = ["/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
-            if resize:
-                transform = transforms.Compose([
-                    transforms.Resize(resize),
-                    self._init_transform()
-                ])
-            else:
-                transform = None
-            self.data = DatasetLungScans(root, folders, transform)
+            transform = skimage.transform.resize if resize else None
+            self.data = DatasetLungScans(root, folders, transform, resize)
             self.img_dims = (self.c, *resize)
             train_set, test_set = self._split_dataset(self.data)
         else:
@@ -92,10 +85,6 @@ class DataLoader():
             self.scale_range_1, self.scale_range_2 = self.scales["scale_1"], self.scales["scale_2"]
             if sum(x <= 0 for x in self.scale_range_1) > 0 or sum(x < 0 for x in self.scale_range_2) > 0:
                 raise ValueError("One of the scales in range1 is <= 0 or in range2 < 0!")
-        if self.translation:
-            self.translation_range_1, self.translation_range_2 = [v for _, v in self.thetas.items()]
-            self.theta_range_1[1] += 1
-            self.theta_range_2[1] += 1
 
     def _init_transform(self):
         if self.thetas and not self.scales:
@@ -104,8 +93,6 @@ class DataLoader():
             return Scale(self.batch_size, self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
             return ScaleRotate(self.batch_size, self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
-        if self.translation:
-            return Translation(self.batch_size, self.translation_range_1, self.translation_range_2)
         else:
             return transforms.ToTensor()
 
@@ -129,10 +116,11 @@ class DataLoader():
                 batch_size=self.batch_size, sampler=ClassSampler(test_set, self.specific_class),\
                 drop_last=True, shuffle=False)
         else:
+            print("hihii")
             self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
-                batch_size=self.batch_size, drop_last=True, shuffle=True)
+                batch_size=self.batch_size, drop_last=True, shuffle=False)
             self.test_loader = torch.utils.data.DataLoader(dataset=test_set,\
-                batch_size=self.batch_size, drop_last=True, shuffle=True)
+                batch_size=self.batch_size, drop_last=True, shuffle=False)
 
     def _split_dataset(self, data):
         train_size = int(0.8 * len(data))

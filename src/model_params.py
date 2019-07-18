@@ -121,10 +121,10 @@ def get_model_data_tdhcvae(dataset):
     if dataset.lower() == "lungscans":
         params = {
             "optimizer": torch.optim.Adam,
-            "batch_size": 4,
+            "batch_size": 1,
             "epochs": 1,
             "hidden_dim": 1000,
-            "z_dim": 3,
+            "z_dim": 3, # TODO: should be much higher because we have lots of features ot capture
             "beta": 1,
             "resize": (64, 64),
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,
@@ -135,10 +135,6 @@ def get_model_data_tdhcvae(dataset):
             "optim_config": {
                 "lr": 1e-4,
                 "weight_decay": None
-            },
-            "translation": {
-                "translation_1": [0, 8],
-                "translation_2": [0, 4]
             }
         }
     else:

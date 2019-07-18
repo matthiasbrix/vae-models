@@ -8,7 +8,8 @@ import torchvision.utils
 from models.vae.vae import Vae
 from models.cvae.cvae import Cvae
 from models.tdcvae.tdcvae import TD_Cvae
-from model_params import get_model_data_vae, get_model_data_cvae, get_model_data_tdcvae
+from models.tdhcvae.tdhcvae import Tdhcvae
+from model_params import get_model_data_vae, get_model_data_cvae, get_model_data_tdcvae, get_model_data_tdhcvae
 from directories import Directories
 from dataloader import DataLoader
 
@@ -44,7 +45,6 @@ class Training(object):
         self.solver = solver
 
     def _train_batch(self, epoch_metrics, x, y=None):
-        print(x.shape)
         self.solver.optimizer.zero_grad()
         if self.solver.cvae_mode:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
@@ -57,8 +57,8 @@ class Training(object):
             decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         elif self.solver.tdhcvae_mode:
             x_t, x_next = x
-            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
-                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            print(x_t.shape, x_next.shape, self.solver.data_loader.input_dim)
+            x_t, x_next = x_t.to(DEVICE), x_next.to(DEVICE)
             decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
@@ -266,6 +266,7 @@ if __name__ == "__main__":
     parser.add_argument("--save_model_state", help="Determine if state of model should be saved during training (optional, default: False)", required=False, action='store_true')
     parser.add_argument('--scales', help="Enables scaling of the model as specified in model_params", default=None, action='store_true')
     parser.add_argument('--thetas', help="Enables rotations of the model as specified in model_params", default=None, action='store_true')
+    # TODO: one for resize ...
     args = vars(parser.parse_args())
     model_arg = args["model"]
     dataset_arg = args["dataset"]
@@ -311,5 +312,14 @@ if __name__ == "__main__":
             data["optim_config"], step_config=data["step_config"],\
                 lr_scheduler=data["lr_scheduler"], tdcvae_mode=True,\
                 save_model_state=save_model_state)
-    # TODO: tdhcvae settings from here
+    elif model_arg.lower() == "tdhcvae":
+        data = get_model_data_tdhcvae(dataset_arg)
+        directories = Directories(model_arg.lower(), dataset_arg, data["z_dim"],\
+            make_dirs=save_files)
+        data_loader = DataLoader(directories, data["batch_size"], dataset_arg, resize=data["resize"])
+        model = Tdhcvae(data["z_dim"], data["beta"])        
+        solver = Solver(model, data_loader, data["optimizer"], data["epochs"],\
+            data["optim_config"], step_config=data["step_config"],\
+                lr_scheduler=data["lr_scheduler"], tdhcvae_mode=True,\
+                save_model_state=save_model_state)
     solver.main()

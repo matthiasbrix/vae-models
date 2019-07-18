@@ -6,15 +6,14 @@ import skimage as ski
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 # expecting a tensor (C, H, W)
-def preprocess_sample(x, theta=None, scale=None, translation=None):
+def preprocess_sample(x, theta=None, scale=None):
     x = x[0].numpy()
     theta = np.radians(theta) if theta is not None else 0
     scale = (1.0, 1.0) if scale is None or not all(scale) else scale
-    translation = (0.0, 0.0) if translation is None or not all(translation) else translation
     shift_y, shift_x = np.array(x.shape[-2:])/2.
     center_shift = ski.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
     center_shift_inv = ski.transform.SimilarityTransform(translation=[shift_x, shift_y])
-    center_transform = ski.transform.AffineTransform(scale=scale, rotation=theta, translation=translation)
+    center_transform = ski.transform.AffineTransform(scale=scale, rotation=theta)
     transformation = center_shift + (center_transform + center_shift_inv)
     # apply transformation inversed because otherwise it would be opposite/inverse of we define, so 1.5 scale is actually 0.5
     return torch.FloatTensor(ski.transform.warp(x, transformation.inverse, output_shape=(x.shape[-2], x.shape[-1]), preserve_range=True)).to(DEVICE)
