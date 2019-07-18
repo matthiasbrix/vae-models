@@ -196,6 +196,7 @@ class Solver(object):
                     self.data_loader.batch_size, self.lr_scheduler,\
                     self.step_config)
             params += "dataset: {}\n".format(self.data_loader.dataset)
+            params += "VAE mode {}\n".format(not self.cvae_mode and not self.tdcvae_mode)
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
             if self.data_loader.thetas:
@@ -260,7 +261,7 @@ class Solver(object):
                 self.epoch = epoch+1 # signifying to continue from epoch+1 on.
                 torch.save(self, self.data_loader.directories.result_dir + "/model_state.pt")
             print("{:.2f} seconds for epoch {}".format(time.time() - epoch_watch, epoch))
-        if solver.data_loader.directories.make_dirs:
+        if self.data_loader.directories.make_dirs:
             self._save_final_model()
         print("+++++ RUN IS FINISHED +++++")
 

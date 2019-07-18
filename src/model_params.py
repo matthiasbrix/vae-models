@@ -43,7 +43,7 @@ def get_model_data_vae(dataset):
         params = {
             "optimizer": torch.optim.Adam,
             "batch_size": 128,
-            "epochs": 100,
+            "epochs": 200,
             "hidden_dim": 200,
             "z_dim": 2,
             "beta": 1,

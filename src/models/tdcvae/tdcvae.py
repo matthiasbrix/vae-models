@@ -7,12 +7,11 @@ class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
         super(Encoder, self).__init__()
         self.linear1 = nn.Linear(Din, H)
-        self.linear2 = nn.Linear(H, 200)
-        self.linear3 = nn.Linear(200, 100)
-        self.linear4 = nn.Linear(100, 10)
-        self.linear5 = nn.Linear(10, 10)
-        self.mean = nn.Linear(10, Dout)
-        self.logsigma = nn.Linear(10, Dout)
+        self.linear2 = nn.Linear(H, H)
+        self.linear3 = nn.Linear(H, 200)
+        self.linear4 = nn.Linear(200, 100)
+        self.mean = nn.Linear(H, Dout)
+        self.logsigma = nn.Linear(H, Dout)
         self.relu = nn.ReLU()
 
     # compute \mu(x_t), \sigma(x_t), so q(y_t|x_t)
@@ -21,13 +20,22 @@ class Encoder(nn.Module):
         x = self.relu(x)
         x = self.linear2(x)
         x = self.relu(x)
-        x = self.linear3(x)
+        x = self.linear2(x)
         x = self.relu(x)
-        x = self.linear4(x)
+        x = self.linear2(x)
         x = self.relu(x)
-        x = self.linear5(x)
+        x = self.linear2(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        x = self.relu(x)
+        x = self.linear2(x)
         x = self.relu(x)
         return self.mean(x), self.logsigma(x)
+
 
 class Decoder(nn.Module):
     def __init__(self, Dout, H, Din, rotations):
@@ -86,5 +94,5 @@ class TD_Cvae(nn.Module):
         z_t = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
         xz_t = torch.cat((x_t, z_t), dim=-1)
         x_dec = self.decoder(xz_t) # x_{t+1}
-        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, y_t
+        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, mu_x_t # TODO: should be y_t at the end ...
         

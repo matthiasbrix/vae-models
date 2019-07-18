@@ -107,6 +107,7 @@ def transform_images2(solver, preprocessing, test_loader, ys, theta, s):
                 #create one copy of the sample for each theta we want to use
                 x0tile = np.reshape(np.tile(x_t[sample:sample+1, :], [theta.shape[0], 1]), (theta.shape[0], 28, 28))
                 for i in range(ys.shape[1]):
+                    print(x0tile.shape, s[i]. theta)
                     #transform images and feed to the encoder, pick the mean opf y
                     x0trans= transform_batch(x0tile, theta, s[i]*np.ones(theta.shape[0]))
                     x0trans= torch.FloatTensor(np.reshape(x0trans,(theta.shape[0], 784)))

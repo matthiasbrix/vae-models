@@ -335,11 +335,11 @@ def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, th
         torchvision.utils.save_image(grid_img, file_name)
 
 def plot_y_space_thetas(ys, ticks, labels, save_image, file_name, dataset):
-    S, T, N, _ = ys.shape
+    N, S, T, _ = ys.shape
     plt.figure(figsize=(20, 10))
     for t in range(T):
         labels2 = np.repeat(labels[t], S*N)
-        scatter = plt.scatter(ys[:, t, :, 0].flatten(), ys[:, t, :, 1].flatten(),\
+        scatter = plt.scatter(ys[:, :, t, 0].flatten(), ys[:, :, t, 1].flatten(),\
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("theta")
@@ -348,11 +348,13 @@ def plot_y_space_thetas(ys, ticks, labels, save_image, file_name, dataset):
         plt.savefig(file_name)
 
 def plot_y_space_scales(ys, ticks, labels, save_image, file_name, dataset):
-    S, T, N, _ = ys.shape
+    N, S, T, _ = ys.shape
     plt.figure(figsize=(20, 10))
     for s in range(S):
         labels2 = np.repeat(labels[s], T*N)
-        scatter = plt.scatter(ys[s, :, :, 0].flatten(), ys[s, :, :, 1].flatten(),\
+        #print(len(ys[:, s, :, 0].flatten()))
+        #print(labels2.shape, labels[s], T, N)
+        scatter = plt.scatter(ys[:, s, :, 0].flatten(), ys[:, s, :, 1].flatten(),\
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("scale")
