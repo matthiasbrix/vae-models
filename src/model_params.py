@@ -123,8 +123,7 @@ def get_model_data_tdhcvae(dataset):
             "optimizer": torch.optim.Adam,
             "batch_size": 1,
             "epochs": 1,
-            "hidden_dim": 1000,
-            "z_dim": 3, # TODO: should be much higher because we have lots of features ot capture
+            "z_dim": 100, # TODO: should be much higher because we have lots of features ot capture
             "beta": 1,
             "resize": (64, 64),
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,

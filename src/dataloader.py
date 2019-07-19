@@ -58,6 +58,7 @@ class DataLoader():
             transform = skimage.transform.resize if resize else None
             self.data = DatasetLungScans(root, folders, transform, resize)
             self.img_dims = (self.c, *resize)
+            self.img_dims = (self.c, 40, 64)
             train_set, test_set = self._split_dataset(self.data)
         else:
             raise ValueError("DATASET N/A!")
@@ -116,7 +117,6 @@ class DataLoader():
                 batch_size=self.batch_size, sampler=ClassSampler(test_set, self.specific_class),\
                 drop_last=True, shuffle=False)
         else:
-            print("hihii")
             self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
                 batch_size=self.batch_size, drop_last=True, shuffle=False)
             self.test_loader = torch.utils.data.DataLoader(dataset=test_set,\

@@ -57,7 +57,6 @@ class Training(object):
             decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         elif self.solver.tdhcvae_mode:
             x_t, x_next = x
-            print(x_t.shape, x_next.shape, self.solver.data_loader.input_dim)
             x_t, x_next = x_t.to(DEVICE), x_next.to(DEVICE)
             decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         else:
@@ -96,8 +95,7 @@ class Testing(object):
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
         elif self.solver.tdhcvae_mode:
             x_t, x_next = x
-            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
-                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            x_t, x_next = x_t.to(DEVICE), x_next.to(DEVICE)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
@@ -185,7 +183,12 @@ class Solver(object):
                 x_t = x_t.view(-1, self.data_loader.input_dim)
                 sample = torch.cat((x_t, z_sample), dim=-1).to(DEVICE)
             elif self.tdhcvae_mode:
-                pass # TODO
+                x_t = iter(self.data_loader.train_loader).next()[0][0]
+                num_samples = min(num_samples, x_t.size(0))
+                x_t = x_t[:num_samples]
+                z_sample = torch.randn(x_t.shape[0], self.model.z_dim).to(DEVICE)
+                x_t = x_t.view(-1, self.data_loader.input_dim)
+                sample = torch.cat((x_t, z_sample), dim=-1).to(DEVICE)
             else:
                 sample = torch.randn(num_samples, self.model.z_dim).to(DEVICE)
             sample = self.model.decoder(sample)
@@ -223,11 +226,10 @@ class Solver(object):
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
             params += "single image: {}\n".format(self.data_loader.single_x)
             params += "specific class: {}\n".format(self.data_loader.specific_class)
-            params += "number of samples: {}\n".format(self.num_samples)
             params += "model:\n"
             params += str(self.model)
             param_file.write(params)
-            print("params used: ", params)
+            print("params used:\n", params)
 
     def main(self):
         if self.data_loader.directories.make_dirs:
@@ -264,9 +266,9 @@ if __name__ == "__main__":
     parser.add_argument("--dataset", help="Set dataset to MNIST/LFW/FF/LungScans accordingly (required)", required=True)
     parser.add_argument("--save_files", help="Determine if files (samples etc.) should be saved (optional, default: False)", required=False, action='store_true')
     parser.add_argument("--save_model_state", help="Determine if state of model should be saved during training (optional, default: False)", required=False, action='store_true')
-    parser.add_argument('--scales', help="Enables scaling of the model as specified in model_params", default=None, action='store_true')
-    parser.add_argument('--thetas', help="Enables rotations of the model as specified in model_params", default=None, action='store_true')
-    # TODO: one for resize ...
+    parser.add_argument('--scales', help="Enables scaling of a TDCVAE model as specified in model_params", default=None, action='store_true')
+    parser.add_argument('--thetas', help="Enables rotations of a TDCVAE model as specified in model_params", default=None, action='store_true')
+    # TODO: add arg for resize ...
     args = vars(parser.parse_args())
     model_arg = args["model"]
     dataset_arg = args["dataset"]
@@ -317,9 +319,9 @@ if __name__ == "__main__":
         directories = Directories(model_arg.lower(), dataset_arg, data["z_dim"],\
             make_dirs=save_files)
         data_loader = DataLoader(directories, data["batch_size"], dataset_arg, resize=data["resize"])
-        model = Tdhcvae(data["z_dim"], data["beta"])        
+        model = Tdhcvae(data["z_dim"], data["beta"], 3, data_loader.img_dims)        
         solver = Solver(model, data_loader, data["optimizer"], data["epochs"],\
             data["optim_config"], step_config=data["step_config"],\
                 lr_scheduler=data["lr_scheduler"], tdhcvae_mode=True,\
-                save_model_state=save_model_state)
+                save_model_state=save_model_state, num_samples=1)
     solver.main()

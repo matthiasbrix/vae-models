@@ -16,10 +16,10 @@ def load_volume(root, resize=1):
     for f in files:
         data = skimage.img_as_float32(skimage.io.imread(root+f))
         if resize is not 1 and resize > 1:
-            #resize_scale = 1/(384 / 64)
-            #print(resize_scale)
-            data = skimage.transform.resize(data, output_shape=(resize, resize), anti_aliasing=True)
+            #resize_scale = 1/(data.shape[0] / resize)
             #data = skimage.transform.rescale(data, resize, multichannel=False, anti_aliasing=False)
+            data = skimage.transform.resize(data, output_shape=(resize, resize), anti_aliasing=True)
+            data = data[14:54, :]
         slices.append(data)
     volume = np.stack(slices)
     return volume

@@ -18,7 +18,6 @@ class DatasetFF(Dataset):
         return len(self.data)
     
     def __getitem__(self, idx):
-        print(idx)
         return self.data[idx]
 
 class DatasetLFW(Dataset):
@@ -53,23 +52,22 @@ class DatasetLungScans(Dataset):
         self.data = (self.data - np.min(self.data))/np.ptp(self.data)
         self.transform = transform
         self.resized_dims = resized_dims
-        self.t0 = 0
+        self.t0 = 32
 
     def __len__(self):
         return len(self.data)
 
     # TODO: maybe use t0 = 32, t1=33 because first and last are not so interesting...
     def __getitem__(self, t0):
-        t1 = (self.t0+1) % self.data.shape[0] # x % 192 for lungscans
-        print(self.t0, t1)
+        t1 = (t0+1) % self.data.shape[0] # x % 192 for lungscans
+        print("timestamps", t0, t1)
         if self.transform is not None and self.resized_dims is not None:
-            image1 = self.transform(self.data[self.t0], output_shape=self.resized_dims, anti_aliasing=True)
-            print(image1.shape)
+            image1 = self.transform(self.data[t0], output_shape=self.resized_dims, anti_aliasing=True)
+            image1 = image1[14:54, :]
             image1 = np.expand_dims(image1, axis=0) # inserts a channel dim at 0th index
             image2 = self.transform(self.data[t1+1], output_shape=self.resized_dims, anti_aliasing=True)
             image2 = np.expand_dims(image2, axis=0) # inserts a channel dim at 0th index
         else:
-            image1 = self.data[self.t0]
+            image1 = self.data[t0]
             image2 = self.data[t1+1]
-        self.t0 += 1
         return torch.FloatTensor(image1), torch.FloatTensor(image2)
