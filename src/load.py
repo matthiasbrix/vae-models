@@ -19,7 +19,7 @@ def load_volume(root, resize=1):
             #resize_scale = 1/(data.shape[0] / resize)
             #data = skimage.transform.rescale(data, resize, multichannel=False, anti_aliasing=False)
             data = skimage.transform.resize(data, output_shape=(resize, resize), anti_aliasing=True)
-            data = data[14:54, :]
+            data = data[34:108, :]
         slices.append(data)
     volume = np.stack(slices)
     return volume
@@ -56,5 +56,5 @@ if __name__ == "__main__":
     folders = ['../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/',
             '../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/',
             '../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/']
-    volumes = [load_volume(f, 64) for f in folders]
+    volumes = [load_volume(f, 128) for f in folders]
     multi_slice_viewer(volumes)
