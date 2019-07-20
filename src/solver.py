@@ -301,7 +301,6 @@ if __name__ == "__main__":
             data["optim_config"], step_config=data["step_config"],\
                 lr_scheduler=data["lr_scheduler"], cvae_mode=True,\
                 save_model_state=save_model_state)
-        solver.main()
     elif model_arg.lower() == "tdcvae":
         if args["scales"] is None and args["thetas"] is None:
             raise ValueError("At least scales or thetas have to be specified!")

@@ -3,15 +3,15 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
+
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
         super(Encoder, self).__init__()
-        self.linear1 = nn.Linear(Din, H)
-        self.linear2 = nn.Linear(H, H)
-        self.linear3 = nn.Linear(H, 200)
-        self.linear4 = nn.Linear(200, 100)
-        self.mean = nn.Linear(H, Dout)
-        self.logsigma = nn.Linear(H, Dout)
+        self.linear1 = nn.Linear(Din, 100)
+        self.linear2 = nn.Linear(100, 12)
+        self.linear3 = nn.Linear(12, 12)
+        self.mean = nn.Linear(12, Dout)
+        self.logsigma = nn.Linear(12, Dout)
         self.relu = nn.ReLU()
 
     # compute \mu(x_t), \sigma(x_t), so q(y_t|x_t)
@@ -20,22 +20,9 @@ class Encoder(nn.Module):
         x = self.relu(x)
         x = self.linear2(x)
         x = self.relu(x)
-        x = self.linear2(x)
-        x = self.relu(x)
-        x = self.linear2(x)
-        x = self.relu(x)
-        x = self.linear2(x)
-        x = self.relu(x)
-        x = self.linear2(x)
-        x = self.relu(x)
-        x = self.linear2(x)
-        x = self.relu(x)
-        x = self.linear2(x)
-        x = self.relu(x)
-        x = self.linear2(x)
+        x = self.linear3(x)
         x = self.relu(x)
         return self.mean(x), self.logsigma(x)
-
 
 class Decoder(nn.Module):
     def __init__(self, Dout, H, Din, rotations):

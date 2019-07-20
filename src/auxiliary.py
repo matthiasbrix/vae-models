@@ -97,19 +97,16 @@ def transform_batch(x, theta, s):
 def transform_images2(solver, preprocessing, test_loader, ys, theta, s):
     solver.model.eval()
     with torch.no_grad():
-        for _, data in enumerate(test_loader):
-            if solver.data_loader.with_labels:
-                x_t, targets = data[0], data[1]
-            else:
-                x_t = data
-            # do transformation on each sample for each scale and then over all thetas
-            for sample in range(ys.shape[0]):
-                #create one copy of the sample for each theta we want to use
-                x0tile = np.reshape(np.tile(x_t[sample:sample+1, :], [theta.shape[0], 1]), (theta.shape[0], 28, 28))
-                for i in range(ys.shape[1]):
-                    print(x0tile.shape, s[i]. theta)
-                    #transform images and feed to the encoder, pick the mean opf y
-                    x0trans= transform_batch(x0tile, theta, s[i]*np.ones(theta.shape[0]))
-                    x0trans= torch.FloatTensor(np.reshape(x0trans,(theta.shape[0], 784)))
-                    _, _, _, _, _, y_batch_space = solver.model(x0trans) # outputs 30, 784; ys[sample,i,:,:].shape is 30, 2
-                    ys[sample,i,:,:] = y_batch_space.numpy()
+        x_t, _ = iter(test_loader).next()
+        print(x_t.shape)
+        # do transformation on each sample for each scale and then over all thetas
+        for sample in range(ys.shape[0]):
+            print("sample", sample)
+            #create one copy of the sample for each theta we want to use
+            x0tile = np.reshape(np.tile(x_t[sample:sample+1, :], [theta.shape[0], 1]), (theta.shape[0], 28, 28))
+            for i in range(ys.shape[1]):
+                #transform images and feed to the encoder, pick the mean opf y
+                x0trans= transform_batch(x0tile, theta, s[i]*np.ones(theta.shape[0]))
+                x0trans= torch.FloatTensor(np.reshape(x0trans,(theta.shape[0], 784)))
+                _, _, _, _, _, y_batch_space = solver.model(x0trans) # outputs 30, 784; ys[sample,i,:,:].shape is 30, 2
+                ys[sample,i,:,:] = y_batch_space.numpy()
