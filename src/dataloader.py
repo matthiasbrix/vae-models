@@ -56,7 +56,7 @@ class DataLoader():
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/",
                        "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
             transform = skimage.transform.resize if resize else None
-            self.data = DatasetLungScans(root, folders, transform, resize)
+            self.data = DatasetLungScans(folders, transform, resize)
             self.img_dims = (self.c, *resize)
             self.img_dims = (self.c, 40, 64)
             train_set, test_set = self._split_dataset(self.data)

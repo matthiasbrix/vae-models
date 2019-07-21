@@ -44,9 +44,7 @@ class DatasetLFW(Dataset):
         return self.data[idx]
 
 class DatasetLungScans(Dataset):
-    def __init__(self, file_path, volumes, transform=None, resized_dims=None):
-        # prepend root to path
-        volumes = [file_path+volume for volume in volumes]
+    def __init__(self, volumes, transform=None, resized_dims=None):
         self.data = np.concatenate(tuple(load_all_volumes(volumes)), axis=0) # shape is 192 x 384 x 384, as 192=64*3
         # normalize to (0,1)
         self.data = (self.data - np.min(self.data))/np.ptp(self.data)
