@@ -339,6 +339,7 @@ def plot_y_space_thetas(ys, ticks, labels, save_image, file_name, dataset):
     plt.figure(figsize=(20, 10))
     for t in range(T):
         labels2 = np.repeat(labels[t], S*N)
+        #print(len(ys[:, :, t, 0].flatten()), len(ticks), len(labels))
         scatter = plt.scatter(ys[:, :, t, 0].flatten(), ys[:, :, t, 1].flatten(),\
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)

@@ -95,11 +95,11 @@ class DataLoader():
 
     def _init_transform(self):
         if self.thetas and not self.scales:
-            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2)
+            return Rotate(self.theta_range_1, self.theta_range_2)
         if self.scales and not self.thetas:
-            return Scale(self.batch_size, self.scale_range_1, self.scale_range_2)
+            return Scale(self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
-            return ScaleRotate(self.batch_size, self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
+            return ScaleRotate(self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
         else:
             return transforms.ToTensor()
 

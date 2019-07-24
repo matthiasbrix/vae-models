@@ -3,7 +3,6 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
-
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
         super(Encoder, self).__init__()
@@ -81,5 +80,5 @@ class TD_Cvae(nn.Module):
         z_t = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
         xz_t = torch.cat((x_t, z_t), dim=-1)
         x_dec = self.decoder(xz_t) # x_{t+1}
-        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, mu_x_t # TODO: should be y_t at the end ...
+        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, y_t # TODO: should be y_t at the end ...
         

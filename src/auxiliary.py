@@ -79,16 +79,17 @@ def transform_images(solver, preprocessing, test_loader, ys):
             return
 
 
-
+# TODO: call prperocess sample from here....
 #data preprocessing for rotation learning
 def transform_batch(x, theta, s):
     batch_size = x.shape[0]
     xtransformed=[]
     for i in range(batch_size):
+        #print(s[i], theta[i])
         shift_y, shift_x = np.array(x.shape[1:3]) / 2.
         center_shift = ski.transform.SimilarityTransform(translation=[-shift_x, -shift_y])
         center_shift_inv = ski.transform.SimilarityTransform(translation=[shift_x, shift_y])
-        center_transform = ski.transform.AffineTransform(scale=(s[i], s[i]), rotation=np.radians(theta[i]))
+        center_transform = ski.transform.AffineTransform(scale=(s[i], s[i]), rotation=theta[i])
         transformation = center_shift + (center_transform + center_shift_inv)
         xtransformed.append(ski.transform.warp(x[i,:,:], transformation.inverse, output_shape=(x.shape[1], x.shape[2]), preserve_range=True))
     x=np.stack(xtransformed,axis=0)
@@ -98,7 +99,9 @@ def transform_images2(solver, preprocessing, test_loader, ys, theta, s):
     solver.model.eval()
     with torch.no_grad():
         x_t, _ = iter(test_loader).next()
-        print(x_t.shape)
+        #x_t = x_t[0]
+        #print(len(x_t))
+        #print(x_t.shape)
         # do transformation on each sample for each scale and then over all thetas
         for sample in range(ys.shape[0]):
             print("sample", sample)

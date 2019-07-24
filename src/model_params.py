@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 
 def get_model_data_vae(dataset):
     if dataset.lower() == "mnist":
@@ -94,7 +95,7 @@ def get_model_data_tdcvae(dataset):
             "epochs": 1000,
             "hidden_dim": 500,
             "z_dim": 2,
-            "beta": 1,
+            "beta": 2,
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,
             "step_config": {
                 "step_size" : 100,
@@ -105,12 +106,12 @@ def get_model_data_tdcvae(dataset):
                 "weight_decay": None
             },
             "thetas": {
-                "theta_1": [0, 360],
-                "theta_2": [0, 60]
+                "theta_1": [-np.pi, np.pi],
+                "theta_2": [-np.pi/4, np.pi/4]
             },
             "scales": {
-                "scale_1": [0.7, 1.3],
-                "scale_2": [0.1, 0.4]
+                "scale_1": [0.85, 1.15],
+                "scale_2": [-0.15, 0.15]
             }
         }
     else:
