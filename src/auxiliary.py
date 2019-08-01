@@ -39,7 +39,8 @@ def get_latent_spaces(solver, transformation=None):
             if solver.data_loader.with_labels:
                 x, targets = data[0], data[1]
                 if transformation is not None:
-                    x = transformation.preprocess_batch(x, batch_start_idx, batch_end_idx)
+                    x = transformation.preprocess_samples(x, batch_start_idx, batch_end_idx)
+                    #x = transformation.preprocess_batch(x, batch_start_idx, batch_end_idx)
                 y_batch_space, z_batch_space = _get_batch_spaces(solver, x, targets)
                 data_labels[batch_start_idx:batch_end_idx] = targets
             else:
@@ -53,7 +54,7 @@ def get_latent_spaces(solver, transformation=None):
     return z_space, y_space, data_labels
 
 # transforming images to produce alphas/radiuses
-def transform_images(solver, preprocessing, test_loader, ys):
+def transform_images(solver, test_loader, ys, scales, thetas):
     solver.model.eval()
     with torch.no_grad():
         data_labels = np.zeros((solver.data_loader.num_test_samples))
@@ -67,15 +68,15 @@ def transform_images(solver, preprocessing, test_loader, ys):
             sample_idx = 0
             # do transformation on each sample for each scale and then over all thetas
             for sample_idx in range(num_samples):
-                for s in range(ys.shape[0]):
-                    for t in range(ys.shape[1]):
-                        scale = np.around(preprocessing.scales[s], decimals=2)
-                        theta = np.around(preprocessing.thetas[t], decimals=2)
+                for s in range(ys.shape[1]):
+                    for t in range(ys.shape[2]):
+                        scale = np.around(scales[s], decimals=2)
+                        theta = np.around(thetas[t], decimals=2)
                         print(scale, theta)
                         x_transformed = preprocess_sample(x_t[sample_idx], theta=theta, scale=(scale, scale)).view(-1, solver.data_loader.input_dim).to(DEVICE)
-                        _, _, _, _, _, y_batch_space = solver.model(x_transformed, None)
+                        _, _, _, _, _, y_batch_space = solver.model(x_transformed)
                         print(y_batch_space.shape)
-                        ys[s, t, sample_idx, :] = y_batch_space[0].cpu().numpy()
+                        ys[sample_idx, s, t, :] = y_batch_space[0].cpu().numpy()
             return
 
 
@@ -95,8 +96,8 @@ def transform_batch(x, theta, s):
     x=np.stack(xtransformed,axis=0)
     return x
 
-def transform_images2(solver, preprocessing, test_loader, ys, theta, s):
-    solver.model.eval()
+def transform_images2(model, solver, preprocessing, test_loader, ys, theta, s):
+    model.eval() # solver.model.eval()
     with torch.no_grad():
         x_t, _ = iter(test_loader).next()
         #x_t = x_t[0]
@@ -105,11 +106,14 @@ def transform_images2(solver, preprocessing, test_loader, ys, theta, s):
         # do transformation on each sample for each scale and then over all thetas
         for sample in range(ys.shape[0]):
             print("sample", sample)
-            #create one copy of the sample for each theta we want to use
-            x0tile = np.reshape(np.tile(x_t[sample:sample+1, :], [theta.shape[0], 1]), (theta.shape[0], 28, 28))
+            # create one copy of the sample for each theta we want to use
+            x0tile = np.reshape(np.tile(x_t[sample:sample+1, :], [theta.shape[0], 1]), (theta.shape[0], 28, 28)) # dim: 30 x 28 x 28
             for i in range(ys.shape[1]):
-                #transform images and feed to the encoder, pick the mean opf y
-                x0trans= transform_batch(x0tile, theta, s[i]*np.ones(theta.shape[0]))
-                x0trans= torch.FloatTensor(np.reshape(x0trans,(theta.shape[0], 784)))
-                _, _, _, _, _, y_batch_space = solver.model(x0trans) # outputs 30, 784; ys[sample,i,:,:].shape is 30, 2
+                # transform images and feed to the encoder, pick the mean opf y
+                #print(x0tile.shape, theta, s[i], s[i]*np.ones(theta.shape[0])) # dim: 
+                x0trans = transform_batch(x0tile, theta, s[i]*np.ones(theta.shape[0])) # dim: 30 x 28 x 28
+                #print(x0trans.shape)
+                x0trans = torch.FloatTensor(np.reshape(x0trans, (theta.shape[0], 784))) # dim: 30, 784
+                #print(x0trans.shape)
+                _, _, _, _, _, y_batch_space = model(x0trans, x0trans) # outputs 30, 784; ys[sample,i,:,:].shape is 30, 2
                 ys[sample,i,:,:] = y_batch_space.numpy()

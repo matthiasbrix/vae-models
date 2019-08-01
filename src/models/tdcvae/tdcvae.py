@@ -1,13 +1,12 @@
 import torch
 import torch.utils.data
 import torch.nn as nn
-import torch.nn.functional as F
 
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout):
         super(Encoder, self).__init__()
-        self.linear1 = nn.Linear(Din, 100)
-        self.linear2 = nn.Linear(100, 12)
+        self.linear1 = nn.Linear(Din, 98)
+        self.linear2 = nn.Linear(98, 12)
         self.linear3 = nn.Linear(12, 12)
         self.mean = nn.Linear(12, Dout)
         self.logsigma = nn.Linear(12, Dout)
@@ -39,8 +38,7 @@ class Decoder(nn.Module):
         x = self.relu(x)
         for _ in range(self.layers):
             x = self.relu(self.linear2(x))
-        x = self.linear3(x)
-        return self.sigmoid(x)
+        return self.linear3(x)
 
 class TD_Cvae(nn.Module):
     def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, z_dim, beta, rotations=False):
@@ -49,8 +47,9 @@ class TD_Cvae(nn.Module):
         self.decoder = Decoder(input_dim+z_dim, hidden_dim_dec+z_dim, input_dim, rotations)
         self.z_dim = z_dim
         self.beta = beta
+        self.loss = nn.MSELoss()
 
-    # y \sim N(\mu(x), \Sigma(x))
+    # y \sim N(\mu(x), \Sigma(x))   
     def _reparameterization_trick(self, mu_x, logvar_x):
         sigma = torch.exp(1/2*logvar_x)
         eps = torch.randn_like(sigma)
@@ -65,9 +64,9 @@ class TD_Cvae(nn.Module):
 
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
     def loss_function(self, fx, X, logsigma, mu):
-        loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
-        kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)
-        return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, self.beta*kl_divergence
+        loss_reconstruction = self.loss(fx, X)
+        kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)/float(X.shape[0]) # Normalise by same number of elements as in reconstruction KLD /= BATCH_SIZE * 784
+        return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, kl_divergence
 
     # inputs: x_t, x_{t+1}
     # we allow x_next to be None in case we want to infer ys for x_t in test time
@@ -75,10 +74,9 @@ class TD_Cvae(nn.Module):
         mu_x_t, logvar_x_t = self.encoder(x_t)
         y_t = self._reparameterization_trick(mu_x_t, logvar_x_t)
         if x_next is None:
-            return None, None, None, None, None, y_t
+            return None, None, None, None, None, mu_x_t
         mu_x_next, logvar_x_next = self.encoder(x_next)
         z_t = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
         xz_t = torch.cat((x_t, z_t), dim=-1)
         x_dec = self.decoder(xz_t) # x_{t+1}
-        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, y_t # TODO: should be y_t at the end ...
-        
+        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, mu_x_t # TODO: should be y_t at the end ...

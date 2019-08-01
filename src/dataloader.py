@@ -28,8 +28,10 @@ class DataLoader():
             self.img_dims = (self.c, self.h, self.w) = (1, 28, 28)
             if self.thetas or self.scales:
                 self._prepare_transforms()
-            train_set = datasets.MNIST(root=root, train=True, transform=self._init_transform(), download=True)
-            test_set = datasets.MNIST(root=root, train=False, transform=self._init_transform(), download=True)
+            train_set = datasets.MNIST(root=root, train=True, transform=transforms.ToTensor(), download=True)
+            test_set = datasets.MNIST(root=root, train=False, transform=transforms.ToTensor(), download=True)
+            #train_set = datasets.MNIST(root=root, train=True, transform=self._init_transform(), download=True)
+            #test_set = datasets.MNIST(root=root, train=False, transform=self._init_transform(), download=True)
         elif dataset == "lfw":
             self.data = DatasetLFW(root)
             self.c = 1
@@ -75,6 +77,7 @@ class DataLoader():
         self.specific_class = specific_class
         self._set_data_loader(train_set, test_set)
         self.num_train_batches = len(self.train_loader)
+        self.num_test_batches = len(self.test_loader)
         self.num_train_samples = self.num_train_batches*self.batch_size
         self.num_test_samples = 0 if self.single_x and not self.specific_class\
                                 else len(self.test_loader.dataset)
@@ -82,24 +85,25 @@ class DataLoader():
         self.dataset = dataset
         self.root = root
 
+        print(self.num_test_batches, self.num_train_batches)
+
     def _prepare_transforms(self):
         # adjust for that the uniform ranges are excludsive
         if self.thetas:
-            self.theta_range_1, self.theta_range_2 = [v for _, v in self.thetas.items()]
-            self.theta_range_1[1] += 1
-            self.theta_range_2[1] += 1
+            self.theta_range_1, self.theta_range_2 = self.thetas["theta_1"], self.thetas["theta_2"]
         if self.scales:
             self.scale_range_1, self.scale_range_2 = self.scales["scale_1"], self.scales["scale_2"]
-            if sum(x <= 0 for x in self.scale_range_1) > 0 or sum(x <= 0 for x in self.scale_range_2) > 0:
-                raise ValueError("One of the scales is <= 0!")
 
     def _init_transform(self):
         if self.thetas and not self.scales:
-            return Rotate(self.theta_range_1, self.theta_range_2)
+            print("rotate")
+            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2)
         if self.scales and not self.thetas:
-            return Scale(self.scale_range_1, self.scale_range_2)
+            print("scale")
+            return Scale(self.batch_size, self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
-            return ScaleRotate(self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
+            print("scalerotate")
+            return ScaleRotate(self.batch_size, self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
         else:
             return transforms.ToTensor()
 

@@ -184,7 +184,7 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
 # p(x|z) with the learned parameters θ.
 def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None):
     c, h, w = solver.data_loader.img_dims
-    figure = torch.zeros((c, h*n, w*n))
+    figure = torch.ones((c, h*n, w*n))
     # Decode for each square in the grid.
     solver.model.eval()
     with torch.no_grad():
@@ -204,12 +204,11 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
                 else:
                     sample = z_sample
                 x_decoded = solver.model.decoder(sample)
+                print(np.min(x_decoded.numpy()), np.max(x_decoded.numpy()))
                 figure[:, i*h:(i+1)*h, j*w:(j+1)*w] = x_decoded.view(*solver.data_loader.img_dims)
     grid_img = torchvision.utils.make_grid(figure)
     plt.figure(figsize=fig_size)
     plt.axis("off")
-    plt.xlabel("z_1")
-    plt.ylabel("z_2")
     plt.imshow(grid_img.permute(1, 2, 0), cmap=cm)
     plt.show()
     if solver.data_loader.directories.make_dirs:

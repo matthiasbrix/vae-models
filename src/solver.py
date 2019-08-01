@@ -4,6 +4,7 @@ import argparse
 import torch
 import torch.utils.data
 import torchvision.utils
+import numpy as np
 
 from models.vae.vae import Vae
 from models.cvae.cvae import Cvae
@@ -11,6 +12,7 @@ from models.tdcvae.tdcvae import TD_Cvae
 from model_params import get_model_data_vae, get_model_data_cvae, get_model_data_tdcvae
 from directories import Directories
 from dataloader import DataLoader
+from preprocessing import test_images, test_batch
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -22,7 +24,7 @@ class EpochMetrics():
 
     def compute_batch_train_metrics(self, train_loss, reconstruction_loss, kl_divergence,\
         z_space, mu_x, logvar_x):
-        self.train_loss_acc += train_loss
+        self.train_loss_acc += train_loss.item()
         # accum. reconstruction loss and kl divergence
         self.recon_loss_acc += reconstruction_loss.item()
         self.kl_diverg_acc += kl_divergence.item()
@@ -50,18 +52,26 @@ class Training(object):
             y = y.to(DEVICE)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_t, x_next = x
-            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
-                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            #x_t, x_next = x
+            #x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
+            #    x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            #decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
+            x_t, x_next, _ = test_batch(x, y, np.pi/4)
+            #print(x_t.shape, x_next.shape)
             decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x) # vae
-        loss, reconstruction_loss, kl_divergence = \
-            self.solver.model.loss_function(decoded, x, logvar_x, mu_x)
+        loss, reconstruction_loss, kl_divergence = #\
+            #self.solver.model.loss_function(decoded, x_nex, logvar_x, mu_x)
+        asd = self.solver.model.loss_function(decoded, x_next, logvar_x, mu_x)
+        #print(asd[0].item(), asd[1].item(), asd[2].item(), (self.solver.model.beta*asd[2]).item())
+        reconstruction_loss = self.solver.model.losso(x_next, decoded)
+        loss = reconstruction_loss + self.solver.model.beta*kl_divergence
+        #print(loss.item(), reconstruction_loss.item(), (kl_divergence).item(), (self.solver.model.beta*kl_divergence).item())
         loss.backward() # compute gradients
         self.solver.optimizer.step()
-        epoch_metrics.compute_batch_train_metrics(loss.item(), reconstruction_loss,\
+        epoch_metrics.compute_batch_train_metrics(loss, reconstruction_loss,\
             kl_divergence, z_space, mu_x, logvar_x)
 
     def train(self, epoch_metrics):
@@ -84,14 +94,20 @@ class Testing(object):
             y = y.to(DEVICE)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            x_t, x_next = x
-            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
-                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
-            decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
+            x_t, x_next, _ = test_batch(x, y, np.pi/4)
+            #print(x_t.shape, x_next.shape)
+            decoded, kl_divergence, _, _, _, _ = self.solver.model(x_t, x_next)
+            #x_t, x_next = x[0].clone().detach(), x[1].clone().detach()
+            #x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
+            #    x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            #decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
+            x = x_t
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
-        loss, _, _ = self.solver.model.loss_function(decoded, x, mu_x, logvar_x)
+        reconstruction_loss = self.solver.model.losso(x_next, decoded)
+        loss = reconstruction_loss + self.solver.model.beta*kl_divergence
+        #loss, _, _ = self.solver.model.loss_function(decoded, x, mu_x, logvar_x)
         epoch_metrics.compute_batch_test_metrics(loss.item())
         if batch_idx == 0 and self.solver.data_loader.directories.make_dirs: # check w/ test set on first batch in test set.
             n = min(x.size(0), 16) # 2 x 8 grid
@@ -117,8 +133,8 @@ class Solver(object):
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
-        optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples))\
-            if optim_config["weight_decay"] is None else optim_config["weight_decay"] # batch wise regularization, so M/N in all
+        optim_config["weight_decay"] = 0.0 #1/(float(self.data_loader.num_train_samples))\
+        #   if optim_config["weight_decay"] is None else optim_config["weight_decay"] # batch wise regularization, so M/N in all
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.epoch = 0
         self.epochs = epochs
@@ -138,11 +154,11 @@ class Solver(object):
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
         num_train_batches = self.data_loader.num_train_batches
-        train_loss = metrics.train_loss_acc/num_train_samples
+        train_loss = metrics.train_loss_acc/num_train_batches # TODO:
         self.train_loss_history["epochs"].append(epoch) # just for debug mode (in case we finish earlier)
         self.train_loss_history["train_loss_acc"].append(train_loss)
-        self.train_loss_history["recon_loss_acc"].append(metrics.recon_loss_acc/num_train_samples)
-        self.train_loss_history["kl_diverg_acc"].append(metrics.kl_diverg_acc/num_train_samples)
+        self.train_loss_history["recon_loss_acc"].append(metrics.recon_loss_acc/num_train_batches) # TODO: num_train_samples
+        self.train_loss_history["kl_diverg_acc"].append(metrics.kl_diverg_acc/num_train_batches) # TODO
         self.z_stats_history["mu_z"].append(metrics.mu_z/num_train_batches)
         self.z_stats_history["std_z"].append(metrics.std_z/num_train_batches)
         self.z_stats_history["varmu_z"].append(metrics.varmu_z/num_train_batches)
@@ -150,7 +166,7 @@ class Solver(object):
         return train_loss
 
     def _save_test_metrics(self, metrics):
-        test_loss = metrics.test_loss_acc/self.data_loader.num_test_samples
+        test_loss = metrics.test_loss_acc/self.data_loader.num_test_batches # TODO:
         self.test_loss_history.append(test_loss)
         return test_loss
 
@@ -166,11 +182,13 @@ class Solver(object):
                 y_sample[:, idx] = 1.
                 sample = torch.cat((z_sample, y_sample), dim=-1).to(DEVICE)
             elif self.tdcvae_mode:
-                x_t = iter(self.data_loader.train_loader).next()[0][0]
+                #x_t = iter(self.data_loader.train_loader).next()[0][0]
+                x, y = iter(self.data_loader.test_loader).next()
+                x_t, _, _ = test_batch(x, y, np.pi/4)
                 num_samples = min(num_samples, x_t.size(0))
                 x_t = x_t[:num_samples]
                 z_sample = torch.randn(x_t.size(0), self.model.z_dim).to(DEVICE)
-                x_t = x_t.view(-1, self.data_loader.input_dim)
+                #x_t = x_t.view(-1, self.data_loader.input_dim)
                 sample = torch.cat((x_t, z_sample), dim=-1).to(DEVICE)
             else:
                 sample = torch.randn(num_samples, self.model.z_dim).to(DEVICE)
@@ -200,8 +218,8 @@ class Solver(object):
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
             if self.data_loader.thetas:
-                theta_range_1 = (self.data_loader.theta_range_1[0], self.data_loader.theta_range_1[1] - 1)
-                theta_range_2 = (self.data_loader.theta_range_2[0], self.data_loader.theta_range_2[1] - 1)
+                theta_range_1 = (self.data_loader.theta_range_1[0], self.data_loader.theta_range_1[1] - 1) # TODO:? don't..
+                theta_range_2 = (self.data_loader.theta_range_2[0], self.data_loader.theta_range_2[1] - 1) # TODO: don't...
                 params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
                     .format(theta_range_1, theta_range_2)
             if self.data_loader.scales:
@@ -311,7 +329,7 @@ if __name__ == "__main__":
         directories = Directories(model_arg.lower(), dataset_arg, data["z_dim"],\
             make_dirs=save_files)
         data_loader = DataLoader(directories, data["batch_size"], dataset_arg,\
-            scales=data["scales"], thetas=data["thetas"])
+            scales=scales, thetas=thetas)
         model = TD_Cvae(data_loader.input_dim, data["hidden_dim"],\
             data_loader.input_dim, data["z_dim"], data["beta"], rotations=rotations)
         solver = Solver(model, data_loader, data["optimizer"], data["epochs"],\
