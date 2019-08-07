@@ -6,6 +6,9 @@ from datasets import DatasetFF, DatasetLFW, DatasetLungScans
 from samplers import ClassSampler, SingleDataPointSampler
 from transforms import Rotate, Scale, ScaleRotate
 
+# TODO: Del this shit
+DEBUG = 1
+
 class DataLoader():
     def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False,\
         specific_class=None, resize=None):
@@ -28,10 +31,12 @@ class DataLoader():
             self.img_dims = (self.c, self.h, self.w) = (1, 28, 28)
             if self.thetas or self.scales:
                 self._prepare_transforms()
-            train_set = datasets.MNIST(root=root, train=True, transform=transforms.ToTensor(), download=True)
-            test_set = datasets.MNIST(root=root, train=False, transform=transforms.ToTensor(), download=True)
-            #train_set = datasets.MNIST(root=root, train=True, transform=self._init_transform(), download=True)
-            #test_set = datasets.MNIST(root=root, train=False, transform=self._init_transform(), download=True)
+            if DEBUG:
+                train_set = datasets.MNIST(root=root, train=True, transform=transforms.ToTensor(), download=True)
+                test_set = datasets.MNIST(root=root, train=False, transform=transforms.ToTensor(), download=True)
+            else:
+                train_set = datasets.MNIST(root=root, train=True, transform=self._init_transform(), download=True)
+                test_set = datasets.MNIST(root=root, train=False, transform=self._init_transform(), download=True)
         elif dataset == "lfw":
             self.data = DatasetLFW(root)
             self.c = 1
@@ -85,8 +90,6 @@ class DataLoader():
         self.dataset = dataset
         self.root = root
 
-        print(self.num_test_batches, self.num_train_batches)
-
     def _prepare_transforms(self):
         # adjust for that the uniform ranges are excludsive
         if self.thetas:
@@ -97,13 +100,13 @@ class DataLoader():
     def _init_transform(self):
         if self.thetas and not self.scales:
             print("rotate")
-            return Rotate(self.batch_size, self.theta_range_1, self.theta_range_2)
+            return Rotate(self.theta_range_1, self.theta_range_2)
         if self.scales and not self.thetas:
             print("scale")
-            return Scale(self.batch_size, self.scale_range_1, self.scale_range_2)
+            return Scale(self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
             print("scalerotate")
-            return ScaleRotate(self.batch_size, self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
+            return ScaleRotate(self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
         else:
             return transforms.ToTensor()
 

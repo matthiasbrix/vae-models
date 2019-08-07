@@ -29,7 +29,6 @@ class Decoder(nn.Module):
         self.linear2 = nn.Linear(H, H)
         self.linear3 = nn.Linear(H, Din)
         self.relu = nn.ReLU()
-        self.sigmoid = nn.Sigmoid()
         self.layers = 7 if rotations else 3
 
     # compute p(x_{t+1}|x_t, z_t)
@@ -60,23 +59,22 @@ class TD_Cvae(nn.Module):
         mu_z = mu_x_next - mu_x_t
         logvar_z = torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t))
         z_t = self._reparameterization_trick(mu_z, logvar_z)
-        return z_t
+        return z_t, mu_z, logvar_z
 
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
     def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = self.loss(fx, X)
-        kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)/float(X.shape[0]) # Normalise by same number of elements as in reconstruction KLD /= BATCH_SIZE * 784
+        kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)/float(X.shape[0])
         return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, kl_divergence
 
     # inputs: x_t, x_{t+1}
     # we allow x_next to be None in case we want to infer ys for x_t in test time
     def forward(self, x_t, x_next=None):
         mu_x_t, logvar_x_t = self.encoder(x_t)
-        y_t = self._reparameterization_trick(mu_x_t, logvar_x_t)
         if x_next is None:
             return None, None, None, None, None, mu_x_t
         mu_x_next, logvar_x_next = self.encoder(x_next)
-        z_t = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
+        z_t, mu_z, logvar_z = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
         xz_t = torch.cat((x_t, z_t), dim=-1)
         x_dec = self.decoder(xz_t) # x_{t+1}
-        return x_dec, x_next, mu_x_next-mu_x_t, torch.log(torch.exp(logvar_x_next)+torch.exp(logvar_x_t)), z_t, mu_x_t # TODO: should be y_t at the end ...
+        return x_dec, x_next, mu_z, logvar_z, z_t, mu_x_t

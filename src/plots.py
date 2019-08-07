@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import scipy.stats as stats
-import scipy.spatial.distance as bla
+import scipy.spatial.distance as dist
 import skimage as ski
 from preprocessing import preprocess_sample
 
@@ -182,9 +182,9 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
 
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
-def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None):
+def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None):
     c, h, w = solver.data_loader.img_dims
-    figure = torch.ones((c, h*n, w*n))
+    figure = torch.zeros((c, h*n, w*n))
     # Decode for each square in the grid.
     solver.model.eval()
     with torch.no_grad():
@@ -203,8 +203,7 @@ def plot_latent_manifold(solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_
                     sample = torch.cat((x_t, z_sample), dim=-1)
                 else:
                     sample = z_sample
-                x_decoded = solver.model.decoder(sample)
-                print(np.min(x_decoded.numpy()), np.max(x_decoded.numpy()))
+                x_decoded = decoder(sample)
                 figure[:, i*h:(i+1)*h, j*w:(j+1)*w] = x_decoded.view(*solver.data_loader.img_dims)
     grid_img = torchvision.utils.make_grid(figure)
     plt.figure(figsize=fig_size)
@@ -314,156 +313,95 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
             "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
 def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, theta=None, scale=None,\
-    save_image=False, file_name=None):
+    save_plot=False, file_name=None):
     num_samples = min(num_samples, batch_size)
     with torch.no_grad():
-        for batch_idx, data in enumerate(test_loader):
-            data, y = data
+        for _, data in enumerate(test_loader):
+            data, _ = data
             data = data[:num_samples]
-            N, _, H, W = data.shape
+            _, _, H, W = data.shape
             transformed_data = np.zeros((num_samples, H, W))
             for i in range(num_samples):
                 transformed_data[i] = preprocess_sample(data[i], theta=theta, scale=(scale, scale)).cpu().numpy()
-            transformed_data_tensor = torch.tensor(transformed_data)
+            transformed_data_tensor = torch.FloatTensor(transformed_data)
             transformed_data_tensor.unsqueeze_(1)
-            grid_img = torchvision.utils.make_grid(transformed_data_tensor, nrow=5)
+            grid_img = torchvision.utils.make_grid(transformed_data_tensor, nrow=nrows)
             plt.axis("off")
             plt.imshow(grid_img.permute(1, 2, 0))
             break
-    if save_image and file_name is not None:
+    if save_plot and file_name is not None:
         torchvision.utils.save_image(grid_img, file_name)
 
-def plot_y_space_thetas(ys, ticks, labels, save_image, file_name, dataset):
+def plot_y_space_thetas(ys, ticks, labels, save_plot, file_name, dataset):
     N, S, T, _ = ys.shape
     plt.figure(figsize=(20, 10))
     for t in range(T):
         labels2 = np.repeat(labels[t], S*N)
-        #print(len(ys[:, :, t, 0].flatten()), len(ticks), len(labels))
         scatter = plt.scatter(ys[:, :, t, 0].flatten(), ys[:, :, t, 1].flatten(),\
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("theta")
     plt.title("Latent space q(y) on data set {} with fixed thetas".format(DATASETS[dataset]))
-    if save_image and file_name:
+    if save_plot and file_name:
         plt.savefig(file_name)
 
-def plot_y_space_scales(ys, ticks, labels, save_image, file_name, dataset):
+def plot_y_space_scales(ys, ticks, labels, save_plot, file_name, dataset):
     N, S, T, _ = ys.shape
     plt.figure(figsize=(20, 10))
     for s in range(S):
         labels2 = np.repeat(labels[s], T*N)
-        #print(len(ys[:, s, :, 0].flatten()))
-        #print(labels2.shape, labels[s], T, N)
         scatter = plt.scatter(ys[:, s, :, 0].flatten(), ys[:, s, :, 1].flatten(),\
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("scale")
     plt.title("Latent space q(y) on data set {} with fixed scales".format(DATASETS[dataset]))
-    if save_image and file_name:
+    if save_plot and file_name:
         plt.savefig(file_name)
 
-# TODO: check if it makes sense on a proper model
-# TODO: make the api less vulnerable towards solver
 # Plot of each classes (theta, alpha)
-def plot_prepro_alpha_params_distribution(solver):
-    # compute the alphas
-    alphas = torch.zeros((solver.y_space.shape[0], solver.num_generations))
-    for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
-        alphas[:, idx] = torch.atan2(torch.tensor(solver.y_space[:, gen_idx]-np.mean(solver.y_space[:, gen_idx])),\
-                torch.tensor(solver.y_space[:, gen_idx+1]-np.mean(solver.y_space[:, gen_idx+1])))/(2*np.pi)
-        # normalizing alpha_{ij} = alpha_{ij} - alpha_{i0}
-        if idx > 0:
-            alphas[:, idx] -= alphas[:, 0]
-    alphas = np.around(np.array(alphas), decimals=2)
-    # prepare the thetas from each batch, repeat each set of theta to span over num train samples
-    thetas = np.zeros((solver.data_loader.num_train_samples, solver.num_generations))
-    for gen in range(solver.num_generations):
-        thetas[:, gen] = np.repeat(solver.data_loader.prepro_params["theta_1"][:solver.data_loader.num_train_batches], solver.data_loader.batch_size)
+def plot_prepro_alpha_params_distribution(ys, thetas, save_plot, file_name, dataset):
+    N, S, T, _ = ys.shape
+    # compute alphas
+    ysflat = np.reshape(ys, (N * S * T, 2))
+    y_mean = np.mean(ysflat, 0, keepdims=True)
+    alphas = np.arctan2(ysflat[:, 1] - y_mean[:, 1], ysflat[:, 0] - y_mean[:, 0])
+    alphas = np.reshape(alphas, (N * S, T))
+    # normalize alpha[0] = theta[0] = 0
+    alphas -= alphas[:, 0:1]
+    alphas = alphas/(2*np.pi) * 360
+    alphas = np.where(alphas >= 0, alphas, alphas + 360) # (600, 30) dimension
 
-    # create the alphas bins, corresponding to the same number as theta bins
-    mini = np.min(alphas)
-    maxi = np.max(alphas)
-    alpha_ranges = np.around(np.linspace(mini, maxi, 13), decimals=2)
-    alpha_bins = list(zip(alpha_ranges[:-1], alpha_ranges[1:])) # alpha bins
+    # create alpha-theta plot
+    thetas_scatter = np.tile(np.expand_dims(thetas, axis=0), (alphas.shape[0], 1))/(2*np.pi) * 360
+    plt.figure(figsize=(20, 10))
+    scatter = plt.scatter(alphas.flatten(), thetas_scatter.flatten())
+    plt.xlabel("alphas")
+    plt.ylabel("thetas")
+    plt.title("Distribution of thetas/alphas data set {}".format(DATASETS[dataset]))
+    plt.show()
+    if save_plot and file_name:
+        plt.savefig(file_name)
 
-    #paired_cmap = plt.cm.get_cmap("Paired", 12)
-    #rvb = mcolors.LinearSegmentedColormap.from_list("", paired_cmap.colors)
-    alpha_ranges = alpha_ranges[:-1]
-    #norm = (alpha_ranges - np.min(alpha_ranges))/np.ptp(alpha_ranges)
-    fig, axes = plt.subplots(nrows=solver.data_loader.n_classes, figsize=(10,60))
-    classes = np.array(solver.data_labels)
-    for ax, label in zip(axes.flat, range(solver.data_loader.n_classes)):
-        indices = np.where(classes == label)[0]
-        ax.set_title("class: {}".format(label))
-        counts = np.zeros(len(alpha_bins))
-        alphas_indices = alphas[indices]
-        for i in range(alphas.shape[1]):
-            for alpha in alphas_indices[:, i]:
-                for bin_idx, (x, y) in enumerate(alpha_bins):
-                    if x <= alpha and alpha < y:
-                        counts[bin_idx] += 1
-                        break
-        new_counts = np.zeros(np.prod(alphas_indices.shape))
-        asd = 0
-        for idx, _ in enumerate(counts):
-            to_fill = counts[idx].repeat(counts[idx])
-            offset = len(to_fill)
-            new_counts[asd:(asd+offset)] = to_fill
-            asd += offset
-        scatter = ax.scatter(thetas[indices, :].flatten(), alphas_indices.flatten(), c=new_counts, cmap=plt.cm.get_cmap("Paired", 12))
-        fig.colorbar(scatter, ax=ax)
-    # save the fig
-    if solver.data_loader.directories.make_dirs:
-        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_alpha_params_distribution" \
-                + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
-
-# TODO: check if it makes sense on a proper model
-# TODO: make the api less vulnerable towards solver
 # Plot for each class with (scale, radius) relation
-def plot_prepro_radius_params_distribution(solver):
-    radiuses = np.zeros((solver.y_space.shape[0], solver.num_generations))
-    centroid = np.mean(solver.y_space[:, :2], axis=0)
-    # compute the euclidean distance from each point y_{ij} to the center, so the radiuses
-    for idx, gen_idx in enumerate(range(0, solver.num_generations*2, 2)):
-        radiuses[:, idx] = bla.cdist(solver.y_space[:, gen_idx:gen_idx+2], np.atleast_2d(centroid)).ravel()
-        if idx > 0:
-            radiuses[:, idx] -= radiuses[:, 0]
-    #radiuses = np.around(np.array(radiuses), decimals=2)
-    # prepare the scale from each batch, repeat each set of scales to span over num train samples
-    scales = np.zeros((solver.data_loader.num_train_samples, solver.num_generations))
-    for idx in range(solver.num_generations):
-        scales[:, idx] = np.repeat(solver.data_loader.prepro_params["scale_1"][:solver.data_loader.num_train_batches], solver.data_loader.batch_size)
-    # create the alphas bins, corresponding to the same number as theta bins
-    mini = np.min(radiuses)
-    maxi = np.max(radiuses)
-    radius_ranges = np.around(np.linspace(mini, maxi, 5), decimals=2)
-    radius_bins = list(zip(radius_ranges[:-1], radius_ranges[1:]))
-    #print(radius_bins)
-    #print(radiuses.shape, scales.shape, solver.data_loader.prepro_params["scale_1"], radiuses)
-    #print(radiuses.shape)
-    fig, axes = plt.subplots(nrows=solver.data_loader.n_classes, figsize=(10, 60))
-    classes = np.array(solver.data_labels)
-    for ax, label in zip(axes.flat, range(solver.data_loader.n_classes)):
-        indices = np.where(classes == label)[0]
-        ax.set_title("class: {}".format(label))
-        counts = np.zeros(len(radius_bins))
-        radius_indices = radiuses[indices]
-        for i in range(radiuses.shape[1]):
-            for alpha in radius_indices[:, i]:
-                for bin_idx, (x, y) in enumerate(radius_bins):
-                    if x <= alpha and alpha < y:
-                        counts[bin_idx] += 1
-                        break
-        new_counts = np.zeros(np.prod(radius_indices.shape))
-        asd = 0
-        for idx, _ in enumerate(counts):
-            to_fill = counts[idx].repeat(counts[idx])
-            offset = len(to_fill)
-            new_counts[asd:(asd+offset)] = to_fill
-            asd += offset
-        scatter = ax.scatter(scales[indices, :].flatten(), radius_indices.flatten(), c=new_counts, cmap=plt.cm.get_cmap("Paired", 12))
-        fig.colorbar(scatter, ax=ax)
-    # save the fig
-    if solver.data_loader.directories.make_dirs:
-        plt.savefig(solver.data_loader.directories.result_dir + "/plot_prepro_radius_params_distribution" \
-                + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
+def plot_prepro_radius_params_distribution(ys, scales, save_plot, file_name, dataset):
+    N, S, T, _ = ys.shape
+    ysflat = np.reshape(ys, (N*S*T, 2))
+    # compute mean column wise
+    y_mean = np.mean(ysflat, 0, keepdims=True)
+    rs = dist.cdist(ysflat, y_mean).ravel()
+    rs = np.reshape(rs, (N, S, T))
+    # normalize
+    rs /= rs[:, (S - 1):S, :] - rs[:, 0:1, :]
+    rs += 1 - rs[:, 0:1, :]
+
+    #create scale-radius plot
+    scales_scatter = scales[np.newaxis, ..., np.newaxis]
+    scales_scatter = np.tile(scales_scatter, (N, 1, T))
+    plt.figure(figsize=(20, 10))
+    scatter = plt.scatter(scales_scatter.flatten(), rs.flatten())
+    plt.xlabel("scales")
+    plt.ylabel("radiuses")
+    plt.title("Distribution of scales/radius data set {}".format(DATASETS[dataset]))
+    plt.show()
+    if save_plot and file_name:
+        plt.savefig(file_name)

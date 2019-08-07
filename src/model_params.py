@@ -92,7 +92,7 @@ def get_model_data_tdcvae(dataset):
         params = {
             "optimizer": torch.optim.Adam,
             "batch_size": 100,
-            "epochs": 1000,
+            "epochs": 1500,
             "hidden_dim": 500,
             "z_dim": 2,
             "beta": 0.00001,
