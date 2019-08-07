@@ -12,12 +12,8 @@ from models.tdcvae.tdcvae import TD_Cvae
 from model_params import get_model_data_vae, get_model_data_cvae, get_model_data_tdcvae
 from directories import Directories
 from dataloader import DataLoader
-from preprocessing import preprocess_batch_rand
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-# TODO: del this shit
-DEBUG = 1
 
 class EpochMetrics():
     def __init__(self):
@@ -55,12 +51,9 @@ class Training(object):
             y = y.to(DEVICE)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            if DEBUG:
-                x_t, x_next = preprocess_batch_rand(x, np.pi/4)
-            else:
-                x_t, x_next = x
-                x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
-                    x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            x_t, x_next = x
+            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
+                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
@@ -92,12 +85,9 @@ class Testing(object):
             y = y.to(DEVICE)
             decoded, mu_x, logvar_x, _ = self.solver.model(x, y)
         elif self.solver.tdcvae_mode:
-            if DEBUG:
-                x_t, x_next = preprocess_batch_rand(x, np.pi/4)
-            else:
-                x_t, x_next = x
-                x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
-                 x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
+            x_t, x_next = x
+            x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
+                x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
@@ -130,7 +120,7 @@ class Solver(object):
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
-        self._set_weight_decay()
+        self._set_weight_decay(optim_config)
         self.optimizer = optimizer(self.model.parameters(), **optim_config)
         self.epoch = 0
         self.epochs = epochs
@@ -145,7 +135,7 @@ class Solver(object):
             raise ValueError("Can't save state if no folder is assigned to this run!")
         self.save_model_state = save_model_state
 
-    def _set_weight_decay(optim_config):
+    def _set_weight_decay(self, optim_config):
         if self.tdcvae_mode:
             optim_config["weight_decay"] = 0.0
         elif self.cvae_mode:
@@ -194,12 +184,8 @@ class Solver(object):
                 y_sample[:, idx] = 1.
                 sample = torch.cat((z_sample, y_sample), dim=-1).to(DEVICE)
             elif self.tdcvae_mode:
-                if DEBUG:
-                    x, y = iter(self.data_loader.test_loader).next()
-                    x_t, _, _ = transform_batch(x, y, np.pi/4)
-                else:
-                    x_t = iter(self.data_loader.train_loader).next()[0][0]
-                    x_t = x_t.view(-1, self.data_loader.input_dim)
+                x_t = iter(self.data_loader.train_loader).next()[0][0]
+                x_t = x_t.view(-1, self.data_loader.input_dim)
                 num_samples = min(num_samples, x_t.size(0))
                 x_t = x_t[:num_samples]
                 z_sample = torch.randn(x_t.size(0), self.model.z_dim).to(DEVICE)
@@ -232,10 +218,8 @@ class Solver(object):
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
             if self.data_loader.thetas:
-                theta_range_1 = (self.data_loader.theta_range_1[0], self.data_loader.theta_range_1[1] - 1) # TODO:? don't..
-                theta_range_2 = (self.data_loader.theta_range_2[0], self.data_loader.theta_range_2[1] - 1) # TODO: don't...
                 params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
-                    .format(theta_range_1, theta_range_2)
+                    .format(self.data_loader.theta_range_1, self.data_loader.theta_range_2)
             if self.data_loader.scales:
                 params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)

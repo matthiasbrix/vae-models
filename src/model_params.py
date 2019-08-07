@@ -93,7 +93,6 @@ def get_model_data_tdcvae(dataset):
             "optimizer": torch.optim.Adam,
             "batch_size": 100,
             "epochs": 1500,
-            "hidden_dim": 500,
             "z_dim": 2,
             "beta": 0.00001,
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,
@@ -106,12 +105,12 @@ def get_model_data_tdcvae(dataset):
                 "weight_decay": None
             },
             "thetas": {
-                "theta_1": [-np.pi, np.pi],
-                "theta_2": [-np.pi/4, np.pi/4]
+                "theta_1": None, #[-np.pi, np.pi],
+                "theta_2": None, #[-np.pi/4, np.pi/4]
             },
             "scales": {
-                "scale_1": [0.85, 1.15],
-                "scale_2": [-0.15, 0.15]
+                "scale_1": None, #[0.85, 1.15],
+                "scale_2": None, #[-0.15, 0.15]
             }
         }
     else:

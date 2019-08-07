@@ -36,7 +36,7 @@ def preprocess_sample(x, theta=None, scale=None):
     # apply transformation inversed because otherwise it would be opposite/inverse of we define, so 1.5 scale is actually 0.5
     return torch.FloatTensor(ski.transform.warp(x, transformation.inverse, output_shape=(x.shape[0], x.shape[1]), preserve_range=True)).to(DEVICE)
 
-# expecting TODO
+# expecting numpy array (N, H, W)
 def preprocess_batch_det(x, thetas, scales):
     batch_size = x.shape[0]
     preprocessed_x = []
@@ -45,7 +45,7 @@ def preprocess_batch_det(x, thetas, scales):
     preprocessed_x = np.stack(preprocessed_x, axis=0)
     return preprocessed_x
 
-# expecting tensor (1, C, H, W)
+# expecting tensor (1, C, H, W) (FOR DEBUGGNING PURPOSES)
 def preprocess_batch_rand(x, bound_rad):
     batch_size = x.shape[0]
     input_dim = x.shape[2] * x.shape[3]

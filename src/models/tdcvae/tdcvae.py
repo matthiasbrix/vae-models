@@ -3,7 +3,7 @@ import torch.utils.data
 import torch.nn as nn
 
 class Encoder(nn.Module):
-    def __init__(self, Din, H, Dout):
+    def __init__(self, Din, Dout):
         super(Encoder, self).__init__()
         self.linear1 = nn.Linear(Din, 98)
         self.linear2 = nn.Linear(98, 12)
@@ -40,9 +40,9 @@ class Decoder(nn.Module):
         return self.linear3(x)
 
 class TD_Cvae(nn.Module):
-    def __init__(self, input_dim, hidden_dim_enc, hidden_dim_dec, z_dim, beta, rotations=False):
+    def __init__(self, input_dim, hidden_dim_dec, z_dim, beta, rotations=False):
         super(TD_Cvae, self).__init__()
-        self.encoder = Encoder(input_dim, hidden_dim_enc, z_dim)
+        self.encoder = Encoder(input_dim, z_dim)
         self.decoder = Decoder(input_dim+z_dim, hidden_dim_dec+z_dim, input_dim, rotations)
         self.z_dim = z_dim
         self.beta = beta
