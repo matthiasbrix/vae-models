@@ -5,8 +5,6 @@ import torch.utils.data
 import torch.nn as nn
 import torch.nn.functional as F
 
-MODEL_NAME = str(Path(__file__).parent.absolute()).split('/')[-1]
-
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout, batch_norm_flag):
         super(Encoder, self).__init__()
@@ -47,11 +45,12 @@ class Decoder(nn.Module):
         return self.sigmoid(x)
 
 class Vae(nn.Module):
-    def __init__(self, input_dim, hidden_dim, z_dim, batch_norm_flag):
+    def __init__(self, input_dim, hidden_dim, z_dim, beta, batch_norm_flag):
         super(Vae, self).__init__()
-        self.input_dim = input_dim
         self.encoder = Encoder(input_dim, hidden_dim, z_dim, batch_norm_flag)
         self.decoder = Decoder(z_dim, hidden_dim, input_dim, batch_norm_flag)
+        self.z_dim = z_dim
+        self.beta = beta
 
     # sampling from N(\mu(x), \Sigma(x))
     def _reparameterization_trick(self, mu, logsigma):
@@ -61,10 +60,10 @@ class Vae(nn.Module):
 
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
     # compute here D_{KL}[N(\mu(x), \Sigma(x))||N(0,1)]
-    def loss_function(self, fx, X, logsigma, mu, beta):
+    def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)
-        return loss_reconstruction + beta*kl_divergence, loss_reconstruction, beta*kl_divergence
+        return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, self.beta*kl_divergence
 
     def forward(self, data):
         mu_x, logvar_x = self.encoder(data)

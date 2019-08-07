@@ -27,7 +27,11 @@ def multi_slice_viewer(volume):
     ax.volume = volume
     ax.index = 32
     ax.im = 0
-    ax.imshow(volume[0][ax.index])
+    print(volume[0].shape)
+    asd = skimage.transform.rescale(volume[0].T, 0.166, multichannel=True)#resize(128, 128))
+    asd = asd.T
+    print(asd.shape)
+    ax.imshow(asd[ax.index])
     fig.canvas.mpl_connect('key_press_event', process_key)
     plt.show()
 
@@ -48,8 +52,8 @@ def process_key(event):
 
 if __name__ == "__main__":
     # reading all the sets of images.
-    folders = ['../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/',
-            '../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/',
-            '../data/LungScans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/']
+    folders = ['../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT',
+            '../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT',
+            '../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT']
     volumes = [load_volume(f) for f in folders]
     multi_slice_viewer(volumes)
