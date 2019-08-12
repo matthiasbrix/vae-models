@@ -61,6 +61,6 @@ def produce_alphas_radiuses(encoder, x_t, scales, thetas, num_samples, num_scale
             for i in range(ys.shape[1]):
                 #transform images and feed to the encoder, pick the mean opf y
                 x0trans = preprocess_batch_det(x0tile, thetas, scales[i]*np.ones(thetas.shape[0]))
-                x0trans = np.reshape(x0trans, (thetas.shape[0],784))
+                x0trans = np.reshape(x0trans, (thetas.shape[0], 784))
                 ys[sample, i, :, :] = encoder(torch.FloatTensor(x0trans))[0].detach().numpy()
     return ys

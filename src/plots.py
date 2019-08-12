@@ -178,11 +178,11 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
     plt.title("Latent space q({}) on data set {}".format(var, DATASETS[solver.data_loader.dataset]))
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
-            + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
+            + title + "_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
-def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None):
+def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None, label=None):
     c, h, w = solver.data_loader.img_dims
     figure = torch.zeros((c, h*n, w*n))
     # Decode for each square in the grid.
@@ -217,7 +217,7 @@ def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10
             file_res.write("grid_x: {}\n".format(grid_x))
             file_res.write("grid_y: {}\n".format(grid_y))
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
-            "/plot_learned_data_manifold_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
+            "/plot_learned_data_manifold_" + str(label) + "_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
 # Replicating the handstyle image example from Kingma et. al in Semisupervised VAE paper
 # Take a single test set image (first from each batch), encode it, use that fixed z,
@@ -341,6 +341,8 @@ def plot_y_space_thetas(ys, ticks, labels, save_plot, file_name, dataset):
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("theta")
+    plt.xlabel("y_1")
+    plt.ylabel("y_2")
     plt.title("Latent space q(y) on data set {} with fixed thetas".format(DATASETS[dataset]))
     if save_plot and file_name:
         plt.savefig(file_name)
@@ -354,6 +356,8 @@ def plot_y_space_scales(ys, ticks, labels, save_plot, file_name, dataset):
             vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
     clb = plt.colorbar(scatter, ticks=ticks)
     clb.ax.set_title("scale")
+    plt.xlabel("y_1")
+    plt.ylabel("y_2")
     plt.title("Latent space q(y) on data set {} with fixed scales".format(DATASETS[dataset]))
     if save_plot and file_name:
         plt.savefig(file_name)
@@ -378,7 +382,6 @@ def plot_prepro_alpha_params_distribution(ys, thetas, save_plot, file_name, data
     plt.xlabel("alphas")
     plt.ylabel("thetas")
     plt.title("Distribution of thetas/alphas data set {}".format(DATASETS[dataset]))
-    plt.show()
     if save_plot and file_name:
         plt.savefig(file_name)
 
@@ -402,6 +405,31 @@ def plot_prepro_radius_params_distribution(ys, scales, save_plot, file_name, dat
     plt.xlabel("scales")
     plt.ylabel("radiuses")
     plt.title("Distribution of scales/radius data set {}".format(DATASETS[dataset]))
-    plt.show()
     if save_plot and file_name:
         plt.savefig(file_name)
+
+# TODO: just for testing... sop see how it goes
+def test(ys):
+    N, S, T, _ = ys.shape
+    rs = np.reshape(ys, (N*S*T, 2))
+    print(rs.shape, np.expand_dims(rs[:, 0], axis=1).shape, np.expand_dims(rs[:, 1], axis=1).shape)
+    rs = np.linalg.norm(rs, axis=1, keepdims=True)
+    #rs = dist.cdist(np.expand_dims(rs[:, 0], axis=1), np.expand_dims(rs[:, 1], axis=1))
+    alphas = np.reshape(ys, (N*S*T, 2))
+    alphas = np.arctan2(alphas[:, 1], alphas[:, 0])
+    print(rs.shape, alphas.shape)
+    # polar is (r, alpha)
+    plt.figure(figsize=(20, 20))
+    plt.scatter(alphas, rs)
+
+    #for t in range(T):
+    #    labels2 = np.repeat(labels[t], S*N)
+    #    scatter = plt.scatter(ys[:, :, t, 0].flatten(), ys[:, :, t, 1].flatten(),\
+    #        vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
+    #clb = plt.colorbar(scatter, ticks=ticks)
+    #clb.ax.set_title("theta")
+    #plt.xlabel("y_1")
+    #plt.ylabel("y_2")
+    #plt.title("Latent space q(y) on data set {} with fixed thetas".format(DATASETS[dataset]))
+    #if save_plot and file_name:
+    #    plt.savefig(file_name)

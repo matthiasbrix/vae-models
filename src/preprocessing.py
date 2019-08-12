@@ -45,14 +45,21 @@ def preprocess_batch_det(x, thetas, scales):
     preprocessed_x = np.stack(preprocessed_x, axis=0)
     return preprocessed_x
 
-# expecting tensor (1, C, H, W) (FOR DEBUGGNING PURPOSES)
-def preprocess_batch_rand(x, bound_rad):
+# expecting tensor (N, C, H, W)
+def preprocess_batch_rand(x, bound_rad, rotating, scaling):
     batch_size = x.shape[0]
     input_dim = x.shape[2] * x.shape[3]
-    theta_1 = -np.pi + np.random.uniform(size=batch_size) * 2 * np.pi
-    theta_2 = theta_1 - bound_rad + np.random.uniform(size=batch_size) * 2* bound_rad
-    scale_1 = 0.85 + np.random.uniform(size=batch_size) * 0.3
-    scale_2 = scale_1 - 0.15 + np.random.uniform(size=batch_size) * 0.3
+    if rotating:
+        theta_1 = -np.pi + np.random.uniform(size=batch_size) * 2 * np.pi
+        theta_2 = theta_1 - bound_rad + np.random.uniform(size=batch_size) * 2 * bound_rad
+    else:
+        theta_1, theta_2 = np.zeros((batch_size)), np.zeros((batch_size))
+    if scaling:
+        scale_1 = 0.85 + np.random.uniform(size=batch_size) * 0.3
+        scale_2 = scale_1 - 0.15 + np.random.uniform(size=batch_size) * 0.3
+    else:
+        scale_1, scale_2 = np.ones((batch_size), dtype=float), np.ones((batch_size), dtype=float)
+    print(theta_1, theta_2, scale_1, scale_2)
     x_t = np.reshape(preprocess_batch_det(x, theta_1, scale_1), (batch_size, input_dim))
     x_next = np.reshape(preprocess_batch_det(x, theta_2, scale_2), (batch_size, input_dim))
     return torch.FloatTensor(x_t).to(DEVICE), torch.FloatTensor(x_next).to(DEVICE)
@@ -88,12 +95,18 @@ class RandomPreprocessing():
             self.prepro_params["scale_1"][batch_start_idx:batch_end_idx] = self.scale_1
 
     def preprocess_samples(self, x, batch_idx=None, save=True):
-        x0, x1 = x.clone().detach(), x.clone().detach()
         x_t = torch.zeros_like(x)
         x_next = torch.zeros_like(x)
+        x0, x1 = x.clone().detach(), x.clone().detach()
         for i in range(x_t.shape[0]):
-            self.theta_1, self.theta_2 = generate_angles(self.theta_range_1, self.theta_range_2)
-            self.scale_1, self.scale_2 = generate_scales(self.scale_range_1, self.scale_range_2)
+            if self.rotations:
+                self.theta_1, self.theta_2 = generate_angles(self.theta_range_1, self.theta_range_2)
+            else:
+                self.theta_1, self.theta_2 = 0, 0
+            if self.scaling:
+                self.scale_1, self.scale_2 = generate_scales(self.scale_range_1, self.scale_range_2)
+            else:
+                self.scale_1, self.scale_2 = 1.0, 1.0
             x_t[i] = preprocess_sample(x0[i], self.theta_1, (self.scale_1, self.scale_1))
             x_next[i] = preprocess_sample(x1[i], self.theta_2, (self.scale_2, self.scale_2))
             if save:
