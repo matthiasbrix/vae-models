@@ -14,8 +14,6 @@ def load_volume(root):
     slices = []
     for f in files:
         data = skimage.img_as_float32(skimage.io.imread(root+f))
-        #data = skimage.transform.resize
-        #skimage.transform.rescale(volume[0].T, 0.166, multichannel=True)#resize(128, 128))
         slices.append(data)
     volume = np.stack(slices)
     return volume
