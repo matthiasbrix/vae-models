@@ -31,7 +31,7 @@ def plot_losses(solver, train_loss_history, test_loss_history):
     plt.plot(np.arange(1, len(test_loss_history)+1), test_loss_history, label="Test")
     ticks_rate = 4 if len(train_loss_history) >= 4 else len(train_loss_history)
     plt.xticks(_xticks(train_loss_history, ticks_rate))
-    plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset], solver.model.z_dim))
+    plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset.lower()], solver.model.z_dim))
     plt.xlabel("epoch")
     plt.ylabel("loss")
     plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
@@ -175,7 +175,7 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
         plt.scatter(space[:, 0], space[:, 1], s=10, cmap="Paired")
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
-    plt.title("Latent space q({}) on data set {}".format(var, DATASETS[solver.data_loader.dataset]))
+    plt.title("Latent space q({}) on data set {}".format(var, DATASETS[solver.data_loader.dataset.lower()]))
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
             + title + "_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
@@ -343,7 +343,7 @@ def plot_y_space_thetas(ys, ticks, labels, save_plot, file_name, dataset):
     clb.ax.set_title("theta")
     plt.xlabel("y_1")
     plt.ylabel("y_2")
-    plt.title("Latent space q(y) on data set {} with fixed thetas".format(DATASETS[dataset]))
+    plt.title("Latent space q(y) on data set {} with fixed thetas".format(DATASETS[dataset.lower()]))
     if save_plot and file_name:
         plt.savefig(file_name)
 
@@ -358,7 +358,7 @@ def plot_y_space_scales(ys, ticks, labels, save_plot, file_name, dataset):
     clb.ax.set_title("scale")
     plt.xlabel("y_1")
     plt.ylabel("y_2")
-    plt.title("Latent space q(y) on data set {} with fixed scales".format(DATASETS[dataset]))
+    plt.title("Latent space q(y) on data set {} with fixed scales".format(DATASETS[dataset.lower()]))
     if save_plot and file_name:
         plt.savefig(file_name)
 
@@ -372,16 +372,19 @@ def plot_prepro_alpha_params_distribution(ys, thetas, save_plot, file_name, data
     alphas = np.reshape(alphas, (N * S, T))
     # normalize alpha[0] = theta[0] = 0
     alphas -= alphas[:, 0:1]
-    alphas = alphas/(2*np.pi) * 360
+    alphas = alphas/(2*np.pi) * 360 # convert from radian to euclidean angles
     alphas = np.where(alphas >= 0, alphas, alphas + 360) # (600, 30) dimension
 
     # create alpha-theta plot
     thetas_scatter = np.tile(np.expand_dims(thetas, axis=0), (alphas.shape[0], 1))/(2*np.pi) * 360
     plt.figure(figsize=(20, 10))
-    scatter = plt.scatter(alphas.flatten(), thetas_scatter.flatten())
+    plt.scatter(alphas.flatten(), thetas_scatter.flatten())
+    maxi = max(np.max(alphas), 360)+1
+    plt.xticks(np.arange(np.min(alphas), maxi, 30))
+    plt.yticks(np.arange(np.min(thetas), maxi, 30))
     plt.xlabel("alphas")
     plt.ylabel("thetas")
-    plt.title("Distribution of thetas/alphas data set {}".format(DATASETS[dataset]))
+    plt.title("Distribution of thetas/alphas data set {}".format(DATASETS[dataset.lower()]))
     if save_plot and file_name:
         plt.savefig(file_name)
 
@@ -397,14 +400,14 @@ def plot_prepro_radius_params_distribution(ys, scales, save_plot, file_name, dat
     rs /= rs[:, (S - 1):S, :] - rs[:, 0:1, :]
     rs += 1 - rs[:, 0:1, :]
 
-    #create scale-radius plot
+    # create radius/scale plot
     scales_scatter = scales[np.newaxis, ..., np.newaxis]
     scales_scatter = np.tile(scales_scatter, (N, 1, T))
     plt.figure(figsize=(20, 10))
-    scatter = plt.scatter(scales_scatter.flatten(), rs.flatten())
+    plt.scatter(scales_scatter.flatten(), rs.flatten())
     plt.xlabel("scales")
     plt.ylabel("radiuses")
-    plt.title("Distribution of scales/radius data set {}".format(DATASETS[dataset]))
+    plt.title("Distribution of scales/radius data set {}".format(DATASETS[dataset.lower()]))
     if save_plot and file_name:
         plt.savefig(file_name)
 

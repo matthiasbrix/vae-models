@@ -10,7 +10,7 @@ from transforms import Rotate, Scale, ScaleRotate
 # To have only one of the modes do
 class DataLoader():
     def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False,\
-        specific_class=None, resize=None):
+        specific_class=None, resize=None, time_agnostic=False):
         self.directories = directories
         self.data = None
         self.n_classes = None
@@ -22,6 +22,7 @@ class DataLoader():
         self.dataset = dataset
         self.thetas = thetas
         self.scales = scales
+        self.time_agnostic = time_agnostic
 
         root = directories.data_dir_prefix+dataset
 
@@ -94,11 +95,11 @@ class DataLoader():
 
     def _init_transform(self):
         if self.thetas and not self.scales:
-            return Rotate(self.theta_range_1, self.theta_range_2)
+            return Rotate(self.theta_range_1, self.theta_range_2, time_agnostic=self.time_agnostic)
         if self.scales and not self.thetas:
-            return Scale(self.scale_range_1, self.scale_range_2)
+            return Scale(self.scale_range_1, self.scale_range_2, time_agnostic=self.time_agnostic)
         if self.scales and self.thetas:
-            return ScaleRotate(self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
+            return ScaleRotate(self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2, time_agnostic=self.time_agnostic)
         else:
             return transforms.ToTensor()
 
@@ -135,7 +136,7 @@ class DataLoader():
     # Even though we use tdcvae as model, we don't apply the transform as we do this explicitly in preprocessing
     # to save the parameters.
     def get_new_test_data_loader(self):
-        if self.dataset == "mnist":
+        if self.dataset.lower() == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
         else:
             _, test_set = self._split_dataset(self.data)

@@ -72,7 +72,7 @@ class TD_Cvae(nn.Module):
     def forward(self, x_t, x_next=None):
         mu_x_t, logvar_x_t = self.encoder(x_t)
         if x_next is None:
-            return None, None, None, None, None, mu_x_t
+            return None, None, None, None, None, self._reparameterization_trick(mu_x_t, logvar_x_t)
         mu_x_next, logvar_x_next = self.encoder(x_next)
         z_t, mu_z, logvar_z = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
         xz_t = torch.cat((x_t, z_t), dim=-1)
