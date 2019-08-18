@@ -91,7 +91,7 @@ def get_model_data_tdcvae(dataset):
     if dataset.lower() == "mnist":
         params = {
             "optimizer": torch.optim.Adam,
-            "batch_size": 100,
+            "batch_size": 128,
             "epochs": 1500,
             "z_dim": 2,
             "beta": 0.00001,

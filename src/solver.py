@@ -328,7 +328,7 @@ if __name__ == "__main__":
             make_dirs=save_files)
         data_loader = DataLoader(directories, data["batch_size"], dataset_arg,\
             scales=scales, thetas=thetas)
-        model = TD_Cvae(data_loader.input_dim, data["hidden_dim"],\
+        model = TD_Cvae(data_loader.input_dim, \
             data_loader.input_dim, data["z_dim"], data["beta"], rotations=rotations)
         solver = Solver(model, data_loader, data["optimizer"], data["epochs"],\
             data["optim_config"], step_config=data["step_config"],\

@@ -135,7 +135,7 @@ class DataLoader():
     # Even though we use tdcvae as model, we don't apply the transform as we do this explicitly in preprocessing
     # to save the parameters.
     def get_new_test_data_loader(self):
-        if self.dataset == "mnist":
+        if self.dataset.lower() == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
         else:
             _, test_set = self._split_dataset(self.data)
