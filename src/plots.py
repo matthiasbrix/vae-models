@@ -410,29 +410,3 @@ def plot_prepro_radius_params_distribution(ys, scales, save_plot, file_name, dat
     plt.title("Distribution of scales/radius data set {}".format(DATASETS[dataset.lower()]))
     if save_plot and file_name:
         plt.savefig(file_name)
-
-# TODO: just for testing... sop see how it goes
-def test(ys):
-    N, S, T, _ = ys.shape
-    rs = np.reshape(ys, (N*S*T, 2))
-    print(rs.shape, np.expand_dims(rs[:, 0], axis=1).shape, np.expand_dims(rs[:, 1], axis=1).shape)
-    rs = np.linalg.norm(rs, axis=1, keepdims=True)
-    #rs = dist.cdist(np.expand_dims(rs[:, 0], axis=1), np.expand_dims(rs[:, 1], axis=1))
-    alphas = np.reshape(ys, (N*S*T, 2))
-    alphas = np.arctan2(alphas[:, 1], alphas[:, 0])
-    print(rs.shape, alphas.shape)
-    # polar is (r, alpha)
-    plt.figure(figsize=(20, 20))
-    plt.scatter(alphas, rs)
-
-    #for t in range(T):
-    #    labels2 = np.repeat(labels[t], S*N)
-    #    scatter = plt.scatter(ys[:, :, t, 0].flatten(), ys[:, :, t, 1].flatten(),\
-    #        vmin=ticks[0], vmax=ticks[-1], c=labels2, cmap="Paired")
-    #clb = plt.colorbar(scatter, ticks=ticks)
-    #clb.ax.set_title("theta")
-    #plt.xlabel("y_1")
-    #plt.ylabel("y_2")
-    #plt.title("Latent space q(y) on data set {} with fixed thetas".format(DATASETS[dataset]))
-    #if save_plot and file_name:
-    #    plt.savefig(file_name)

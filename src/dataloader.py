@@ -10,7 +10,7 @@ from transforms import Rotate, Scale, ScaleRotate
 # To have only one of the modes do
 class DataLoader():
     def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False,\
-        specific_class=None, resize=None, time_agnostic=False):
+        specific_class=None, resize=None):
         self.directories = directories
         self.data = None
         self.n_classes = None
@@ -22,7 +22,6 @@ class DataLoader():
         self.dataset = dataset
         self.thetas = thetas
         self.scales = scales
-        self.time_agnostic = time_agnostic
 
         root = directories.data_dir_prefix+dataset
 
@@ -95,11 +94,11 @@ class DataLoader():
 
     def _init_transform(self):
         if self.thetas and not self.scales:
-            return Rotate(self.theta_range_1, self.theta_range_2, time_agnostic=self.time_agnostic)
+            return Rotate(self.theta_range_1, self.theta_range_2)
         if self.scales and not self.thetas:
-            return Scale(self.scale_range_1, self.scale_range_2, time_agnostic=self.time_agnostic)
+            return Scale(self.scale_range_1, self.scale_range_2)
         if self.scales and self.thetas:
-            return ScaleRotate(self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2, time_agnostic=self.time_agnostic)
+            return ScaleRotate(self.scale_range_1, self.scale_range_2, self.theta_range_1, self.theta_range_2)
         else:
             return transforms.ToTensor()
 
