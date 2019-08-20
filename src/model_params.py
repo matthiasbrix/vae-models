@@ -18,7 +18,7 @@ def get_model_data_vae(dataset):
             },
             "optim_config": {
                 "lr": 1e-3,
-                "weight_decay": None
+                "weight_decay": 1
             }
         }
     elif dataset.lower() == "lfw":
@@ -37,14 +37,14 @@ def get_model_data_vae(dataset):
             },
             "optim_config": {
                 "lr": 1e-2,
-                "weight_decay": None
+                "weight_decay": 1
             }
         }
     elif dataset.lower() == "ff":
         params = {
             "optimizer": torch.optim.Adam,
             "batch_size": 128,
-            "epochs": 200,
+            "epochs": 10,
             "hidden_dim": 200,
             "z_dim": 2,
             "beta": 1,
@@ -56,7 +56,7 @@ def get_model_data_vae(dataset):
             },
             "optim_config": {
                 "lr": 1e-2,
-                "weight_decay": None
+                "weight_decay": 1
             }
         }
     else:
@@ -68,7 +68,7 @@ def get_model_data_cvae(dataset):
         params = {
             "optimizer": torch.optim.Adam,
             "batch_size": 128,
-            "epochs": 10,
+            "epochs": 3,
             "hidden_dim": 500,
             "z_dim": 2,
             "beta": 1,
@@ -76,11 +76,11 @@ def get_model_data_cvae(dataset):
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,
             "step_config": {
                 "step_size" : 200,
-                "gamma" : 0.1 # or 0.75
+                "gamma" : 0.1
             },
             "optim_config": {
                 "lr": 1e-3,
-                "weight_decay": None
+                "weight_decay": 1
             }
         }
     else:

@@ -26,6 +26,9 @@ def _xticks(ls, ticks_rate):
 
 # Plotting train and test losses
 def plot_losses(solver, train_loss_history, test_loss_history):
+    if len(train_loss_history) == 1 or len(test_loss_history) == 1:
+        print("No plots, just 1 epoch. Need > 1.")
+        return
     plt.figure(figsize=(5, 3))
     plt.plot(np.arange(1, len(train_loss_history)+1), train_loss_history, label="Train")
     plt.plot(np.arange(1, len(test_loss_history)+1), test_loss_history, label="Test")
@@ -43,27 +46,20 @@ def plot_losses(solver, train_loss_history, test_loss_history):
             solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
-# TODO: could be done better? Maybe just have 1 column and then "num_plots" rows
-# TODO: test with 5 epochs... and 3 epochs, toally scrwed up...
-# TODO: like here for (0,0)? https://matplotlib.org/3.1.0/gallery/scales/power_norm.html#sphx-glr-gallery-scales-power-norm-py
 def plot_gaussian_distributions(solver, epochs):
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
     idx_y = 0
-    #if epochs % 2 != 0:
-    #    plots = np.arange(1, epochs+1, np.ceil(epochs/4)+1).astype(int)
-    #    plots[2:] += 1
-    #    plots[-1] = epochs
-    #else:
-    #    plots = np.arange(1, epochs+1, np.ceil(epochs/4)).astype(int)
-    #    plots[1:] -= 1
-    #    plots[-1] = epochs
     plots = np.arange(1, epochs+1, np.ceil(epochs/4)).astype(int)
     plots[-1] = epochs
     if epochs == 1:
         f, axarr = plt.subplots(1, 1, figsize=(8, 2))
-    if epochs == 2 or epochs == 3:
+        axarr = [axarr]
+    if epochs == 2:
         f, axarr = plt.subplots(1, 2, figsize=(8, 4))
+    if epochs == 3:
+        f, axarr = plt.subplots(2, 2, figsize=(8, 6))
+        axarr[-1, -1].axis('off') # turning off the 4th subplot
     if epochs >= 4:
         f, axarr = plt.subplots(2, 2, figsize=(8, 6))
         f.subplots_adjust(hspace=0.5, wspace=0.3)
@@ -78,7 +74,7 @@ def plot_gaussian_distributions(solver, epochs):
         y = (1 / (np.sqrt(2 * np.pi * var_z))) * \
                 (np.power(np.e, -(np.power((x - mu_z), 2) / (2 * var_z))))
         ys.append(np.max(y))
-        if epochs <= 3:
+        if epochs <= 2:
             axarr[idx_y].plot(x, y, label="Latent distr.")
             axarr[idx_y].plot(x, stats.norm.pdf(x, 0, 1), label="Standard\nGaussian distr.")
             axarr[idx_y].set_title("epoch %d\nμ(z)=%.4f, σ^2(z)=%.4f" % (epoch, mu_z, var_z))
@@ -93,7 +89,9 @@ def plot_gaussian_distributions(solver, epochs):
             idx_y = idx_x
             idx_x = tmp
 
-    for ax in axarr.flat:
+    axarr = axarr.flatten() if epochs > 2 else axarr
+
+    for ax in axarr:
         maxys = max(ys)
         maxnorm = max(stats.norm.pdf(x, 0, 1))
         ax.set_ylim([0, max(maxys, maxnorm)+0.05])
@@ -113,9 +111,8 @@ def plot_gaussian_distributions(solver, epochs):
                     + str(np.around(np.array(varmu_z), 4)) + ","\
                     + str(np.around(np.array(expected_var_z), 4)))
                 file_res.write("\n")
-    if epochs <= 3:
-        ax = axarr.flatten()[0]
-    if epochs >= 4:
+
+    if epochs >= 3:
         ax = axarr.flatten()[2]
     f.subplots_adjust(top=0.9, left=0.1, right=0.9, bottom=0.2)
     ax.legend(loc='upper center', bbox_to_anchor=(1.2, -0.25),
@@ -126,6 +123,9 @@ def plot_gaussian_distributions(solver, epochs):
 
 # Plot the reconstruction loss and KL divergence in two separate plots
 def plot_rl_kl(solver, rls, kls):
+    if len(rls) == 1 or len(rls) == 1:
+        print("No plots, just 1 epoch. Need > 1.")
+        return
     x = np.arange(1, len(kls)+1)
     plt.figure(figsize=(4.5, 5))
 
