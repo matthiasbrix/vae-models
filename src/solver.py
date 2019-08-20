@@ -4,7 +4,6 @@ import argparse
 import torch
 import torch.utils.data
 import torchvision.utils
-import numpy as np
 
 from models.vae.vae import Vae
 from models.cvae.cvae import Cvae
@@ -32,8 +31,8 @@ class EpochMetrics():
         self.std_z += torch.std(z_space).item()
         # Var(mu(x))
         muzdim = torch.mean(mu_x, 0, True)
-        muzdim = torch.mean(muzdim).pow(2) # is E[\mu(x)]^2
-        varmu = torch.mean(mu_x.pow(2)) # is \bar{\mu}^T\bar{\mu}
+        muzdim = torch.mean(muzdim).pow(2) # is \bar{\mu}^T\bar{\mu}
+        varmu = torch.mean(mu_x.pow(2)) # is E[\mu(x)]^2
         self.varmu_z += (varmu - muzdim).item() # E[||\mu(x) - \bar{\mu}||^2]
         self.expected_var_z += torch.mean(torch.exp(logvar_x)) # E[var(q(z|x))]
 
@@ -138,10 +137,8 @@ class Solver(object):
     def _set_weight_decay(self, optim_config):
         if self.tdcvae_mode:
             optim_config["weight_decay"] = 0.0
-        elif self.cvae_mode:
+        elif optim_config["weight_decay"] == 1:
             optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples)) # batch wise regularization, so M/N in all
-        else:
-            optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples))
 
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
