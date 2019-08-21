@@ -51,6 +51,7 @@ class Vae(nn.Module):
         self.decoder = Decoder(z_dim, hidden_dim, input_dim, batch_norm_flag)
         self.z_dim = z_dim
         self.beta = beta
+        self.loss = nn.BCELoss(reduction="sum")
 
     # sampling from N(\mu(x), \Sigma(x))
     def _reparameterization_trick(self, mu, logsigma):
@@ -61,9 +62,9 @@ class Vae(nn.Module):
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
     # compute here D_{KL}[N(\mu(x), \Sigma(x))||N(0,1)]
     def loss_function(self, fx, X, logsigma, mu):
-        loss_reconstruction = F.binary_cross_entropy(fx, X, reduction="sum")
+        loss_reconstruction = self.loss(fx, X)
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)
-        return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, self.beta*kl_divergence
+        return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, kl_divergence
 
     def forward(self, data):
         mu_x, logvar_x = self.encoder(data)

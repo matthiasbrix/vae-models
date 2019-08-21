@@ -3,14 +3,13 @@ import torchvision.datasets as datasets
 import torchvision.transforms as transforms
 import numpy as np
 from datasets import DatasetFF, DatasetLFW, DatasetLungScans
-from samplers import ClassSampler, SingleDataPointSampler
 from transforms import Rotate, Scale, ScaleRotate
+from samplers import SingleDataPointSampler
 
 # Set in model params thetas and scales to None and trigger default params for transofmraitons
 # To have only one of the modes do
 class DataLoader():
-    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, single_x=False,\
-        specific_class=None, resize=None):
+    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, resize=None):
         self.directories = directories
         self.data = None
         self.n_classes = None
@@ -73,20 +72,17 @@ class DataLoader():
 
         self.input_dim = np.prod(self.img_dims)
         self.with_labels = dataset not in ["ff", "lungscans"]
-        self.single_x = single_x
-        self.specific_class = specific_class
         self._set_data_loader(train_set, test_set)
         self.num_train_batches = len(self.train_loader)
         self.num_test_batches = len(self.test_loader)
+        # could also call len(self.train_loader.dataset) but is more flexible this way
         self.num_train_samples = self.num_train_batches*self.batch_size
-        self.num_test_samples = 0 if self.single_x and not self.specific_class\
-                                else len(self.test_loader.dataset)
+        self.num_test_samples = self.num_test_batches*self.batch_size
         
         self.dataset = dataset
         self.root = root
 
     def _prepare_transforms(self):
-        # adjust for that the uniform ranges are excludsive
         if self.thetas:
             self.theta_range_1, self.theta_range_2 = self.thetas["theta_1"], self.thetas["theta_2"]
         if self.scales:
@@ -103,41 +99,25 @@ class DataLoader():
             return transforms.ToTensor()
 
     def _set_data_loader(self, train_set, test_set):
-        if self.single_x and self.specific_class:
-            self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
-                batch_size=self.batch_size, sampler=ClassSampler(train_set, self.specific_class, True),\
-                shuffle=False)
-            self.test_loader = torch.utils.data.DataLoader(dataset=test_set,\
-                batch_size=self.batch_size, sampler=ClassSampler(test_set, self.specific_class, True),\
-                shuffle=False)
-        elif self.single_x:
-            self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
-                batch_size=self.batch_size, sampler=SingleDataPointSampler(train_set), drop_last=True,\
-                shuffle=False)
-        elif self.specific_class:
-            self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
-                batch_size=self.batch_size, sampler=ClassSampler(train_set, self.specific_class),\
-                drop_last=True, shuffle=False)
-            self.test_loader = torch.utils.data.DataLoader(dataset=test_set,\
-                batch_size=self.batch_size, sampler=ClassSampler(test_set, self.specific_class),\
-                drop_last=True, shuffle=False)
-        else:
-            self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
-                batch_size=self.batch_size, drop_last=True, shuffle=True)
-            self.test_loader = torch.utils.data.DataLoader(dataset=test_set,\
-                batch_size=self.batch_size, drop_last=True, shuffle=True)
+        self.train_loader = torch.utils.data.DataLoader(dataset=train_set,\
+            batch_size=self.batch_size, drop_last=True, shuffle=True)
+        self.test_loader = torch.utils.data.DataLoader(dataset=test_set,\
+            batch_size=self.batch_size, drop_last=True, shuffle=True)
 
     def _split_dataset(self, data):
         train_size = int(0.8 * len(data))
         test_size = len(data) - train_size
         return torch.utils.data.random_split(data, [train_size, test_size])
 
-    # Even though we use tdcvae as model, we don't apply the transform as we do this explicitly in preprocessing
-    # to save the parameters.
-    def get_new_test_data_loader(self):
+    # Even though we use tdcvae as model and pytorch transforms,
+    # we don't apply the transform like in training as we do this
+    # explicitly in preprocessing to save the parameters conveniently.
+    def get_new_test_data_loader(self, sampler=None):
         if self.dataset.lower() == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
         else:
             _, test_set = self._split_dataset(self.data)
-        return torch.utils.data.DataLoader(dataset=test_set, batch_size=self.batch_size, drop_last=True, shuffle=True)
-
+        if sampler is not None and sampler[0] == "single_point":
+            sampler = SingleDataPointSampler(test_set, sampler[1])
+        batch_size = 1 if sampler is not None else self.batch_size
+        return torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=False, sampler=sampler, drop_last=True)

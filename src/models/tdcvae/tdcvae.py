@@ -30,6 +30,7 @@ class Decoder(nn.Module):
         self.linear3 = nn.Linear(H, Din)
         self.relu = nn.ReLU()
         self.layers = 7 if rotations else 3
+        self.sigmoid = nn.Sigmoid()
 
     # compute p(x_{t+1}|x_t, z_t)
     def forward(self, x):
@@ -37,7 +38,8 @@ class Decoder(nn.Module):
         x = self.relu(x)
         for _ in range(self.layers):
             x = self.relu(self.linear2(x))
-        return self.linear3(x)
+        return self.sigmoid(self.linear3(x))
+
 
 class TD_Cvae(nn.Module):
     def __init__(self, input_dim, hidden_dim_dec, z_dim, beta, rotations=False):
@@ -46,7 +48,7 @@ class TD_Cvae(nn.Module):
         self.decoder = Decoder(input_dim+z_dim, hidden_dim_dec+z_dim, input_dim, rotations)
         self.z_dim = z_dim
         self.beta = beta
-        self.loss = nn.MSELoss()
+        self.loss = nn.BCELoss(reduction='sum') #nn.MSELoss()
 
     # y \sim N(\mu(x), \Sigma(x))   
     def _reparameterization_trick(self, mu_x, logvar_x):
@@ -72,7 +74,7 @@ class TD_Cvae(nn.Module):
     def forward(self, x_t, x_next=None):
         mu_x_t, logvar_x_t = self.encoder(x_t)
         if x_next is None:
-            return None, None, None, None, None, self._reparameterization_trick(mu_x_t, logvar_x_t)
+            return None, None, None, None, None, mu_x_t
         mu_x_next, logvar_x_next = self.encoder(x_next)
         z_t, mu_z, logvar_z = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
         xz_t = torch.cat((x_t, z_t), dim=-1)
