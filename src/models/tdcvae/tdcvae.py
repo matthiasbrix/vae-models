@@ -40,7 +40,6 @@ class Decoder(nn.Module):
             x = self.relu(self.linear2(x))
         return self.sigmoid(self.linear3(x))
 
-
 class TD_Cvae(nn.Module):
     def __init__(self, input_dim, hidden_dim_dec, z_dim, beta, rotations=False):
         super(TD_Cvae, self).__init__()
