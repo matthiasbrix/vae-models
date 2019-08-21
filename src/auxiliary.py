@@ -25,7 +25,8 @@ def _get_batch_spaces(model, input_dim, x, mode, y=None):
 
 # Used for retrieving the latent spaces available (z and y)
 # transformation is only set when using rotation and/or scaling.
-def get_latent_spaces(model, mode, test_loader, num_test_samples, z_dim, batch_size, with_labels, input_dim, transformation=None):
+def get_latent_spaces(model, mode, test_loader, num_test_samples, z_dim, batch_size,\
+    with_labels, input_dim, transformation=None):
     z_space = np.zeros((num_test_samples, z_dim))
     y_space = np.zeros((num_test_samples, z_dim))
     data_labels = np.zeros((num_test_samples))

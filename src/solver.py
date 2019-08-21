@@ -143,14 +143,14 @@ class Solver(object):
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
         num_train_batches = self.data_loader.num_train_batches
-        if self.tdcvae_mode:
-            train_loss = metrics.train_loss_acc/num_train_batches
-            recon_loss = metrics.recon_loss_acc/num_train_batches
-            kl_div = metrics.kl_diverg_acc/num_train_batches
-        else:
-            train_loss = metrics.train_loss_acc/num_train_samples
-            recon_loss = metrics.recon_loss_acc/num_train_samples
-            kl_div = metrics.kl_diverg_acc/num_train_samples
+        #if self.tdcvae_mode:
+        #    train_loss = metrics.train_loss_acc/num_train_batches
+        #    recon_loss = metrics.recon_loss_acc/num_train_batches
+        #    kl_div = metrics.kl_diverg_acc/num_train_batches
+       # else:
+        train_loss = metrics.train_loss_acc/num_train_samples
+        recon_loss = metrics.recon_loss_acc/num_train_samples
+        kl_div = metrics.kl_diverg_acc/num_train_samples
         self.train_loss_history["epochs"].append(epoch) # just for debug mode (in case we finish earlier)
         self.train_loss_history["train_loss_acc"].append(train_loss)
         self.train_loss_history["recon_loss_acc"].append(recon_loss)
@@ -220,8 +220,6 @@ class Solver(object):
             if self.data_loader.scales:
                 params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
-            params += "single image: {}\n".format(self.data_loader.single_x)
-            params += "specific class: {}\n".format(self.data_loader.specific_class)
             params += "number of samples for sampling: {}\n".format(self.num_samples)
             params += "model:\n"
             params += str(self.model)
@@ -232,20 +230,20 @@ class Solver(object):
         name = self.data_loader.directories.result_dir + "/model_"
         if self.tdcvae_mode:
             name += "TD_CVAE_"
-            if solver.data_loader.thetas and solver.data_loader.scales:
+            if self.data_loader.thetas and self.data_loader.scales:
                 name += "SCALES_THETAS_"
-            elif solver.data_loader.thetas:
+            elif self.data_loader.thetas:
                 name += "THETAS_"
-            elif solver.data_loader.scales:
+            elif self.data_loader.scales:
                 name += "SCALES_"
-        if solver.data_loader.directories.make_dirs:
+        if self.data_loader.directories.make_dirs:
             name += "VAE_"
-        if solver.data_loader.directories.make_dirs:
+        if self.data_loader.directories.make_dirs:
             name += "CVAE_"
-        last_train_loss = solver.train_loss_history["train_loss_acc"][-1]
-        name += solver.data_loader.dataset + "_train_loss=" + "{0:.2f}".format(last_train_loss)\
-            + "_z=" + str(solver.model.z_dim) + ".pt"
-        torch.save(solver, name)
+        last_train_loss = self.train_loss_history["train_loss_acc"][-1]
+        name += self.data_loader.dataset + "_train_loss=" + "{0:.2f}".format(last_train_loss)\
+            + "_z=" + str(self.model.z_dim) + ".pt"
+        torch.save(self, name)
 
     def main(self):
         if self.data_loader.directories.make_dirs:
@@ -263,10 +261,9 @@ class Solver(object):
             training.train(epoch_metrics)
             train_loss = self._save_train_metrics(epoch, epoch_metrics)
             print("====> Epoch: {} train set loss avg: {:.4f}".format(epoch, train_loss))
-            if self.data_loader.single_x is False:
-                testing.test(epoch, epoch_metrics)
-                test_loss = self._save_test_metrics(epoch_metrics)
-                print("====> Test set loss avg: {:.4f}".format(test_loss))
+            testing.test(epoch, epoch_metrics)
+            test_loss = self._save_test_metrics(epoch_metrics)
+            print("====> Test set loss avg: {:.4f}".format(test_loss))
             self._sample(epoch, self.num_samples)
             if self.lr_scheduler:
                 self.lr_scheduler.step()

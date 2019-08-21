@@ -92,9 +92,9 @@ def get_model_data_tdcvae(dataset):
         params = {
             "optimizer": torch.optim.Adam,
             "batch_size": 128,
-            "epochs": 1500,
+            "epochs": 10000,
             "z_dim": 2,
-            "beta": 0.00001,
+            "beta": 1, #0.00001,
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,
             "step_config": {
                 "step_size" : 100,
