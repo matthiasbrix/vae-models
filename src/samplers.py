@@ -8,8 +8,10 @@ class ClassSampler(Sampler):
         num_samples = dataset.data.shape[0] if num_samples is None else num_samples
         N = len(self.indices)
         if num_samples > N:
-            indices = np.random.choice(self.indices, num_samples-N) # num_samples//len(self.indices)
+            indices = np.random.choice(self.indices, num_samples-N)
             self.indices = np.concatenate((self.indices, indices))
+        elif num_samples < N:
+            self.indices = self.indices[:num_samples]
         self.indices = self.indices.tolist()
 
     # provide an __iter__ method, providing a way

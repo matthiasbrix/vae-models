@@ -3,6 +3,23 @@ import torch.utils.data
 import torch.nn as nn
 
 class Encoder(nn.Module):
+    def __init__(self, Din, H):
+        super(Encoder, self).__init__()
+        self.linear1 = nn.Linear(784, 500)
+        self.linear2 = nn.Linear(500, 200)
+        self.mean = nn.Linear(200, 2)
+        self.logsigma = nn.Linear(200, 2)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.linear1(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        x = self.relu(x)
+        return self.mean(x), self.logsigma(x)
+
+'''
+class Encoder(nn.Module):
     def __init__(self, Din, Dout):
         super(Encoder, self).__init__()
         self.linear1 = nn.Linear(Din, 98)
@@ -21,6 +38,7 @@ class Encoder(nn.Module):
         x = self.linear3(x)
         x = self.relu(x)
         return self.mean(x), self.logsigma(x)
+'''
 
 class Decoder(nn.Module):
     def __init__(self, Dout, H, Din, rotations):
