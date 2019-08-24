@@ -152,7 +152,7 @@ def plot_rl_kl(solver, rls, kls):
             + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # Plot the latent space as scatter plot with and without labels
-def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None, colors=None):
+def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None, colors=None, xticks=None, yticks=None, invert_y_axis=False):
     plt.figure(figsize=(9, 7))
     if labels is not None and title:
         if var == "z" and ticks is not None:
@@ -175,6 +175,24 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
         plt.scatter(space[:, 0], space[:, 1], s=10, cmap="Paired")
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
+
+    leftx, rightx = plt.xlim()
+    lefty, righty = plt.ylim()
+    min1, max1 = xticks[0], xticks[-1]
+    min2, max2 = yticks[0], yticks[-1]
+    x1 = min(min1, leftx)
+    x2 = max(max1, rightx)
+    y1 = min(min2, lefty)
+    y2 = max(max2, righty)
+    xs = np.linspace(x1, x2, len(xticks))
+    ys = np.linspace(y1, y2, len(xticks))
+    if xticks is not None:
+        plt.xticks(xs)
+    if yticks is not None:
+        plt.yticks(ys)
+    if invert_y_axis:
+        plt.ylim(plt.ylim()[::-1])
+
     plt.title("Latent space q({}) on data set {}".format(var, DATASETS[solver.data_loader.dataset.lower()]))
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \

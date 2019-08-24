@@ -52,16 +52,39 @@ def get_latent_spaces(model, mode, test_loader, num_test_samples, z_dim, batch_s
     return z_space, y_space, data_labels
 
 # transforming images to produce alphas/radiuses
-def produce_alphas_radiuses(encoder, x_t, scales, thetas, num_samples, num_scales, num_rotations):
-    ys = np.zeros((num_samples, num_scales, num_rotations, 2))
+def produce_ys(encoder, x_t, scales, thetas, num_samples):
+    ys = np.zeros((num_samples, scales.shape[0], thetas.shape[0], 2))
     encoder.eval()
     with torch.no_grad():
         for sample in range(ys.shape[0]):
-            x0tile = np.reshape(np.tile(x_t[sample:sample+1, :],[thetas.shape[0], 1]), (thetas.shape[0], 28, 28))
-            x0tile = torch.FloatTensor(np.expand_dims(x0tile, axis=1))
+            x_ts = np.reshape(np.tile(x_t[sample:sample+1, :], [thetas.shape[0], 1]), (thetas.shape[0], 28, 28))
+            x_ts = torch.FloatTensor(np.expand_dims(x_ts, axis=1))
             for i in range(ys.shape[1]):
                 #transform images and feed to the encoder, pick the mean opf y
-                x0trans = preprocess_batch_det(x0tile, thetas, scales[i]*np.ones(thetas.shape[0]))
-                x0trans = np.reshape(x0trans, (thetas.shape[0], 784))
-                ys[sample, i, :, :] = encoder(torch.FloatTensor(x0trans))[0].detach().numpy()
+                x_t_trans = preprocess_batch_det(x_ts, thetas, scales[i]*np.ones(thetas.shape[0]))
+                x_t_trans = np.reshape(x_t_trans, (thetas.shape[0], 784))
+                ys[sample, i, :, :] = encoder(torch.FloatTensor(x_t_trans))[0].detach().numpy()
     return ys
+
+# transforming images to produce ys/zs
+def produce_ys_zs(model, num_samples, x_t, scales_1, thetas_1, x_next=None, scales_2=None, thetas_2=None):
+    if x_t.shape[0] is not x_next.shape[0]:
+        return
+    ys = np.zeros((num_samples, scales_1.shape[0], thetas_1.shape[0], 2))
+    zs = np.zeros((num_samples, scales_2.shape[0], thetas_2.shape[0], 2))
+    model.eval()
+    with torch.no_grad():
+        for sample in range(ys.shape[0]):
+            x_ts = np.reshape(np.tile(x_t[sample:sample+1, :], [thetas_1.shape[0], 1]), (thetas_1.shape[0], 28, 28))
+            x_ts = torch.FloatTensor(np.expand_dims(x_ts, axis=1))
+            x_nexts = np.reshape(np.tile(x_next[sample:sample+1, :], [thetas_2.shape[0], 1]), (thetas_2.shape[0], 28, 28))
+            x_nexts = torch.FloatTensor(np.expand_dims(x_nexts, axis=1))
+            for i in range(ys.shape[1]):
+                #transform images and feed to the encoder, pick the mean opf y
+                x0trans = preprocess_batch_det(x_ts, thetas_1, scales_1[i]*np.ones(thetas_1.shape[0]))
+                x0trans = np.reshape(x0trans, (thetas_1.shape[0], 784))
+                x1trans = preprocess_batch_det(x_nexts, thetas_2, scales_2[i]*np.ones(thetas_2.shape[0]))
+                x1trans = np.reshape(x1trans, (thetas_1.shape[0], 784))
+                _, _, _, _, zs[sample, i, :, :], ys[sample, i, :, :] = model(torch.FloatTensor(x0trans), torch.FloatTensor(x1trans))
+    return ys, zs
+    
