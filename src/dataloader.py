@@ -19,24 +19,25 @@ class DataLoader():
         self.img_dims = None
         self.batch_size = batch_size
         self.dataset = dataset
+        # for temporal model
         self.thetas = thetas
         self.scales = scales
-
+        # for lungscans
         self.folders = folders
         self.resize = resize
         self.crop = crop
 
-        root = directories.data_dir_prefix+dataset
+        self.root = directories.data_dir_prefix+dataset
 
         if dataset.lower() == "mnist":
             self.n_classes = 10
             self.img_dims = (self.c, self.h, self.w) = (1, 28, 28)
             if self.thetas or self.scales:
                 self._prepare_transforms()
-            train_set = datasets.MNIST(root=root, train=True, transform=self._init_transform(), download=True)
-            test_set = datasets.MNIST(root=root, train=False, transform=self._init_transform(), download=True)
+            train_set = datasets.MNIST(root=self.root, train=True, transform=self._init_transform(), download=True)
+            test_set = datasets.MNIST(root=self.root, train=False, transform=self._init_transform(), download=True)
         elif dataset == "lfw":
-            self.data = DatasetLFW(root)
+            self.data = DatasetLFW(self.root)
             self.c = 1
             self.h = self.data.h
             self.w = self.data.w
@@ -44,7 +45,7 @@ class DataLoader():
             self.n_classes = self.data.num_classes
             train_set, test_set = self._split_dataset(self.data)
         elif dataset == "ff":
-            self.data = DatasetFF(root)
+            self.data = DatasetFF(self.root)
             self.c = 1
             self.h = 28
             self.w = 20
@@ -70,15 +71,14 @@ class DataLoader():
 
         self.input_dim = np.prod(self.img_dims)
         self.with_labels = dataset not in ["ff", "lungscans"]
+        self.dataset = dataset
+
         self._set_data_loader(train_set, test_set)
         self.num_train_batches = len(self.train_loader)
         self.num_test_batches = len(self.test_loader)
         # could also call len(self.train_loader.dataset) but is more flexible this way
         self.num_train_samples = self.num_train_batches*self.batch_size
         self.num_test_samples = self.num_test_batches*self.batch_size
-        
-        self.dataset = dataset
-        self.root = root
 
     def _prepare_transforms(self):
         if self.thetas:
