@@ -10,6 +10,7 @@ from os.path import isfile, join
 # returns matrix (64, 384, 384)
 def load_volume(root):
     sortfunc = lambda f: int(f.split('.')[2].split(' ')[1])
+    files = [f for f in listdir(root)]
     files = sorted([f for f in listdir(root) if isfile(join(root, f))], key=sortfunc)
     slices = []
     for f in files:
