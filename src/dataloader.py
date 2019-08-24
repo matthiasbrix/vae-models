@@ -9,7 +9,7 @@ from samplers import SingleDataPointSampler, ClassSampler
 # Set in model params thetas and scales to None and trigger default params for transofmraitons
 # To have only one of the modes do
 class DataLoader():
-    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, resize=None):
+    def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, resize=None, crop=None, folders=None):
         self.directories = directories
         self.data = None
         self.n_classes = None
@@ -21,6 +21,10 @@ class DataLoader():
         self.dataset = dataset
         self.thetas = thetas
         self.scales = scales
+
+        self.folders = folders
+        self.resize = resize
+        self.crop = crop
 
         root = directories.data_dir_prefix+dataset
 
@@ -51,21 +55,15 @@ class DataLoader():
             self.h = 384
             self.w = 384
             self.img_dims = (self.c, self.h, self.w)
-            if self.thetas or self.scales:
-                self._prepare_transforms()
-            # reading all the sets of images that are specified in the list
-            folders = ["/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/",
-                       "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.55302824863178429077114755927787508155_OBICone-beamCT/",
-                       "/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.542181959870340811013566519894670057885_OBICone-beamCT/"]
-            if resize:
-                transform = transforms.Compose([
-                    transforms.Resize(resize),
-                    self._init_transform()
-                ])
-            else:
-                transform = None
-            self.data = DatasetLungScans(root, folders, transform)
-            self.img_dims = (self.c, *resize)
+            self.data = DatasetLungScans(folders, resize, crop)
+            if resize is not None:
+                self.h = resize[0]
+                self.w = resize[1]
+                self.img_dims = (self.c, self.h, self.w)
+            if crop is not None:
+                h = crop[0][1] - crop[0][0] if crop[0] else self.h
+                w = crop[1][1] - crop[1][0] if crop[1] else self.w
+                self.img_dims = (self.c, h, w)
             train_set, test_set = self._split_dataset(self.data)
         else:
             raise ValueError("DATASET N/A!")
@@ -115,6 +113,10 @@ class DataLoader():
     def get_new_test_data_loader(self, sampler=None):
         if self.dataset.lower() == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
+        elif self.dataset == "lungscans":
+            data = DatasetLungScans(self.folders, self.resize, self.crop, sampling=True)
+            self.data = data
+            _, test_set = self._split_dataset(data)
         else:
             _, test_set = self._split_dataset(self.data)
         if sampler is not None and sampler[0] == "single_point":

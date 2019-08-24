@@ -116,3 +116,28 @@ def get_model_data_tdcvae(dataset):
     else:
         raise ValueError("Dataset not known!")
     return params
+
+def get_model_data_tdcvae2(dataset):
+    if dataset.lower() == "lungscans":
+        params = {
+            "optimizer": torch.optim.Adam,
+            "batch_size": 32,
+            "epochs": 1,
+            "z_dim": 8,
+            "beta": 1e-03,
+            "resize": (64, 64),
+            "kernel_size_high": 3,
+            "kernel_size_low": 1,
+            "lr_scheduler": torch.optim.lr_scheduler.StepLR,
+            "step_config": {
+                "step_size" : 50,
+                "gamma" : 0.75
+            },
+            "optim_config": {
+                "lr": 3e-3,
+                "weight_decay": None
+            }
+        }
+    else:
+        raise ValueError("Dataset not known!")
+    return params

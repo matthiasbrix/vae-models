@@ -1,5 +1,6 @@
 import time
 import argparse
+import os
 
 import torch
 import torch.utils.data
@@ -8,7 +9,7 @@ import torchvision.utils
 from models.vae.vae import Vae
 from models.cvae.cvae import Cvae
 from models.tdcvae.tdcvae import TD_Cvae
-from model_params import get_model_data_vae, get_model_data_cvae, get_model_data_tdcvae
+from model_params import get_model_data_vae, get_model_data_cvae, get_model_data_tdcvae, get_model_data_tdcvae2
 from directories import Directories
 from dataloader import DataLoader
 
@@ -54,6 +55,10 @@ class Training(object):
             x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
                 x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
+        elif self.solver.tdcvae2_mode:
+            x_t, x_next = x
+            x_t, x_next = x_t.to(DEVICE), x_next.to(DEVICE)
+            decoded, x, mu_x, logvar_x, z_space, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, mu_x, logvar_x, z_space = self.solver.model(x) # vae
@@ -88,6 +93,10 @@ class Testing(object):
             x_t, x_next = x_t.view(-1, self.solver.data_loader.input_dim).to(DEVICE),\
                 x_next.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
+        elif self.solver.tdcvae2_mode:
+            x_t, x_next = x
+            x_t, x_next = x_t.to(DEVICE), x_next.to(DEVICE)
+            decoded, x, mu_x, logvar_x, _, _ = self.solver.model(x_t, x_next)
         else:
             x = x.view(-1, self.solver.data_loader.input_dim).to(DEVICE)
             decoded, mu_x, logvar_x, _ = self.solver.model(x) # vae
@@ -113,9 +122,10 @@ class Testing(object):
 class Solver(object):
     def __init__(self, model, data_loader, optimizer, epochs, optim_config,\
             step_config=None, lr_scheduler=None, num_samples=100, cvae_mode=False,\
-            tdcvae_mode=False, save_model_state=False):
+            tdcvae_mode=False, tdcvae2_mode=False, save_model_state=False):
         self.cvae_mode = cvae_mode
         self.tdcvae_mode = tdcvae_mode
+        self.tdcvae2_mode = tdcvae2_mode
         self.data_loader = data_loader
         self.model = model
         self.model.to(DEVICE)
@@ -135,7 +145,7 @@ class Solver(object):
         self.save_model_state = save_model_state
 
     def _set_weight_decay(self, optim_config):
-        if self.tdcvae_mode:
+        if optim_config["weight_decay"] is None:
             optim_config["weight_decay"] = 0.0
         elif optim_config["weight_decay"] == 1:
             optim_config["weight_decay"] = 1/(float(self.data_loader.num_train_samples)) # batch wise regularization, so M/N in all
@@ -143,11 +153,12 @@ class Solver(object):
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
         num_train_batches = self.data_loader.num_train_batches
+        # TODO
         #if self.tdcvae_mode:
         #    train_loss = metrics.train_loss_acc/num_train_batches
         #    recon_loss = metrics.recon_loss_acc/num_train_batches
         #    kl_div = metrics.kl_diverg_acc/num_train_batches
-       # else:
+        # else:
         train_loss = metrics.train_loss_acc/num_train_samples
         recon_loss = metrics.recon_loss_acc/num_train_samples
         kl_div = metrics.kl_diverg_acc/num_train_samples
@@ -170,9 +181,10 @@ class Solver(object):
         return test_loss
 
     # generating samples from only the decoder
-    def _sample(self, epoch, num_samples):
+    def _sample(self, epoch):
         if not self.data_loader.directories.make_dirs:
             return
+        num_samples = self.num_samples
         with torch.no_grad():
             if self.cvae_mode:
                 z_sample = torch.randn(num_samples, self.model.z_dim)
@@ -187,11 +199,34 @@ class Solver(object):
                 x_t = x_t[:num_samples]
                 z_sample = torch.randn(x_t.size(0), self.model.z_dim).to(DEVICE)
                 sample = torch.cat((x_t, z_sample), dim=-1).to(DEVICE)
+            elif self.tdcvae2_mode:
+                test_loader = self.data_loader.get_new_test_data_loader()
+                x_t, x_next = iter(test_loader).next()
+                num_samples = min(self.num_samples, x_t.size(0))
+                x_t = x_t[:self.num_samples]
+                z_sample = torch.randn(x_t.shape[0], self.model.z_dim, x_t.shape[2], x_t.shape[3])
+                sample = torch.cat((x_t, z_sample), dim=1).to(DEVICE)
             else:
                 sample = torch.randn(num_samples, self.model.z_dim).to(DEVICE)
             sample = self.model.decoder(sample)
             num_samples = min(num_samples, sample.size(0))
-            torchvision.utils.save_image(sample.view(num_samples, *self.data_loader.img_dims),\
+            if self.tdcvae2_mode:
+                recon_diff = sample[:num_samples] - x_next[:num_samples]
+                print("Sampling norm(sample, ground truth): {}".format(torch.norm(recon_diff)))
+                recon_diff = recon_diff.pow(2).view(sample.size(0), *self.data_loader.img_dims)
+                rd = recon_diff * 100
+                sample = torch.cat([x_t.view(x_t.size(0), *self.data_loader.img_dims)[:num_samples],\
+                        x_next.view(x_next.size(0), *self.data_loader.img_dims)[:num_samples],
+                        sample.view(sample.size(0), *self.data_loader.img_dims)[:num_samples],
+                        recon_diff[:num_samples],
+                        rd])
+                timestamps = self.data_loader.data.timestamps
+                torchvision.utils.save_image(sample,\
+                    self.data_loader.directories.result_dir + "/generated_sample_" + str(epoch) + "_t=["\
+                    + ",".join(str(x) for x in timestamps[:num_samples]) + "]_z=" +\
+                    str(self.model.z_dim) + ".png", nrow=self.num_samples)
+            else:
+                torchvision.utils.save_image(sample.view(num_samples, *self.data_loader.img_dims),\
                     self.data_loader.directories.result_dir + "/generated_sample_" + str(epoch)\
                     + "_z=" + str(self.model.z_dim) + ".png", nrow=10)
 
@@ -214,6 +249,7 @@ class Solver(object):
             params += "VAE mode {}\n".format(not self.cvae_mode and not self.tdcvae_mode)
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
+            params += "TDCVAE2 mode: {}\n".format(self.tdcvae2_mode)
             if self.data_loader.thetas:
                 params += "thetas: (theta_range_1: {}, theta_range_2: {})\n"\
                     .format(self.data_loader.theta_range_1, self.data_loader.theta_range_2)
@@ -221,6 +257,10 @@ class Solver(object):
                 params += "scales: (scale_range_1: {}, scale_range_2: {})\n"\
                     .format(self.data_loader.scale_range_1, self.data_loader.scale_range_2)
             params += "number of samples for sampling: {}\n".format(self.num_samples)
+            if self.data_loader.resize:
+                params += "resize: {}\n".format(self.data_loader.resize)
+            if self.data_loader.crop:
+                params += "crop: {}\n".format(self.data_loader.crop)
             params += "model:\n"
             params += str(self.model)
             param_file.write(params)
@@ -238,6 +278,8 @@ class Solver(object):
                 name += "SCALES_"
         elif self.cvae_mode:
             name += "CVAE_"
+        elif self.tdcvae2_mode:
+            name += "TDCVAE2_"
         else:
             name += "VAE_"
         last_train_loss = self.train_loss_history["train_loss_acc"][-1]
@@ -264,7 +306,7 @@ class Solver(object):
             testing.test(epoch, epoch_metrics)
             test_loss = self._save_test_metrics(epoch_metrics)
             print("====> Test set loss avg: {:.4f}".format(test_loss))
-            self._sample(epoch, self.num_samples)
+            self._sample(epoch)
             if self.lr_scheduler:
                 self.lr_scheduler.step()
             if self.save_model_state:
@@ -277,7 +319,7 @@ class Solver(object):
 
 if __name__ == "__main__":  
     parser = argparse.ArgumentParser(description="The script for training a model (VAE/CVAE/TDCVAE)")
-    parser.add_argument("--model", help="Set model to VAE/CVAE/TDCVAE (required)", required=True)
+    parser.add_argument("--model", help="Set model to VAE/CVAE/TDCVAE/TDCVAE2 (required)", required=True)
     parser.add_argument("--dataset", help="Set dataset to MNIST/LFW/FF/LungScans accordingly (required)", required=True)
     parser.add_argument("--save_files", help="Determine if files (samples etc.) should be saved (optional, default: False)", required=False, action='store_true')
     parser.add_argument("--save_model_state", help="Determine if state of model should be saved during training (optional, default: False)", required=False, action='store_true')
@@ -328,4 +370,20 @@ if __name__ == "__main__":
             data["optim_config"], step_config=data["step_config"],\
                 lr_scheduler=data["lr_scheduler"], tdcvae_mode=True,\
                 save_model_state=save_model_state)
+    elif model_arg.lower() == "tdcvae2":
+        # requires the data is at hand!
+        root = "../data/lungscans"
+        if not os.path.isdir(root):
+            raise ValueError("Requires lung scan data is at {}".format(root))
+        data = get_model_data_tdcvae2(dataset_arg)
+        directories = Directories(model_arg.lower(), dataset_arg, data["z_dim"],\
+            make_dirs=save_files)
+        folders = [[(root+"/"+f+"/"+a+"/") for a in os.listdir(root+"/"+f)] for f in os.listdir(root)]
+        folders = [item for sublist in folders for item in sublist]
+        data_loader = DataLoader(directories, data["batch_size"], dataset_arg, resize=data["resize"], folders=folders)
+        model = Tdcvae2(data["z_dim"], data["beta"], 3, data_loader.img_dims)        
+        solver = Solver(model, data_loader, data["optimizer"], data["epochs"],\
+            data["optim_config"], step_config=data["step_config"],\
+                lr_scheduler=data["lr_scheduler"], tdcvae2_mode=True,\
+                save_model_state=save_model_state, num_samples=8)
     solver.main()
