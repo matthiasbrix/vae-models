@@ -153,15 +153,15 @@ class Solver(object):
     def _save_train_metrics(self, epoch, metrics):
         num_train_samples = self.data_loader.num_train_samples
         num_train_batches = self.data_loader.num_train_batches
-        # TODO
-        #if self.tdcvae_mode:
-        #    train_loss = metrics.train_loss_acc/num_train_batches
-        #    recon_loss = metrics.recon_loss_acc/num_train_batches
-        #    kl_div = metrics.kl_diverg_acc/num_train_batches
-        # else:
-        train_loss = metrics.train_loss_acc/num_train_samples
-        recon_loss = metrics.recon_loss_acc/num_train_samples
-        kl_div = metrics.kl_diverg_acc/num_train_samples
+        # if rotation + scaling - we trigger MSE metric
+        if self.tdcvae_mode and self.data_loader.thetas is not None and self.data_loader.scales is not None:
+            train_loss = metrics.train_loss_acc/num_train_batches
+            recon_loss = metrics.recon_loss_acc/num_train_batches
+            kl_div = metrics.kl_diverg_acc/num_train_batches
+        else:
+            train_loss = metrics.train_loss_acc/num_train_samples
+            recon_loss = metrics.recon_loss_acc/num_train_samples
+            kl_div = metrics.kl_diverg_acc/num_train_samples
         self.train_loss_history["epochs"].append(epoch) # just for debug mode (in case we finish earlier)
         self.train_loss_history["train_loss_acc"].append(train_loss)
         self.train_loss_history["recon_loss_acc"].append(recon_loss)
@@ -246,7 +246,7 @@ class Solver(object):
                     self.data_loader.batch_size, self.lr_scheduler,\
                     self.step_config)
             params += "dataset: {}\n".format(self.data_loader.dataset)
-            params += "VAE mode {}\n".format(not self.cvae_mode and not self.tdcvae_mode)
+            params += "VAE mode {}\n".format(not self.cvae_mode and not self.tdcvae_mode and not self.tdcvae2_mode)
             params += "CVAE mode: {}\n".format(self.cvae_mode)
             params += "TDCVAE mode: {}\n".format(self.tdcvae_mode)
             params += "TDCVAE2 mode: {}\n".format(self.tdcvae2_mode)

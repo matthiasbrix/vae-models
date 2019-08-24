@@ -2,13 +2,13 @@ import torch
 import torch.utils.data
 import torch.nn as nn
 
-class Encoder(nn.Module):
-    def __init__(self, Din, H):
-        super(Encoder, self).__init__()
-        self.linear1 = nn.Linear(784, 500)
+class EncoderRotation(nn.Module):
+    def __init__(self, Din, Dout):
+        super(EncoderRotation, self).__init__()
+        self.linear1 = nn.Linear(Din, 500)
         self.linear2 = nn.Linear(500, 200)
-        self.mean = nn.Linear(200, 2)
-        self.logsigma = nn.Linear(200, 2)
+        self.mean = nn.Linear(200, Dout)
+        self.logsigma = nn.Linear(200, Dout)
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -18,10 +18,25 @@ class Encoder(nn.Module):
         x = self.relu(x)
         return self.mean(x), self.logsigma(x)
 
-'''
-class Encoder(nn.Module):
+class EncoderScaling(nn.Module):
     def __init__(self, Din, Dout):
-        super(Encoder, self).__init__()
+        super(EncoderScaling, self).__init__()
+        self.linear1 = nn.Linear(Din, 500)
+        self.linear2 = nn.Linear(500, 200)
+        self.mean = nn.Linear(200, Dout)
+        self.logsigma = nn.Linear(200, Dout)
+        self.relu = nn.ReLU()
+
+    def forward(self, x):
+        x = self.linear1(x)
+        x = self.relu(x)
+        x = self.linear2(x)
+        x = self.relu(x)
+        return self.mean(x), self.logsigma(x)
+
+class EncoderRotationScaling(nn.Module):
+    def __init__(self, Din, Dout):
+        super(EncoderRotationScaling, self).__init__()
         self.linear1 = nn.Linear(Din, 98)
         self.linear2 = nn.Linear(98, 12)
         self.linear3 = nn.Linear(12, 12)
@@ -38,7 +53,6 @@ class Encoder(nn.Module):
         x = self.linear3(x)
         x = self.relu(x)
         return self.mean(x), self.logsigma(x)
-'''
 
 class Decoder(nn.Module):
     def __init__(self, Dout, H, Din, rotations):
@@ -59,13 +73,18 @@ class Decoder(nn.Module):
         return self.sigmoid(self.linear3(x))
 
 class TD_Cvae(nn.Module):
-    def __init__(self, input_dim, hidden_dim_dec, z_dim, beta, rotations=False):
+    def __init__(self, input_dim, hidden_dim_dec, z_dim, beta, rotations=False, scaling=False):
         super(TD_Cvae, self).__init__()
-        self.encoder = Encoder(input_dim, z_dim)
+        if rotations and scaling:
+            self.encoder = EncoderRotationScaling(input_dim, z_dim)
+        elif rotations:
+            self.encoder = EncoderRotation(input_dim, z_dim)
+        elif scaling:
+            self.encoder = EncoderScaling(input_dim, z_dim)
         self.decoder = Decoder(input_dim+z_dim, hidden_dim_dec+z_dim, input_dim, rotations)
         self.z_dim = z_dim
         self.beta = beta
-        self.loss = nn.BCELoss(reduction='sum') #nn.MSELoss()
+        self.loss = nn.MSELoss() if rotations and scaling else nn.BCELoss(reduction="sum")
 
     # y \sim N(\mu(x), \Sigma(x))   
     def _reparameterization_trick(self, mu_x, logvar_x):
@@ -83,7 +102,7 @@ class TD_Cvae(nn.Module):
     # loss function + KL divergence, use for this \mu(x), \Sigma(x)
     def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = self.loss(fx, X)
-        kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)/float(X.shape[0])
+        kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1.0 - logsigma)/float(X.shape[0])
         return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, kl_divergence
 
     # inputs: x_t, x_{t+1}
