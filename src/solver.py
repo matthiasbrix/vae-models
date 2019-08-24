@@ -229,17 +229,17 @@ class Solver(object):
     def _save_final_model(self):
         name = self.data_loader.directories.result_dir + "/model_"
         if self.tdcvae_mode:
-            name += "TD_CVAE_"
+            name += "TDCVAE_"
             if self.data_loader.thetas and self.data_loader.scales:
                 name += "SCALES_THETAS_"
             elif self.data_loader.thetas:
                 name += "THETAS_"
             elif self.data_loader.scales:
                 name += "SCALES_"
-        if self.data_loader.directories.make_dirs:
-            name += "VAE_"
-        if self.data_loader.directories.make_dirs:
+        elif self.cvae_mode:
             name += "CVAE_"
+        else:
+            name += "VAE_"
         last_train_loss = self.train_loss_history["train_loss_acc"][-1]
         name += self.data_loader.dataset + "_train_loss=" + "{0:.2f}".format(last_train_loss)\
             + "_z=" + str(self.model.z_dim) + ".pt"

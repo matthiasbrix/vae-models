@@ -120,7 +120,8 @@ class DataLoader():
         if sampler is not None and sampler[0] == "single_point":
             sampler = SingleDataPointSampler(test_set, sampler[1])
         elif sampler is not None and sampler[0] == "specific_class":
-            sampler = ClassSampler(test_set, sampler[2], sampler[1])
+            sampler = ClassSampler(test_set, sampler[1], sampler[2])
         batch_size = 1 if sampler is not None else self.batch_size
         shuffle = sampler is None
-        return torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=shuffle, sampler=sampler, drop_last=True)
+        drop_last = sampler is None
+        return torch.utils.data.DataLoader(dataset=test_set, batch_size=batch_size, shuffle=shuffle, sampler=sampler, drop_last=drop_last)

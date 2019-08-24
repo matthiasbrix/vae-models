@@ -41,7 +41,7 @@ def preprocess_sample(x, theta=None, scale=None):
     # apply transformation inversed because otherwise it would be opposite/inverse of we define, so 1.5 scale is actually 0.5
     return torch.FloatTensor(ski.transform.warp(x, transformation.inverse, output_shape=(x.shape[0], x.shape[1]), preserve_range=True)).to(DEVICE)
 
-# expecting numpy array (N, H, W)
+# expecting numpy array (N, 1, H, W)
 def preprocess_batch_det(x, thetas, scales):
     batch_size = x.shape[0]
     preprocessed_x = []
@@ -50,7 +50,7 @@ def preprocess_batch_det(x, thetas, scales):
     preprocessed_x = np.stack(preprocessed_x, axis=0)
     return preprocessed_x
 
-# This is for the latent spaces which just need random transformations and want to save the prepro params
+# This is for the latent spaces which just need random transformations and want to save the prepro params for labeling
 class RandomPreprocessing():
     def __init__(self, num_test_samples, img_dims, theta_range_1=None, theta_range_2=None, scale_range_1=None, scale_range_2=None):
         self.prepro_params = {}
