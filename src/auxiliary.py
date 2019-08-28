@@ -67,7 +67,7 @@ def produce_ys(encoder, x_t, scales, thetas, num_samples):
     return ys
 
 # transforming images to produce ys/zs
-def produce_ys_zs(model, num_samples, x_t, scales_1, thetas_1, x_next=None, scales_2=None, thetas_2=None):
+def produce_ys_zs(model, num_samples, x_t, scales_1, thetas_1, x_next, scales_2, thetas_2):
     if x_t.shape[0] is not x_next.shape[0]:
         return
     ys = np.zeros((num_samples, scales_1.shape[0], thetas_1.shape[0], 2))
@@ -88,3 +88,31 @@ def produce_ys_zs(model, num_samples, x_t, scales_1, thetas_1, x_next=None, scal
                 _, _, _, _, zs[sample, i, :, :], ys[sample, i, :, :] = model(torch.FloatTensor(x0trans), torch.FloatTensor(x1trans))
     return ys, zs
     
+# copied from https://stackoverflow.com/questions/929103/convert-a-number-range-to-another-range-maintaining-ratio
+def remap_range(x, oMin, oMax, nMin, nMax):
+    #range check
+    if oMin == oMax:
+        print("Warning: Zero input range")
+        return None
+    if nMin == nMax:
+        print("Warning: Zero output range")
+        return None
+    # check reversed input range
+    reverseInput = False
+    oldMin = min(oMin, oMax)
+    oldMax = max(oMin, oMax)
+    if not oldMin == oMin:
+        reverseInput = True
+    # check reversed output range
+    reverseOutput = False
+    newMin = min(nMin, nMax)
+    newMax = max(nMin, nMax)
+    if not newMin == nMin:
+        reverseOutput = True
+    portion = (x-oldMin)*(newMax-newMin)/(oldMax-oldMin)
+    if reverseInput:
+        portion = (oldMax-x)*(newMax-newMin)/(oldMax-oldMin)
+    result = portion + newMin
+    if reverseOutput:
+        result = newMax - portion
+    return result

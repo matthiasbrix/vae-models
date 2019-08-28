@@ -1,13 +1,10 @@
 import torch.utils.data
 import torch.nn as nn
-import torch.nn.functional as F
 import torch
-import numpy as np
 
 class Encoder(nn.Module):
-    def __init__(self, input_dim, kernel_size_high, kernel_size_low, z_dim):
+    def __init__(self, kernel_size_high, kernel_size_low, z_dim):
         super(Encoder, self).__init__()
-        num_pixels = np.prod(input_dim)
         self.conv1 = nn.Conv2d(1, z_dim, kernel_size_high, stride=1, padding=1)
         self.conv2 = nn.Conv2d(z_dim, z_dim, kernel_size_high, stride=1, padding=1)
         self.conv3 = nn.Conv2d(z_dim, z_dim, kernel_size_low, stride=1)
@@ -22,10 +19,8 @@ class Encoder(nn.Module):
         return self.relu(self.mean(x)), self.relu(self.logsigma(x))
 
 class Decoder(nn.Module):
-    def __init__(self, img_dims, kernel_size_high, kernel_size_low, z_dim):
+    def __init__(self, kernel_size_high, kernel_size_low, z_dim):
         super(Decoder, self).__init__()
-        self.img_dims = img_dims
-        num_pixels = np.prod(img_dims)
         self.conv1t = nn.Conv2d(1+z_dim, z_dim, kernel_size_low, stride=1)
         self.conv2t = nn.Conv2d(z_dim, z_dim, kernel_size_low, stride=1)
         self.conv3t = nn.Conv2d(z_dim, z_dim, kernel_size_high, stride=1, padding=1)
@@ -41,10 +36,10 @@ class Decoder(nn.Module):
         return self.sigmoid(x)
 
 class Tdcvae2(nn.Module):
-    def __init__(self, img_dims, z_dim, beta, kernel_size_high, kernel_size_low):
+    def __init__(self, z_dim, beta, kernel_size_high, kernel_size_low):
         super(Tdcvae2, self).__init__()
-        self.encoder = Encoder(img_dims, kernel_size_high, kernel_size_low, z_dim)
-        self.decoder = Decoder(img_dims, kernel_size_high, kernel_size_low, z_dim)
+        self.encoder = Encoder(kernel_size_high, kernel_size_low, z_dim)
+        self.decoder = Decoder(kernel_size_high, kernel_size_low, z_dim)
         self.z_dim = z_dim
         self.beta = beta
         self.loss = nn.BCELoss(reduction="sum")
@@ -67,8 +62,7 @@ class Tdcvae2(nn.Module):
 
     def forward(self, x_t, x_next):
         if len(x_t.shape) is not 4 and len(x_next.shape) is not 4:
-            raise ValueError("Need shape N x C x H x W of x_t and x_{t+1}")
-        N, C, H, W = x_t.shape
+            raise ValueError("Need shape of x_t and x_{t+1} to be N x C x H x W ")
         mu_x_t, logvar_x_t = self.encoder(x_t)
         mu_x_next, logvar_x_next = self.encoder(x_next)
         z_t, mu_z, logvar_z = self._zrepresentation(logvar_x_t, logvar_x_next, mu_x_t, mu_x_next)
