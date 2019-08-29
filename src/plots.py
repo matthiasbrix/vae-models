@@ -7,7 +7,9 @@ import matplotlib.patches as mpatches
 import scipy.stats as stats
 import scipy.spatial.distance as dist
 import skimage as ski
+from PIL import Image, ImageDraw
 from preprocessing import preprocess_sample
+from auxiliary import remap_range
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -143,7 +145,7 @@ def plot_rl_kl(solver, rls, kls):
     plt.xticks(_xticks(kls, ticks_rate))
     plt.xlabel("epoch")
     plt.ylabel("KL divergence")
-    plt.title("KL divergence of q(z|x)||p(z), β={} (training)".format(solver.model.beta))
+    plt.title("KL divergence of q(z)||p(z), β={} (training)".format(solver.model.beta))
 
     plt.grid(True, linestyle='-.')
     plt.tight_layout()
@@ -152,15 +154,21 @@ def plot_rl_kl(solver, rls, kls):
             + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
 # Plot the latent space as scatter plot with and without labels
-def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None, colors=None, xticks=None, yticks=None, invert_y_axis=False):
+def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None, colors=None, xticks=None, yticks=None, transpose=False):
     plt.figure(figsize=(9, 7))
     if labels is not None and title:
         if var == "z" and ticks is not None:
-            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap=plt.cm.get_cmap("Paired", colors))
+            if transpose:
+                scatter = plt.scatter(space[:, 1], space[:, 0], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap=plt.cm.get_cmap("Paired", colors))
+            else:
+                scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap=plt.cm.get_cmap("Paired", colors))
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
         elif var == "y" and ticks is not None:
-            scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap="Paired")
+            if transpose:
+                scatter = plt.scatter(space[:, 1], space[:, 0], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap="Paired")
+            else:
+                scatter = plt.scatter(space[:, 0], space[:, 1], s=10, vmin=ticks[0], vmax=ticks[-1], c=labels, cmap="Paired")
             clb = plt.colorbar(scatter, ticks=ticks)
             clb.ax.set_title(title)
         elif ticks is not None:
@@ -176,22 +184,19 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
     plt.xlabel("{}_1".format(var))
     plt.ylabel("{}_2".format(var))
 
-    leftx, rightx = plt.xlim()
-    lefty, righty = plt.ylim()
-    min1, max1 = xticks[0], xticks[-1]
-    min2, max2 = yticks[0], yticks[-1]
-    x1 = min(min1, leftx)
-    x2 = max(max1, rightx)
-    y1 = min(min2, lefty)
-    y2 = max(max2, righty)
-    xs = np.linspace(x1, x2, len(xticks))
-    ys = np.linspace(y1, y2, len(xticks))
-    if xticks is not None:
+    if xticks is not None and yticks is not None:
+        leftx, rightx = plt.xlim()
+        lefty, righty = plt.ylim()
+        min1, max1 = xticks[0], xticks[-1]
+        min2, max2 = yticks[0], yticks[-1]
+        x1 = min(min1, leftx)
+        x2 = max(max1, rightx)
+        y1 = min(min2, lefty)
+        y2 = max(max2, righty)
+        xs = np.linspace(x1, x2, len(xticks))
+        ys = np.linspace(y1, y2, len(xticks))
         plt.xticks(xs)
-    if yticks is not None:
         plt.yticks(ys)
-    if invert_y_axis:
-        plt.ylim(plt.ylim()[::-1])
 
     plt.title("Latent space q({}) on data set {}".format(var, DATASETS[solver.data_loader.dataset.lower()]))
     if solver.data_loader.directories.make_dirs:
@@ -200,7 +205,7 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
 
 # For each of the values z, we plotted the corresponding generative
 # p(x|z) with the learned parameters θ.
-def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None, label=None):
+def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None, label=None, zdata=None, center_rect=False):
     c, h, w = solver.data_loader.img_dims
     figure = torch.zeros((c, h*n, w*n))
     # Decode for each square in the grid.
@@ -223,10 +228,34 @@ def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10
                     sample = z_sample
                 x_decoded = decoder(sample)
                 figure[:, i*h:(i+1)*h, j*w:(j+1)*w] = x_decoded.view(*solver.data_loader.img_dims)
-    grid_img = torchvision.utils.make_grid(figure)
+
     plt.figure(figsize=fig_size)
     plt.axis("off")
-    plt.imshow(grid_img.permute(1, 2, 0), cmap=cm)
+    # Draw a rectangle on the center image (reconstruction of x_t).
+    # is only done when in tdcvae mode and but not when doing single example thing
+    if x_t is not None and center_rect:
+        test = torch.zeros((c, h*(n+1), w*n))
+        for i in range(figure.shape[1]):
+            for j in range(figure.shape[2]):
+                test[0, i+h, j] = figure[0, i, j]
+        test[0, 0:28, 0:28] = x_t.view((1, 28, 28))
+        test[0, 0:28, 28:] = 1.0
+        img = Image.fromarray(test.numpy()[0])
+        draw = ImageDraw.Draw(img)
+        draw.rectangle([((n)//2*28, (n+1)//2*28), ((n)//2*28+28, (n+1)//2*28+28)])
+        figure = torch.FloatTensor(np.asarray(img))
+    
+    # remap the data from the encodings from -2,2 to 0,n*28
+    if zdata is not None and grid_x is not None and grid_y is not None:
+        scatter = np.zeros_like(zdata[0])
+        for i in range(zdata[0].shape[0]):
+            x = remap_range(zdata[0][i, 0], min(grid_x[0], np.min(zdata[0][:, 0])), max(grid_x[-1], np.max(zdata[0][:, 0])), 0, n*28)
+            y = remap_range(zdata[0][i, 1], min(grid_y[0], np.min(zdata[0][:, 1])), max(grid_y[-1], np.max(zdata[0][:, 1])), 0, n*28)
+            scatter[i] = x, y
+        plt.scatter(scatter[:, 1], scatter[:, 0], s=50, c=zdata[1], cmap=plt.cm.get_cmap("Paired", zdata[2]), zorder=2)
+   
+    grid_img = torchvision.utils.make_grid(torch.FloatTensor(figure))
+    plt.imshow(grid_img.permute(1, 2, 0), cmap=cm, zorder=1)
     plt.show()
     if solver.data_loader.directories.make_dirs:
         # save stats of the grid (x,y ranges as defined in the notebook)
@@ -234,7 +263,7 @@ def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10
             solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".txt", 'w') as file_res:
             file_res.write("grid_x: {}\n".format(grid_x))
             file_res.write("grid_y: {}\n".format(grid_y))
-        torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
+        torchvision.utils.save_image(grid_img, solver.data_loader.directories.result_dir +\
             "/plot_learned_data_manifold_" + str(label) + "_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
 # Replicating the handstyle image example from Kingma et. al in Semisupervised VAE paper
@@ -391,7 +420,7 @@ def plot_prepro_alpha_params_distribution(ys, thetas, save_plot, file_name, data
     # normalize alpha[0] = theta[0] = 0
     alphas -= alphas[:, 0:1]
     alphas = alphas/(2*np.pi) * 360 # convert from radian to euclidean angles
-    alphas = np.where(alphas >= 0, alphas, alphas + 360) # (600, 30) dimension
+    alphas = np.where(alphas >= 0, alphas, alphas + 360) # put negative alphas into range again, otherwise keep them
 
     # create alpha-theta plot
     thetas_scatter = np.tile(np.expand_dims(thetas, axis=0), (alphas.shape[0], 1))/(2*np.pi) * 360
@@ -432,10 +461,10 @@ def plot_prepro_radius_params_distribution(ys, scales, save_plot, file_name, dat
 def plot_vis_tensor(tensor, nrow=8, padding=1, allkernels=False):
     N, C, W, H = tensor.shape
     if allkernels: tensor = tensor.view(N*C, -1, W, H)
-    else: tensor = tensor[0,:,:,:].unsqueeze(dim=1)
+    else: tensor = tensor[0, :, :, :].unsqueeze(dim=1)
     rows = np.min((tensor.shape[0]//nrow + 1, 64))
     grid = torchvision.utils.make_grid(tensor, nrow=nrow, normalize=True, padding=padding)
-    plt.figure(figsize=(nrow,rows))
+    plt.figure(figsize=(nrow, rows))
     plt.axis('off')
     plt.ioff()
     plt.imshow(grid.detach().cpu().numpy().transpose((1, 2, 0)))
@@ -460,8 +489,8 @@ def plot_lungscans_samples_grid(solver, decoder, x_t, x_next, z_dim, n=4, fig_si
     grid_img = torchvision.utils.make_grid(output, nrow=n)
     plt.figure(figsize=fig_size)
     plt.axis("off")
-    plt.imshow(grid_img.permute(1,2,0), cmap="gray")
+    plt.imshow(grid_img.permute(1, 2, 0), cmap="gray")
     plt.show()
     if solver.data_loader.directories.make_dirs:
         torchvision.utils.save_image(grid_img, solver.data_loader.directories.result_dir +\
-            "/plot_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png", nrow=4)
+            "/plot_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png", nrow=n)
