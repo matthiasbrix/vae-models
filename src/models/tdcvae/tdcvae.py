@@ -84,7 +84,7 @@ class TD_Cvae(nn.Module):
     def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = self.loss(fx, X)
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1.0 - logsigma)
-        if isinstance(self.loss, nn.MSELoss()):
+        if self.loss == nn.MSELoss():
             kl_divergence /= float(X.shape[0])
         return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, kl_divergence
 

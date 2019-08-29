@@ -27,7 +27,7 @@ class EpochMetrics():
         # accum. reconstruction loss and kl divergence
         self.recon_loss_acc += reconstruction_loss.item()
         self.kl_diverg_acc += kl_divergence.item()
-        # compute mu(q(z|x)), std(q(z|x))
+        # compute mu(q(z)), std(q(z))
         self.mu_z += torch.mean(z_space).item() # need the metric just for one batch, actually don't need for all
         self.std_z += torch.std(z_space).item()
         # Var(mu(x))
@@ -380,8 +380,8 @@ if __name__ == "__main__":
             make_dirs=save_files)
         folders = [[(root+"/"+f+"/"+a+"/") for a in os.listdir(root+"/"+f)] for f in os.listdir(root)]
         folders = [item for sublist in folders for item in sublist]
-        data_loader = DataLoader(directories, data["batch_size"], dataset_arg, resize=data["resize"], folders=folders)
-        model = Tdcvae2(data["z_dim"], data["beta"], 3, data_loader.img_dims)        
+        data_loader = DataLoader(directories, data["batch_size"], dataset_arg.lower(), resize=data["resize"], folders=folders)
+        model = Tdcvae2(data["z_dim"], data["beta"], data["kernel_size_high"], data["kernel_size_low"])     
         solver = Solver(model, data_loader, data["optimizer"], data["epochs"],\
             data["optim_config"], step_config=data["step_config"],\
                 lr_scheduler=data["lr_scheduler"], tdcvae2_mode=True,\

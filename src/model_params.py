@@ -94,7 +94,7 @@ def get_model_data_tdcvae(dataset):
             "batch_size": 128,
             "epochs": 10000,
             "z_dim": 2,
-            "beta": 1, #0.00001,
+            "beta": 0.00001,
             "lr_scheduler": torch.optim.lr_scheduler.StepLR,
             "step_config": {
                 "step_size" : 100,
@@ -106,11 +106,11 @@ def get_model_data_tdcvae(dataset):
             },
             "thetas": {
                 "theta_1": None, #[-np.pi, np.pi],
-                "theta_2": None, #[-np.pi/4, np.pi/4]
+                "theta_2": None #[-np.pi/4, np.pi/4]
             },
             "scales": {
                 "scale_1": None, #[0.85, 1.15],
-                "scale_2": None, #[-0.15, 0.15]
+                "scale_2": None #[-0.15, 0.15]
             }
         }
     else:
