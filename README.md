@@ -23,7 +23,7 @@ conda install --file requirements.txt
 
 ## Data sets
 
-In order to run the model `TDCVAE2`, a dataset of lung scans is required. However, this data set is not published. Moreover, the 
+In order to run the model `TDCVAE2`, a dataset of lung scans is required, but this data set is not published. In case it is available, place it in `data/lungscans`. Other data sets (MNIST/LFW) will be downloaded automatically.
 
 # Running the repository
 
@@ -31,7 +31,7 @@ In order to run the model `TDCVAE2`, a dataset of lung scans is required. Howeve
 
 Talk also about that model parameters are centrally modified in the modelparams file. See in the file also the allowed data sets of each model.
 
-Train models either by the jupyter notebooks or the command line. The 
+Train models either by the jupyter notebooks or the command line. The arguments are below:
 ```
 python solver.py --model <model name> --dataset <data set> [--save_files] [--save_model_state] [--scales] [--thetas]
 ```
@@ -43,3 +43,4 @@ python solver.py --help
 
 ## Producing the plots
 
+After having trained a model, the model can be loaded in the corresponding jupyter notebook. The plots can then be produced in the notebook. **Plots cannot be produced from the script**.
