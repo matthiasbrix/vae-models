@@ -231,16 +231,21 @@ def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10
 
     plt.figure(figsize=fig_size)
     plt.axis("off")
-    # Draw a rectangle on the center image (reconstruction of x_t).
-    # is only done when in tdcvae mode and but not when doing single example thing
-    if x_t is not None and center_rect:
+
+    # showing the input in the top left corner.
+    if x_t is not None:
         test = torch.zeros((c, h*(n+1), w*n))
         for i in range(figure.shape[1]):
             for j in range(figure.shape[2]):
                 test[0, i+h, j] = figure[0, i, j]
         test[0, 0:28, 0:28] = x_t.view((1, 28, 28))
         test[0, 0:28, 28:] = 1.0
-        img = Image.fromarray(test.numpy()[0])
+        figure = test
+
+    # Draw a rectangle on the center image (reconstruction of x_t).
+    # is only done when in tdcvae mode and but not when doing single example thing
+    if center_rect:
+        img = Image.fromarray(figure.numpy()[0])
         draw = ImageDraw.Draw(img)
         draw.rectangle([((n)//2*28, (n+1)//2*28), ((n)//2*28+28, (n+1)//2*28+28)])
         figure = torch.FloatTensor(np.asarray(img))
