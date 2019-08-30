@@ -486,10 +486,14 @@ def plot_lungscans_samples_grid(solver, decoder, x_t, x_next, z_dim, n=4, fig_si
     recon_diff = x_decoded[:num_samples] - x_next[:num_samples]
     print("Sampling norm(sample, ground truth): {}".format(torch.norm(recon_diff)))
     recon_diff = recon_diff.pow(2)
+    rd = recon_diff * 100
+    recon_diff = x_next[:num_samples] - x_t[:num_samples]
+    recon_diff = recon_diff.pow(2)
     rd2 = recon_diff * 100
     output = torch.cat([x_t[:num_samples],\
                 x_next[:num_samples],
                 x_decoded[:num_samples],
+                rd,
                 rd2])
     grid_img = torchvision.utils.make_grid(output, nrow=n)
     plt.figure(figsize=fig_size)

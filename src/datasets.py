@@ -46,12 +46,12 @@ class DatasetLFW(Dataset):
 
 class DatasetLungScans(Dataset):
     def __init__(self, volumes, resize=None, crop=None, sampling=False):
-        asd = load_all_volumes(volumes)
-        a = [v[:40] for v in asd] # take the first 40 because usually the last ~25 are not so informative
-        for i in range(len(a)): # normalize to (0,1)
-            norm = (a[i] - np.min(a[i]))/(np.max(a[i]) - np.min(a[i]))
-            a[i] = norm
-        self.data = np.concatenate(tuple(a), axis=0) # shape is 192 x 384 x 384, as 192=64*3
+        volumes = load_all_volumes(volumes)
+        volumes = [v[:40] for v in volumes] # take the first 40 because usually the last ~25 are not so informative
+        for i in range(len(volumes)): # normalize to (0,1)
+            norm = (volumes[i] - np.min(volumes[i]))/(np.max(volumes[i]) - np.min(volumes[i]))
+            volumes[i] = norm
+        self.data = np.concatenate(tuple(volumes), axis=0) # shape is 192 x 384 x 384, as 192=64*3
         self.transform = skimage.transform.resize if resize else None
         self.resized_dims = resize
         self.crop = crop
@@ -63,7 +63,9 @@ class DatasetLungScans(Dataset):
 
     def __getitem__(self, t0):
         t1 = (t0+1)
-        t1 = t1 if t1 < self.data.shape[0] else (t0-1)
+        if t1 == self.data.shape[0]:
+            t1 = t0
+            t0 = t0-1
         if self.sampling:
             self.timestamps.append(t0)
         if self.transform is not None and self.resized_dims is not None:
