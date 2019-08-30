@@ -1,5 +1,6 @@
-data
-results
+data/*
+!/data/ff
+results/*
 **/.ipynb_checkpoints
 **/__pycache__
 **/.vscode
