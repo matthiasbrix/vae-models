@@ -318,11 +318,11 @@ class Solver(object):
         print("+++++ RUN IS FINISHED +++++")
 
 if __name__ == "__main__":  
-    parser = argparse.ArgumentParser(description="The script for training a model (VAE/CVAE/TDCVAE)")
+    parser = argparse.ArgumentParser(description="Script for training a model (VAE/CVAE/TDCVAE/TDCVAE2)")
     parser.add_argument("--model", help="Set model to VAE/CVAE/TDCVAE/TDCVAE2 (required)", required=True)
-    parser.add_argument("--dataset", help="Set dataset to MNIST/LFW/FF/LungScans accordingly (required)", required=True)
+    parser.add_argument("--dataset", help="Set dataset to MNIST/LFW/FF/LungScans accordingly (required, not case sensitive)", required=True)
     parser.add_argument("--save_files", help="Determine if files (samples etc.) should be saved (optional, default: False)", required=False, action='store_true')
-    parser.add_argument("--save_model_state", help="Determine if state of model should be saved during training (optional, default: False)", required=False, action='store_true')
+    parser.add_argument("--save_model_state", help="Determine if state of model should be saved after each epoch during training (optional, default: False)", required=False, action='store_true')
     parser.add_argument('--scales', help="Enables scaling of the model as specified in model_params", default=None, action='store_true')
     parser.add_argument('--thetas', help="Enables rotations of the model as specified in model_params", default=None, action='store_true')
     args = vars(parser.parse_args())
