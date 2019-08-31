@@ -1,7 +1,15 @@
+"""This module contains all the parameters used for the different models
+and their data sets in use. The purpose of having it centrally is to enable
+training from the jupyter notebooks and the solver.py script, avoiding parameters
+two different places. It gives also an overview of which data sets can be used
+for each model.
+
+"""
 import torch
 import numpy as np
 
 def get_model_data_vae(dataset):
+    """Parameters of the VAE model for the permitted datasets"""
     if dataset.lower() == "mnist":
         params = {
             "optimizer": torch.optim.Adam,
@@ -64,6 +72,7 @@ def get_model_data_vae(dataset):
     return params
 
 def get_model_data_cvae(dataset):
+    """Parameters of the VAE model for the permitted datasets"""
     if dataset.lower() == "mnist":
         params = {
             "optimizer": torch.optim.Adam,
@@ -88,6 +97,7 @@ def get_model_data_cvae(dataset):
     return params
 
 def get_model_data_tdcvae(dataset):
+    """Parameters of the TDCVAE model for the permitted datasets"""
     if dataset.lower() == "mnist":
         params = {
             "optimizer": torch.optim.Adam,
@@ -118,6 +128,7 @@ def get_model_data_tdcvae(dataset):
     return params
 
 def get_model_data_tdcvae2(dataset):
+    """Parameters of the TDCVAE2 model for the permitted datasets"""
     if dataset.lower() == "lungscans":
         params = {
             "optimizer": torch.optim.Adam,
@@ -141,3 +152,4 @@ def get_model_data_tdcvae2(dataset):
     else:
         raise ValueError("Dataset not known!")
     return params
+    

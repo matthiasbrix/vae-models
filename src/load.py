@@ -5,6 +5,8 @@ import matplotlib.pyplot as plt
 from os import listdir
 from os.path import isfile, join
 
+# Author: Oswin Krause
+
 # is reading each volumn/set of files and return it as a list of numpy matrices
 # typically a volume has 64 images, each with dimension 384, 384
 # returns matrix (64, 384, 384)
@@ -47,6 +49,7 @@ def process_key(event):
     ax.images[0].set_array(ax.volume[ax.im][ax.index])
     fig.canvas.draw()
 
+# Run this script to run the images that are enlisted in the set of images.
 if __name__ == "__main__":
     # reading all the sets of images.
     folders = ['../data/lungscans/4uIULSTrSegpltTuNuS44K3t4/1.2.246.352.221.52915333682423613339719948113721836450_OBICone-beamCT/',

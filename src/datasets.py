@@ -1,12 +1,17 @@
-from torch.utils.data import Dataset
-from sklearn.datasets import fetch_lfw_people
+"""This module contains custom Dataset objects for DataLoader
+These are used to load data from files and preprocess them (e.g. normalize)
+
+"""
 import scipy.io
-import torch
 import numpy as np
 import skimage
+import torch
+from torch.utils.data import Dataset
+from sklearn.datasets import fetch_lfw_people
 from load import load_all_volumes
 
 class DatasetFF(Dataset):
+    """This class is for Frey Faces used in VAE"""
     def __init__(self, file_path):
         c = 1
         h = 28
@@ -14,14 +19,15 @@ class DatasetFF(Dataset):
         ff = scipy.io.loadmat(file_path+"/frey_rawface.mat")
         ff = ff["ff"].T.reshape((-1, c, h, w))
         self.data = ff.astype("float32")/255.0
-      
+
     def __len__(self):
         return len(self.data)
-      
+
     def __getitem__(self, idx):
         return self.data[idx]
 
 class DatasetLFW(Dataset):
+    """This class is for Labeled faces in the wild used in VAE"""
     def __init__(self, file_path, resize=0.4):
         lfw = fetch_lfw_people(data_home=file_path, resize=resize)
         _, height, width = lfw['images'].shape
@@ -40,18 +46,27 @@ class DatasetLFW(Dataset):
 
     def __len__(self):
         return len(self.data)
-    
+
     def __getitem__(self, idx):
         return self.data[idx]
 
 class DatasetLungScans(Dataset):
+    """This class is for lung scans used in TDCVAE
+    
+        Args:
+            volumes: the volumes (folders) to be loaded
+            resize: resize each volume if given
+            crop: crop each volume if given
+            sampling: if set true, we store the timestamps of t.
+    """
     def __init__(self, volumes, resize=None, crop=None, sampling=False):
         volumes = load_all_volumes(volumes)
         volumes = [v[:40] for v in volumes] # take the first 40 because usually the last ~25 are not so informative
-        for i in range(len(volumes)): # normalize to (0,1)
+        # normalize to (0,1)
+        for i in range(len(volumes)):
             norm = (volumes[i] - np.min(volumes[i]))/(np.max(volumes[i]) - np.min(volumes[i]))
             volumes[i] = norm
-        self.data = np.concatenate(tuple(volumes), axis=0) # shape is 192 x 384 x 384, as 192=64*3
+        self.data = np.concatenate(tuple(volumes), axis=0)
         self.transform = skimage.transform.resize if resize else None
         self.resized_dims = resize
         self.crop = crop
