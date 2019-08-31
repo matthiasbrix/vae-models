@@ -1,9 +1,6 @@
-from pathlib import Path
-
 import torch
 import torch.utils.data
 import torch.nn as nn
-import torch.nn.functional as F
 
 class Encoder(nn.Module):
     def __init__(self, Din, H, Dout, batch_norm_flag):
@@ -11,17 +8,17 @@ class Encoder(nn.Module):
         self.batch_norm_flag = batch_norm_flag
         self.linear1 = nn.Linear(Din, H)
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
-        self.linear22 = nn.Linear(H, Dout) # \Sigma(x)
+        self.linear22 = nn.Linear(H, Dout) # \gamma(x)
         if self.batch_norm_flag:
             self.batch_norm = nn.BatchNorm1d(H)
         self.relu = nn.ReLU()
 
-    # compute q(z|x) which is encoding X into z
+    # compute q(z|x)
     def forward(self, x):
         x = self.linear1(x)
         x = self.batch_norm(x) if self.batch_norm_flag else x
         x = self.relu(x)
-        return self.linear21(x), self.linear22(x) # \mu(x), \Sigma(x)
+        return self.linear21(x), self.linear22(x) # \mu(x), \gamma(x)
 
 class Decoder(nn.Module):
     def __init__(self, Dout, H, Din, batch_norm_flag):
@@ -35,7 +32,7 @@ class Decoder(nn.Module):
         self.relu = nn.ReLU()
         self.sigmoid = nn.Sigmoid()
 
-    # compute p(x|z) (posterior) which is decoding to reconstruct x
+    # compute p(x|z)
     def forward(self, z):
         x = self.linear1(z)
         x = self.batch_norm1(x) if self.batch_norm_flag else x
@@ -53,14 +50,14 @@ class Vae(nn.Module):
         self.beta = beta
         self.loss = nn.BCELoss(reduction="sum")
 
-    # sampling from N(\mu(x), \Sigma(x))
+    # sampling from N(\mu(x), \gamma(x))
     def _reparameterization_trick(self, mu, logsigma):
         sigma = torch.exp(1/2*logsigma)
         eps = torch.randn_like(sigma) # sampling eps ~ N(0, I)
-        return mu + sigma*eps # compute z = \mu(x) + \Sigma^{1/2}(x) * eps
+        return mu + sigma*eps # compute z = \mu(x) + \sigma(x)*eps
 
-    # loss function + KL divergence, use for this \mu(x), \Sigma(x)
-    # compute here D_{KL}[N(\mu(x), \Sigma(x))||N(0,1)]
+    # loss function + KL divergence, use for this \mu(x), \gamma(x)
+    # compute here D_{KL}[N(\mu(x), \gamma(x))||N(0,1)]
     def loss_function(self, fx, X, logsigma, mu):
         loss_reconstruction = self.loss(fx, X)
         kl_divergence = 1/2 * torch.sum(logsigma.exp() + mu.pow(2) - 1 - logsigma)

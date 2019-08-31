@@ -3,9 +3,7 @@ from pathlib import Path
 import torch
 import torch.utils.data
 import torch.nn as nn
-import torch.nn.functional as F
 
-MODEL_NAME = str(Path(__file__).parent.absolute()).split('/')[-1]
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 class Encoder(nn.Module):
@@ -14,7 +12,7 @@ class Encoder(nn.Module):
         self.batch_norm_flag = batch_norm_flag
         self.linear1 = nn.Linear(Din, H)
         self.linear21 = nn.Linear(H, Dout) # \mu(x)
-        self.linear22 = nn.Linear(H, Dout) # \Sigma(x)
+        self.linear22 = nn.Linear(H, Dout) # \gamma(x)
         if self.batch_norm_flag:
             self.batch_norm = nn.BatchNorm1d(H)
         self.relu = nn.ReLU()
@@ -57,7 +55,7 @@ class Cvae(nn.Module):
 
     def onehot_encoding(self, y):
         y = y.view(y.size(0), 1).type(torch.LongTensor).to(DEVICE)
-        onehot = torch.zeros(y.size(0), self.y_size, dtype=torch.float, device=DEVICE) # batch_size x y_size
+        onehot = torch.zeros(y.size(0), self.y_size, dtype=torch.float, device=DEVICE) # dim: batch_size x y_size
         onehot.scatter_(1, y, 1)
         return onehot
 
@@ -72,8 +70,8 @@ class Cvae(nn.Module):
         return loss_reconstruction + self.beta*kl_divergence, loss_reconstruction, kl_divergence
 
     def forward(self, x, y=None):
-        y_one_hot = self.onehot_encoding(y) # batch_size x y_size
-        x = torch.cat((x, y_one_hot), dim=-1) # batch_size x (x.y+y_one_hot.y)
+        y_one_hot = self.onehot_encoding(y)
+        x = torch.cat((x, y_one_hot), dim=-1) 
         mu_x, logvar_x = self.encoder(x)
         latent_space = self.reparameterization_trick(mu_x, logvar_x)
         z = torch.cat((latent_space, y_one_hot), dim=-1)

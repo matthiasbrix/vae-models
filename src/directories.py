@@ -1,8 +1,12 @@
+"""This class contains functions/classes related to creating/reading folders
+
+"""
 import os
 from os import listdir
 import re
 
 def load_all_lungscan_folders():
+    """Loads all lung scans folders/patients at the relative path"""
     root = "../data/lungscans"
     # requires the data is at hand!
     if not os.path.isdir(root):
@@ -11,14 +15,19 @@ def load_all_lungscan_folders():
     folders = [item for sublist in folders for item in sublist]
     return folders
 
-# Loads only selected folders
 def select_lungscan_folders(folders, selected_folders):
+    """Loads selected folders/patients from the list of all folders"""
     a = r".*("+'|'.join(selected_folders)+r").*"
     r = re.compile(a)
     newlist = list(filter(r.match, folders))
     return newlist
 
 class Directories():
+    """This class is for making relevant directories for training
+    such as data, results and especially the result folder of the given
+    training objective. E.g. it could be results/mnist/mnist_z=2_0
+
+    """
     def __init__(self, model_name, dataset, z_dim, make_dirs=True):
         self.model_name = model_name
         self.data_dir_prefix = "../data/"
@@ -48,3 +57,4 @@ class Directories():
             tmp[-1] = str(expand)
             new_dir_name = "_".join(tmp)
         self.result_dir = new_dir_name
+        

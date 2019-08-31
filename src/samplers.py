@@ -1,8 +1,13 @@
+"""This module has custom samplers that are used mainly for test time inference in TDCVAE.
+They are used in the jupyter notebook for TDCVAE.
+
+"""
 import numpy as np
 from torch.utils.data.sampler import Sampler
 
-# filter after classes and take all images or filter after classes and take a single image (repeat that up to N times)
 class ClassSampler(Sampler):
+    """This class is filtering after classes and take all images or
+    a single image (repeat that up to N times)"""
     def __init__(self, dataset, picked_class, num_samples=None):
         self.indices = np.where(dataset.targets == picked_class)[0]
         num_samples = dataset.data.shape[0] if num_samples is None else num_samples
@@ -14,8 +19,7 @@ class ClassSampler(Sampler):
             self.indices = self.indices[:num_samples]
         self.indices = self.indices.tolist()
 
-    # provide an __iter__ method, providing a way
-    # to iterate over indices of dataset elements
+    # iterate over indices of dataset elements
     def __iter__(self):
         return iter(self.indices)
 
@@ -23,8 +27,8 @@ class ClassSampler(Sampler):
     def __len__(self):
         return len(self.indices)
 
-# samples a single example and repeats up to N (data points) times
 class SingleDataPointSampler(Sampler):
+    """Samples a single example and repeats up to N (data points) times"""
     def __init__(self, dataset, num_samples=None):
         N = dataset.data.shape[0] if num_samples is None else num_samples
         idx = np.random.choice(N, 1)
@@ -32,6 +36,6 @@ class SingleDataPointSampler(Sampler):
 
     def __iter__(self):
         return iter(self.sample_repeated)
-    
+
     def __len__(self):
         return len(self.sample_repeated)

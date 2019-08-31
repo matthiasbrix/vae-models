@@ -1,3 +1,7 @@
+"""This module has all the plots that are used in the jupyter notebooks
+for plotting different data.
+
+"""
 import numpy as np
 import torch
 import torchvision
@@ -39,15 +43,14 @@ def plot_losses(solver, train_loss_history, test_loss_history):
     plt.title("Loss on data set {}, dim(z)={}".format(DATASETS[solver.data_loader.dataset.lower()], solver.model.z_dim))
     plt.xlabel("epoch")
     plt.ylabel("loss")
-    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4),
-            fancybox=True, shadow=True, ncol=5)
+    plt.legend(loc='lower center', bbox_to_anchor=(0.5, -0.4), fancybox=True, shadow=True, ncol=5)
     plt.subplots_adjust(left=0.2, right=0.85, top=0.9, bottom=0.25)
     plt.grid(True, linestyle='-.')
     if solver.data_loader.directories.make_dirs:
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_losses_" +\
             solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
-# Plotting histogram of the latent space's distribution, given the computed \mu and \sigma
+# Plotting histogram of the latent space's distribution, given the computed \mu(z) and \sigma(z)
 def plot_gaussian_distributions(solver, epochs):
     x = np.linspace(-5, 5, 5000)
     idx_x = 0
@@ -153,7 +156,7 @@ def plot_rl_kl(solver, rls, kls):
         plt.savefig(solver.data_loader.directories.result_dir + "/" + "plot_rl_kl_"\
             + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
-# Plot the latent space as scatter plot with and without labels
+# Plot the latent space as a scatter plot either with or without labels
 def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=None, colors=None, xticks=None, yticks=None, transpose=False):
     plt.figure(figsize=(9, 7))
     if labels is not None and title:
@@ -203,8 +206,7 @@ def plot_latent_space(solver, space, ticks=None, var=None, title=None, labels=No
         plt.savefig(solver.data_loader.directories.result_dir + "/plot_" + str(var) + "_space_" \
             + title + "_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim) + ".png")
 
-# For each of the values z, we plotted the corresponding generative
-# p(x|z) with the learned parameters θ.
+# For each of the values z, we plot the corresponding decoded x
 def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10, 10), x_t=None, label=None, zdata=None, center_rect=False):
     c, h, w = solver.data_loader.img_dims
     figure = torch.zeros((c, h*n, w*n))
@@ -309,7 +311,7 @@ def plot_with_fixed_z(solver, cm, fig_size=(6, 6)):
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
             "/plot_fixed_z_all_labels_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
-# takes only numpy array in, so mainly for testing puposes
+# Plots faces that are ground truth from the dataset
 def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
     c, h, w = solver.data_loader.img_dims
     n_rows = int(np.ceil(n / float(n_cols)))
@@ -340,7 +342,7 @@ def plot_faces_grid(n, n_cols, solver, fig_size=(10, 8)):
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
             "/plot_faces_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
-# plot sampled faces in a grid and saves to file
+# Plot sampled faces in a grid and saves to file
 def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
     c, h, w = solver.data_loader.img_dims
     n_rows = int(np.ceil(n/float(n_cols)))
@@ -364,6 +366,7 @@ def plot_faces_samples_grid(n, n_cols, solver, fig_size=(10, 8)):
         torchvision.utils.save_image(figure, solver.data_loader.directories.result_dir +\
             "/plot_faces_samples_grid_" + solver.data_loader.dataset + "_z=" + str(solver.model.z_dim)+".png")
 
+# For plotting images of e.g. mnist with affine transformations applied
 def plot_transformed_images(test_loader, batch_size, num_samples=25, nrows=5, theta=None, scale=None,\
     save_plot=False, file_name=None):
     num_samples = min(num_samples, batch_size)
@@ -414,15 +417,15 @@ def plot_y_space_scales(ys, ticks, labels, save_plot, file_name, dataset):
     if save_plot and file_name:
         plt.savefig(file_name)
 
-# Plot of each classes (theta, alpha)
+# Plot for (theta, alpha) relation
 def plot_prepro_alpha_params_distribution(ys, thetas, save_plot, file_name, dataset):
     N, S, T, _ = ys.shape
     # compute alphas
-    ysflat = np.reshape(ys, (N * S * T, 2))
-    y_mean = np.mean(ysflat, 0, keepdims=True)
-    alphas = np.arctan2(ysflat[:, 1] - y_mean[:, 1], ysflat[:, 0] - y_mean[:, 0])
+    ys = np.reshape(ys, (N * S * T, 2))
+    y_mean = np.mean(ys, 0, keepdims=True)
+    alphas = np.arctan2(ys[:, 1] - y_mean[:, 1], ys[:, 0] - y_mean[:, 0])
     alphas = np.reshape(alphas, (N * S, T))
-    # normalize alpha[0] = theta[0] = 0
+    # normalize such that alpha[0] = theta[0] = 0
     alphas -= alphas[:, 0:1]
     alphas = alphas/(2*np.pi) * 360 # convert from radian to euclidean angles
     alphas = np.where(alphas >= 0, alphas, alphas + 360) # put negative alphas into range again, otherwise keep them
@@ -440,7 +443,7 @@ def plot_prepro_alpha_params_distribution(ys, thetas, save_plot, file_name, data
     if save_plot and file_name:
         plt.savefig(file_name)
 
-# Plot for each class with (scale, radius) relation
+# Plot with (scale, radius) relation
 def plot_prepro_radius_params_distribution(ys, scales, save_plot, file_name, dataset):
     N, S, T, _ = ys.shape
     ysflat = np.reshape(ys, (N*S*T, 2))
@@ -463,6 +466,7 @@ def plot_prepro_radius_params_distribution(ys, scales, save_plot, file_name, dat
     if save_plot and file_name:
         plt.savefig(file_name)
 
+# used for plotting activations or kernel weights
 def plot_vis_tensor(tensor, nrow=8, padding=1, allkernels=False):
     N, C, W, H = tensor.shape
     if allkernels: tensor = tensor.view(N*C, -1, W, H)
@@ -491,10 +495,10 @@ def plot_lungscans_samples_grid(solver, decoder, x_t, x_next, z_dim, n=4, fig_si
     recon_diff = recon_diff.pow(2)
     rd2 = recon_diff * 100
     output = torch.cat([x_t[:num_samples],\
-                x_next[:num_samples],
-                x_decoded[:num_samples],
-                rd,
-                rd2])
+                        x_next[:num_samples],
+                        x_decoded[:num_samples],
+                        rd,
+                        rd2])
     grid_img = torchvision.utils.make_grid(output, nrow=n)
     plt.figure(figsize=fig_size)
     plt.axis("off")

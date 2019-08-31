@@ -1,3 +1,7 @@
+"""This module is for loading datasets, their processing and the PyTorch Dataloader.
+It is also used to obtain test data set during test inference.
+
+"""
 import torch
 import torchvision.datasets as datasets
 import torchvision.transforms as transforms
@@ -6,9 +10,23 @@ from datasets import DatasetFF, DatasetLFW, DatasetLungScans
 from transforms import Rotate, Scale, ScaleRotate
 from samplers import SingleDataPointSampler, ClassSampler
 
-# Set in model params thetas and scales to None and trigger default params for transofmraitons
-# To have only one of the modes do
 class DataLoader():
+    """This class is a wrapper for everything related to loading and preprocessing the data.
+    
+        Args:
+            directories: Directories class object.
+            batch_size: The number of elements in a batch
+            dataset: The dataset (as a string) to use corresponding to the list of the model function in model_params.py
+            thetas: For TDCVAE, the thetas range in use for affine transformations.
+            scales: For TDCVAE, the scales range in use for affine transformations.
+            resize: For resizing images of lung scans for TDCVAE2 model
+            crop: For cropping images of lung scans for TDCVAE2 model
+            folders: For lung scans loading of dataset
+        Note:
+            Set in model params thetas and scales to None and trigger default params for transformations.
+            To have only one of the modes, you have to insert the paremeters in the corresponding function
+            in model_params.py.
+    """
     def __init__(self, directories, batch_size, dataset, thetas=None, scales=None, resize=None, crop=None, folders=None):
         self.directories = directories
         self.data = None
@@ -19,7 +37,7 @@ class DataLoader():
         self.img_dims = None
         self.batch_size = batch_size
         self.dataset = dataset
-        # for temporal model
+        # for temporal model (TDCVAE)
         self.thetas = thetas
         self.scales = scales
         # for lungscans
@@ -107,10 +125,18 @@ class DataLoader():
         test_size = len(data) - train_size
         return torch.utils.data.random_split(data, [train_size, test_size])
 
-    # Even though we use tdcvae as model and pytorch transforms,
-    # we don't apply the transform like in training as we do this
-    # explicitly in preprocessing to save the parameters conveniently.
     def get_new_test_data_loader(self, sampler=None):
+        """Returns a dataloader with data from the test data set. If given a sampler
+        we use that for the dataloader.
+
+            Args:
+                sampler: A tuple that in [0] element has a string denoting which sampler to use.
+
+            Note:
+                When we use tdcvae as model and pytorch transforms,
+                we don't apply the transform like in training as we do this
+                explicitly in preprocessing to save the parameters conveniently.
+        """
         if self.dataset.lower() == "mnist":
             test_set = datasets.MNIST(root=self.root, train=False, transform=transforms.ToTensor(), download=True)
         elif self.dataset == "lungscans":
