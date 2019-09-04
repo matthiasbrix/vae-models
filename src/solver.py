@@ -19,6 +19,7 @@ from model_params import get_model_data_vae, get_model_data_cvae,\
     get_model_data_tdcvae, get_model_data_tdcvae2
 from directories import Directories
 from dataloader import DataLoader
+from sampling import vae_sampling, cvae_sampling, tdcvae_sampling, tdcvae2_sampling
 
 DEVICE = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
@@ -229,51 +230,40 @@ class Solver():
     def _sample(self, epoch):
         if not self.data_loader.directories.make_dirs:
             return
-        num_samples = self.num_samples
         with torch.no_grad():
             if self.cvae_mode:
-                z_sample = torch.randn(num_samples, self.model.z_dim)
-                idx = torch.randint(0, self.data_loader.n_classes, (1,)).item()
-                y_sample = torch.FloatTensor(torch.zeros(z_sample.size(0), self.data_loader.n_classes))
-                y_sample[:, idx] = 1.
-                sample = torch.cat((z_sample, y_sample), dim=-1).to(DEVICE)
+                sample = cvae_sampling(self.model.decoder, self.num_samples, self.data_loader.n_classes, self.model.z_dim)
             elif self.tdcvae_mode:
-                x_t = iter(self.data_loader.train_loader).next()[0][0]
-                x_t = x_t.view(-1, self.data_loader.input_dim)
-                num_samples = min(num_samples, x_t.size(0))
-                x_t = x_t[:num_samples]
-                z_sample = torch.randn(x_t.size(0), self.model.z_dim).to(DEVICE)
-                sample = torch.cat((x_t, z_sample), dim=-1).to(DEVICE)
+                sample = tdcvae_sampling(self.model.decoder, self.data_loader.train_loader, self.data_loader.input_dim,\
+                    self.num_samples, self.model.z_dim)
             elif self.tdcvae2_mode:
-                test_loader = self.data_loader.get_new_test_data_loader()
-                x_t, x_next = iter(test_loader).next()
-                num_samples = min(self.num_samples, x_t.size(0))
-                x_t = x_t[:self.num_samples]
-                z_sample = torch.randn(x_t.shape[0], self.model.z_dim, x_t.shape[2], x_t.shape[3])
-                sample = torch.cat((x_t, z_sample), dim=1).to(DEVICE)
-            else:
-                sample = torch.randn(num_samples, self.model.z_dim).to(DEVICE)
-            sample = self.model.decoder(sample)
-            num_samples = min(num_samples, sample.size(0))
-            if self.tdcvae2_mode:
-                recon_diff = sample[:num_samples] - x_next[:num_samples]
+                x_decoded, x_t, x_next = tdcvae2_sampling(self.model.decoder, self.data_loader.train_loader,\
+                    self.num_samples, self.model.z_dim)
+                num_samples = min(self.num_samples, sample.size(0))
+                recon_diff = x_decoded[:num_samples] - x_next[:num_samples]
                 print("Sampling norm(sample, ground truth): {}".format(torch.norm(recon_diff)))
-                recon_diff = recon_diff.pow(2).view(sample.size(0), *self.data_loader.img_dims)
+                recon_diff = recon_diff.pow(2)
                 rd = recon_diff * 100
-                sample = torch.cat([x_t.view(x_t.size(0), *self.data_loader.img_dims)[:num_samples],\
-                                    x_next.view(x_next.size(0), *self.data_loader.img_dims)[:num_samples],
-                                    sample.view(sample.size(0), *self.data_loader.img_dims)[:num_samples],
-                                    recon_diff[:num_samples],
-                                    rd])
+                recon_diff = x_next[:num_samples] - x_t[:num_samples]
+                recon_diff = recon_diff.pow(2)
+                rd2 = recon_diff * 100
+                output = torch.cat([x_t[:num_samples],\
+                                    x_next[:num_samples],
+                                    x_decoded[:num_samples],
+                                    rd,
+                                    rd2])
                 timestamps = self.data_loader.data.timestamps
-                torchvision.utils.save_image(sample,\
+                torchvision.utils.save_image(output,\
                     self.data_loader.directories.result_dir + "/generated_sample_" + str(epoch) + "_t=["\
                     + ",".join(str(x) for x in timestamps[:num_samples]) + "]_z=" +\
                     str(self.model.z_dim) + ".png", nrow=self.num_samples)
+                return
             else:
-                torchvision.utils.save_image(sample.view(num_samples, *self.data_loader.img_dims),\
-                    self.data_loader.directories.result_dir + "/generated_sample_" + str(epoch)\
-                    + "_z=" + str(self.model.z_dim) + ".png", nrow=10)
+                sample = vae_sampling(self.model.decoder, self.num_samples, self.model.z_dim)
+            num_samples = min(self.num_samples, sample.size(0))
+            torchvision.utils.save_image(sample.view(num_samples, *self.data_loader.img_dims),\
+                self.data_loader.directories.result_dir + "/generated_sample_" + str(epoch)\
+                + "_z=" + str(self.model.z_dim) + ".png", nrow=10)
 
     # save the model parameters to a txt file in the output folder
     def _save_model_params_to_file(self):
