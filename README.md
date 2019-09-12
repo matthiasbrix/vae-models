@@ -5,7 +5,7 @@ This repository is an implementation of methods in the frame work of variational
 1. Vanilla VAE.
 2. Conditional VAE.
 3. A temporal model that can predict images at a timestamp `t+1` given an image a at timestamp `t` (denoted as TDCVAE).
-4. Like 3, but for lung scans (denoted as TDCVAE2).
+4. Like 3, but a CNN model for lung scans data (denoted as TDCVAE2).
 
 # Getting started
 
