@@ -18,9 +18,9 @@ def cvae_sampling(decoder, num_samples, n_classes, z_dim):
         decoded = decoder(sample)
         return decoded
 
-def tdcvae_sampling(decoder, loader, input_dim, num_samples, z_dim):
+def tdcvae_sampling(decoder, test_set_loader, input_dim, num_samples, z_dim):
     with torch.no_grad():
-        x_t = iter(loader).next()[0][0]
+        x_t = iter(test_set_loader).next()[0][0]
         x_t = x_t.view(-1, input_dim)
         num_samples = min(num_samples, x_t.size(0))
         x_t = x_t[:num_samples]
@@ -29,9 +29,9 @@ def tdcvae_sampling(decoder, loader, input_dim, num_samples, z_dim):
         decoded = decoder(sample)
         return decoded
     
-def tdcvae2_sampling(decoder, loader, num_samples, z_dim):
+def tdcvae2_sampling(decoder, test_set_loader, num_samples, z_dim):
     with torch.no_grad():
-        x_t, x_next = iter(loader).next()
+        x_t, x_next = iter(test_set_loader).next()
         num_samples = min(num_samples, x_t.size(0))
         x_t = x_t[:num_samples]
         z_sample = torch.randn(x_t.shape[0], z_dim, x_t.shape[2], x_t.shape[3])

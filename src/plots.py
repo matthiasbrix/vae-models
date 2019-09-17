@@ -256,11 +256,14 @@ def plot_latent_manifold(decoder, solver, cm, grid_x, grid_y, n=20, fig_size=(10
     if zdata is not None and grid_x is not None and grid_y is not None:
         scatter = np.zeros_like(zdata[0])
         for i in range(zdata[0].shape[0]):
-            x = remap_range(zdata[0][i, 0], min(grid_x[0], np.min(zdata[0][:, 0])), max(grid_x[-1], np.max(zdata[0][:, 0])), 0, n*28)
-            y = remap_range(zdata[0][i, 1], min(grid_y[0], np.min(zdata[0][:, 1])), max(grid_y[-1], np.max(zdata[0][:, 1])), 0, n*28)
+            if zdata[-1] == "scales":
+                x = remap_range(zdata[0][i, 1], min(grid_y[0], np.min(zdata[0][:, 1])), max(grid_y[-1], np.max(zdata[0][:, 1])), 28, n*28)
+                y = remap_range(zdata[0][i, 0], min(grid_x[0], np.min(zdata[0][:, 0])), max(grid_x[-1], np.max(zdata[0][:, 0])), 0, n*28)
+            else:
+                x = remap_range(zdata[0][i, 0], min(grid_x[0], np.min(zdata[0][:, 0])), max(grid_x[-1], np.max(zdata[0][:, 0])), 28, n*28)
+                y = remap_range(zdata[0][i, 1], min(grid_y[0], np.min(zdata[0][:, 1])), max(grid_y[-1], np.max(zdata[0][:, 1])), 0, n*28)
             scatter[i] = x, y
-        plt.scatter(scatter[:, 1], scatter[:, 0], s=50, c=zdata[1], cmap=plt.cm.get_cmap("Paired", zdata[2]), zorder=2)
-   
+        plt.scatter(scatter[:, 1], scatter[:, 0], s=20, c=zdata[1], cmap=plt.cm.get_cmap("Paired", zdata[2]), zorder=2)
     grid_img = torchvision.utils.make_grid(torch.FloatTensor(figure))
     plt.imshow(grid_img.permute(1, 2, 0), cmap=cm, zorder=1)
     plt.show()
