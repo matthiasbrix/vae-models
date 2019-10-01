@@ -1,9 +1,9 @@
-# Temporal models in Variational Autoencoders
+# Variational Autoencoders models
 
-This repository is an implementation of methods in the frame work of variational autoencoders (VAEs). It has implementations of 
+This repository is an implementation of methods in the framework of variational autoencoders (VAEs), especially temporal models. It has implementations of
 
-1. Vanilla VAE.
-2. Conditional VAE.
+1. Vanilla VAE (VAE).
+2. Conditional VAE (CVAE).
 3. A temporal model that can predict images at a timestamp `t+1` given an image a at timestamp `t` (denoted as TDCVAE).
 4. Like 3, but a CNN model for lung scans data (denoted as TDCVAE2).
 
