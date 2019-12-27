@@ -29,7 +29,7 @@ In order to run the model `TDCVAE2`, a dataset of lung scans is required, but th
 
 ## Training a model
 
-Talk also about that model parameters are centrally modified in the modelparams file. See in the file also the allowed data sets of each model.
+The parameters for the models are uniquely set in the file `model_params.py`. Please see in the file the allowed data sets of each model (or the jupyter notebooks).
 
 Train models either in the jupyter notebooks or the command line in a terminal. For command line, the arguments are below:
 ```
